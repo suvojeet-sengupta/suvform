@@ -4,7 +4,13 @@
       "PowerShell(Remove-Item 'F:\\\\SuvForm\\\\app\\\\src\\\\main\\\\java\\\\com\\\\suvojeet' -Recurse -Force -Confirm:$false)",
       "PowerShell(Remove-Item 'F:\\\\SuvForm\\\\app\\\\src\\\\test\\\\java\\\\com\\\\suvojeet' -Recurse -Force -Confirm:$false)",
       "PowerShell(Remove-Item 'F:\\\\SuvForm\\\\app\\\\src\\\\androidTest\\\\java\\\\com\\\\suvojeet' -Recurse -Force -Confirm:$false)",
-      "PowerShell(\"deleted\")"
+      "PowerShell(\"deleted\")",
+      "Bash(curl -s \"https://search.maven.org/solrsearch/select?q=g:com.google.devtools.ksp+AND+a:com.google.devtools.ksp.gradle.plugin&core=gav&rows=30&wt=json\")",
+      "Bash(python -c ' *)",
+      "Bash(curl -s \"https://dl.google.com/dl/android/maven2/com/android/tools/build/gradle/maven-metadata.xml\")",
+      "Bash(curl -s \"https://dl.google.com/dl/android/maven2/androidx/compose/compose-bom/maven-metadata.xml\")",
+      "Bash(curl -s \"https://repo1.maven.org/maven2/com/google/dagger/hilt-android/maven-metadata.xml\")",
+      "Bash(curl -s \"https://dl.google.com/dl/android/maven2/com/google/firebase/firebase-bom/maven-metadata.xml\")"
     ]
   }
 }
