@@ -26,13 +26,13 @@ F:\SuvForm\
 | API & DB | Cloudflare Workers (Hono, TypeScript) + Cloudflare D1 (SQLite) |
 | AI | Gemini 2.0 Flash via secure Worker proxy (free tier ~1500 req/day) |
 | Public forms | Cloudflare Pages (Next.js 15, Tailwind) |
-| Build | Gradle 9.3, AGP 9.2.0, Java 21, KSP 2 |
+| Build | Gradle 9.5.1, AGP 9.2.0, Java 17, KSP |
 
 ## Local setup
 
 ### Prerequisites
 
-- JDK 21 (Temurin recommended)
+- JDK 17 (Temurin recommended)
 - Android Studio 2026.1+ (Iguana or later) — for an IDE; not required for command-line builds
 - Node.js 20+ (for `worker/` and `web/`)
 - `wrangler` CLI: `npm i -g wrangler`
@@ -60,7 +60,7 @@ The debug build does NOT require any keystore — it falls back to the auto-gene
 
 `.github/workflows/android-release.yml` runs on every push to `main`:
 
-1. Sets up JDK 21 + Gradle cache
+1. Sets up JDK 17 + Gradle cache
 2. Decodes the keystore + `google-services.json` from GitHub Secrets
 3. Builds a signed `app-release.apk` and `app-release.aab`
 4. Creates a GitHub Release tagged `v1.0.<run_number>` with both artifacts attached
