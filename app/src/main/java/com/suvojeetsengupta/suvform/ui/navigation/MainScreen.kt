@@ -1,5 +1,6 @@
 package com.suvojeetsengupta.suvform.ui.navigation
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -43,9 +44,6 @@ sealed class BottomNavDestination(
         Routes.Settings, "Profile", Icons.Filled.Person, Icons.Outlined.Person
     )
 }
-
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.material3.Scaffold
 
 @Composable
 fun MainScreen(
