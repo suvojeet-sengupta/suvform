@@ -3,6 +3,13 @@ main = "src/index.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
 
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = false
+invocation_logs = true
+
 # D1 database binding — create with:
 #   npx wrangler d1 create suvform-db
 # Then paste the database_id below.
