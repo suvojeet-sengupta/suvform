@@ -4,11 +4,11 @@ agp = "9.2.0"
 kotlin = "2.3.21"
 ksp = "2.3.8"
 # AndroidX core
-coreKtx = "1.20.0"
-appcompat = "1.8.0"
+core-ktx = "1.19.0-rc01"
+appcompat = "1.7.1"
 activityCompose = "1.13.0"
 lifecycle = "2.10.0"
-navigationCompose = "2.10.0"
+navigationCompose = "2.9.8"
 datastore = "1.2.0"
 splashscreen = "1.2.0"
 workRuntime = "2.11.0"
@@ -32,7 +32,7 @@ coroutines = "1.10.1"
 # Coil (image loading) — 3.x has multiplatform-ready Compose support
 coil = "3.2.0"
 # Firebase
-firebaseBom = "34.0.0"
+firebasebom = "33.5.1"
 playServicesAuth = "21.4.0"
 googleServicesPlugin = "4.4.4"
 # Charts (Week 4)
