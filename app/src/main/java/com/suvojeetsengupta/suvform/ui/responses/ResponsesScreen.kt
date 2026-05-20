@@ -79,8 +79,12 @@ fun ResponsesScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    BackHandler(enabled = state.formsToSelect.isEmpty() && state.responses.isNotEmpty()) {
-        viewModel.clearSelection()
+    BackHandler(enabled = true) {
+        if (state.formsToSelect.isEmpty() && state.responses.isNotEmpty()) {
+            viewModel.clearSelection()
+        } else {
+            onBack()
+        }
     }
 
     val showInsights = state.insightsSummary != null || state.loadingInsights || state.insightsError != null

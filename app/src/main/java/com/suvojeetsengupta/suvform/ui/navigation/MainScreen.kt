@@ -147,35 +147,45 @@ fun MainScreen(
             
             navigation(startDestination = Routes.Responses, route = "responses_flow") {
                 composable(Routes.Responses) {
-                    ResponsesScreen(
-                        onBack = {
-                            navController.navigate("home_tab") {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                    val parentEntry = remember(it) {
+                        runCatching { navController.getBackStackEntry("responses_flow") }.getOrNull()
+                    }
+                    if (parentEntry != null) {
+                        val viewModel: ResponsesViewModel = hiltViewModel(parentEntry)
+                        ResponsesScreen(
+                            onBack = {
+                                navController.navigate("home_tab") {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        onViewDetail = {
-                            navController.navigate(Routes.ResponseDetail)
-                        }
-                    )
+                            },
+                            onViewDetail = {
+                                navController.navigate(Routes.ResponseDetail)
+                            },
+                            viewModel = viewModel
+                        )
+                    }
                 }
                 composable(Routes.ResponseDetail) {
-                    val responsesVm: ResponsesViewModel = hiltViewModel(
-                        navController.getBackStackEntry("responses_flow")
-                    )
-                    val state by responsesVm.state.collectAsStateWithLifecycle()
-                    val resp = state.selectedResponse
-                    if (resp != null) {
-                        ResponseDetailScreen(
-                            response = resp,
-                            fields = state.fields,
-                            onBack = { navController.popBackStack() }
-                        )
-                    } else {
-                        navController.popBackStack()
+                    val parentEntry = remember(it) {
+                        runCatching { navController.getBackStackEntry("responses_flow") }.getOrNull()
+                    }
+                    if (parentEntry != null) {
+                        val responsesVm: ResponsesViewModel = hiltViewModel(parentEntry)
+                        val state by responsesVm.state.collectAsStateWithLifecycle()
+                        val resp = state.selectedResponse
+                        if (resp != null) {
+                            ResponseDetailScreen(
+                                response = resp,
+                                fields = state.fields,
+                                onBack = { navController.popBackStack() }
+                            )
+                        } else {
+                            navController.popBackStack()
+                        }
                     }
                 }
             }
