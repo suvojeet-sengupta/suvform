@@ -39,7 +39,7 @@ android {
         buildConfigField("String", "API_BASE_URL",
             "\"${localOrEnv("SUVFORM_API_BASE_URL", "https://suvform-api.workers.dev")}\"")
         buildConfigField("String", "PUBLIC_FORM_BASE_URL",
-            "\"${localOrEnv("SUVFORM_PUBLIC_FORM_BASE_URL", "https://forms.suvojeetsengupta.in")}\"")
+            "\"${localOrEnv("SUVFORM_PUBLIC_FORM_BASE_URL", "https://suvforms.suvojeetsengupta.in")}\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID",
             "\"${localOrEnv("GOOGLE_WEB_CLIENT_ID")}\"")
     }

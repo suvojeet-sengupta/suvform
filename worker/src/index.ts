@@ -268,7 +268,7 @@ app.post("/v1/forms/:id/publish", async (c) => {
     .bind(slug, now, id)
     .run();
   
-  const publicBaseUrl = "https://forms.suvojeetsengupta.in";
+  const publicBaseUrl = "https://suvforms.suvojeetsengupta.in";
   const shareUrl = `${publicBaseUrl}/f/${slug}`;
   return c.json({ slug, url: shareUrl, published: 1 });
 });
