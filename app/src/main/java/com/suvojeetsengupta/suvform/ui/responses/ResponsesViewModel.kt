@@ -33,7 +33,10 @@ class ResponsesViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        ResponsesUiState(formTitle = selectedForm.formTitle ?: "Responses"),
+        ResponsesUiState(
+            formTitle = selectedForm.formTitle ?: "Responses",
+            selectedFormId = selectedForm.formId
+        ),
     )
     val state: StateFlow<ResponsesUiState> = _state.asStateFlow()
 
@@ -55,7 +58,14 @@ class ResponsesViewModel @Inject constructor(
     fun selectForm(formId: String, title: String) {
         selectedForm.formId = formId
         selectedForm.formTitle = title
-        _state.update { it.copy(formTitle = title, responses = emptyList(), error = null) }
+        _state.update {
+            it.copy(
+                formTitle = title,
+                responses = emptyList(),
+                error = null,
+                selectedFormId = formId
+            )
+        }
         
         // Start observing this form's responses from cache
         viewModelScope.launch {
@@ -75,7 +85,8 @@ class ResponsesViewModel @Inject constructor(
                 formTitle = "Responses",
                 responses = emptyList(),
                 formsToSelect = emptyList(),
-                selectedResponse = null
+                selectedResponse = null,
+                selectedFormId = null
             )
         }
         refresh()
@@ -217,4 +228,5 @@ data class ResponsesUiState(
     val insightsSummary: String? = null,
     val insightsError: String? = null,
     val selectedResponse: ResponseItemDto? = null,
+    val selectedFormId: String? = null,
 )

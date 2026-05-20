@@ -80,7 +80,7 @@ fun ResponsesScreen(
     val context = LocalContext.current
 
     BackHandler(enabled = true) {
-        if (state.formsToSelect.isEmpty() && state.responses.isNotEmpty()) {
+        if (state.selectedFormId != null) {
             viewModel.clearSelection()
         } else {
             onBack()
@@ -108,7 +108,7 @@ fun ResponsesScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = {
-                        if (state.formsToSelect.isEmpty() && state.responses.isNotEmpty()) {
+                        if (state.selectedFormId != null) {
                             viewModel.clearSelection()
                         } else {
                             onBack()
