@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -6,6 +8,17 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
 }
+
+// Read local.properties (gitignored) for per-developer / per-machine config like API URL & Web Client ID.
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun localOrEnv(key: String, default: String = ""): String =
+    (localProps.getProperty(key)
+        ?: project.findProperty(key) as String?
+        ?: System.getenv(key)
+        ?: default)
 
 android {
     namespace = "com.suvojeetsengupta.suvform"
@@ -21,6 +34,12 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+
+        // Reads in order: local.properties → -P flag → env var → fallback. Nothing ships in git.
+        buildConfigField("String", "API_BASE_URL",
+            "\"${localOrEnv("SUVFORM_API_BASE_URL", "https://suvform-api.workers.dev")}\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID",
+            "\"${localOrEnv("GOOGLE_WEB_CLIENT_ID")}\"")
     }
 
     signingConfigs {
@@ -145,6 +164,11 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.analytics)
     implementation(libs.play.services.auth)
+
+    // Credential Manager (modern Google Sign-In API — replaces deprecated GoogleSignInClient)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.google.id)
 
     // Charts (Week 4)
     implementation(libs.vico.compose.m3)
