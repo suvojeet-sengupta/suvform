@@ -32,13 +32,29 @@ class ResponsesViewModel @Inject constructor(
 
     init { refresh() }
 
+    fun selectForm(formId: String, title: String) {
+        selectedForm.formId = formId
+        selectedForm.formTitle = title
+        _state.update { it.copy(formTitle = title, responses = emptyList(), error = null) }
+        refresh()
+    }
+
+    fun clearSelection() {
+        selectedForm.formId = null
+        selectedForm.formTitle = null
+        _state.update { it.copy(formTitle = "Responses", responses = emptyList(), formsToSelect = emptyList()) }
+        refresh()
+    }
+
     fun refresh() {
-        val id = selectedForm.formId ?: run {
-            _state.update { it.copy(error = "No form selected") }
+        val id = selectedForm.formId
+        if (id == null) {
+            loadFormList()
             return
         }
+
         if (_state.value.loading) return
-        _state.update { it.copy(loading = true, error = null) }
+        _state.update { it.copy(loading = true, error = null, formsToSelect = emptyList()) }
         viewModelScope.launch {
             // Load form (for schema) + responses in parallel-ish.
             val formResult = runCatching { api.getForm(id) }
@@ -57,6 +73,21 @@ class ResponsesViewModel @Inject constructor(
                 .onFailure { e ->
                     val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
                     _state.update { it.copy(loading = false, error = msg ?: "Failed to load") }
+                }
+        }
+    }
+
+    private fun loadFormList() {
+        if (_state.value.loading) return
+        _state.update { it.copy(loading = true, error = null) }
+        viewModelScope.launch {
+            runCatching { api.listForms() }
+                .onSuccess { resp ->
+                    _state.update { it.copy(loading = false, formsToSelect = resp.forms) }
+                }
+                .onFailure { e ->
+                    val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
+                    _state.update { it.copy(loading = false, error = msg ?: "Failed to load forms") }
                 }
         }
     }
@@ -133,6 +164,7 @@ data class ResponsesUiState(
     val loading: Boolean = false,
     val exporting: Boolean = false,
     val responses: List<ResponseItemDto> = emptyList(),
+    val formsToSelect: List<com.suvojeetsengupta.suvform.data.remote.FormSummaryDto> = emptyList(),
     val error: String? = null,
     val loadingInsights: Boolean = false,
     val insightsSummary: String? = null,

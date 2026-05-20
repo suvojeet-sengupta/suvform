@@ -34,22 +34,21 @@ fun AppNavHost(initiallySignedIn: Boolean) {
         initialValue = if (initiallySignedIn) FirebaseAuthState.SignedIn("") else FirebaseAuthState.SignedOut,
     )
 
-    val startDestination = if (authState is FirebaseAuthState.SignedIn) Routes.Home else Routes.SignIn
+    val startDestination = if (authState is FirebaseAuthState.SignedIn) Routes.Main else Routes.SignIn
 
     NavHost(navController = nav, startDestination = startDestination) {
         composable(Routes.SignIn) {
             SignInScreen(onSignedIn = {
-                nav.navigate(Routes.Home) { popUpTo(Routes.SignIn) { inclusive = true } }
+                nav.navigate(Routes.Main) { popUpTo(Routes.SignIn) { inclusive = true } }
             })
         }
-        composable(Routes.Home) {
-            HomeScreen(
+        composable(Routes.Main) {
+            MainScreen(
                 onSignedOut = {
-                    nav.navigate(Routes.SignIn) { popUpTo(Routes.Home) { inclusive = true } }
+                    nav.navigate(Routes.SignIn) { popUpTo(Routes.Main) { inclusive = true } }
                 },
                 onCreateForm = { nav.navigate(Routes.Create) },
                 onOpenForm = { nav.navigate(Routes.Editor) },
-                onViewResponses = { nav.navigate(Routes.Responses) },
             )
         }
         composable(Routes.Create) {
@@ -57,7 +56,6 @@ fun AppNavHost(initiallySignedIn: Boolean) {
                 onBack = { nav.popBackStack() },
                 onOpenEditor = {
                     nav.navigate(Routes.Editor) {
-                        // Replace Create in back stack — back from Editor goes Home.
                         popUpTo(Routes.Create) { inclusive = true }
                     }
                 },
@@ -67,15 +65,11 @@ fun AppNavHost(initiallySignedIn: Boolean) {
             EditorScreen(
                 onBack = { nav.popBackStack() },
                 onPreview = { nav.navigate(Routes.Preview) },
-                // Stay on Editor after save so user can also Publish & share.
                 onSaved = {},
             )
         }
         composable(Routes.Preview) {
             PreviewScreen(onBack = { nav.popBackStack() })
-        }
-        composable(Routes.Responses) {
-            ResponsesScreen(onBack = { nav.popBackStack() })
         }
     }
 }

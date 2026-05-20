@@ -58,10 +58,19 @@ class HomeViewModel @Inject constructor(
         }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState(loading = true))
     }
 
-    init { refresh() }
+    private var lastSyncTime = 0L
 
-    fun refresh() {
+    init { refresh(force = false) }
+
+    fun refresh(force: Boolean = true) {
         if (_meta.value.loading) return
+        
+        val now = System.currentTimeMillis()
+        if (!force && now - lastSyncTime < 5 * 60 * 1000) {
+            // Already synced recently.
+            return
+        }
+
         _meta.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             runCatching { api.listForms() }
@@ -70,6 +79,7 @@ class HomeViewModel @Inject constructor(
                     if (uid != null) {
                         formDao.replaceForOwner(uid, resp.forms.map { FormSummaryEntity.fromDto(uid, it) })
                     }
+                    lastSyncTime = System.currentTimeMillis()
                     _meta.update { it.copy(loading = false, offline = false) }
                 }
                 .onFailure { e ->

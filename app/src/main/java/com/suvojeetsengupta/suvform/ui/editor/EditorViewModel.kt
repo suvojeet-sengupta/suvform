@@ -87,7 +87,7 @@ class EditorViewModel @Inject constructor(
     }
 
     // ---- Save ----
-    fun save() {
+    fun save(onSuccess: (() -> Unit)? = null) {
         if (_save.value.saving) return
         val d = store.draft.value
         if (d.fields.isEmpty()) {
@@ -112,6 +112,7 @@ class EditorViewModel @Inject constructor(
                 .onSuccess { detail ->
                     if (detail != null) store.update { it.copy(remoteId = detail.id) }
                     _save.value = SaveUiState(saved = true)
+                    onSuccess?.invoke()
                 }
                 .onFailure { e ->
                     val msg = when (e) {
@@ -123,6 +124,12 @@ class EditorViewModel @Inject constructor(
                     }
                     _save.value = SaveUiState(error = msg)
                 }
+        }
+    }
+
+    fun saveAndPublish() {
+        save {
+            publish()
         }
     }
 

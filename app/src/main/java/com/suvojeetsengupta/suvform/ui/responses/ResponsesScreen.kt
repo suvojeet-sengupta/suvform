@@ -54,6 +54,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.suvojeetsengupta.suvform.data.remote.ResponseItemDto
@@ -78,6 +80,7 @@ fun ResponsesScreen(
     var insightsOpen by remember { mutableStateOf(false) }
     if (showInsights && !insightsOpen) insightsOpen = true
     var exportMenuOpen by remember { mutableStateOf(false) }
+    val refreshState = rememberPullToRefreshState()
 
     Scaffold(
         topBar = {
@@ -93,14 +96,17 @@ fun ResponsesScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        if (state.formsToSelect.isEmpty() && state.responses.isNotEmpty()) {
+                            viewModel.clearSelection()
+                        } else {
+                            onBack()
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Filled.Refresh, "Refresh")
-                    }
                     Box {
                         IconButton(
                             onClick = { exportMenuOpen = true },
@@ -144,22 +150,32 @@ fun ResponsesScreen(
             )
         },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            if (state.loading && state.responses.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+        PullToRefreshBox(
+            isRefreshing = state.loading,
+            onRefresh = { viewModel.refresh() },
+            state = refreshState,
+            modifier = Modifier.fillMaxSize().padding(padding)
+        ) {
+            when {
+                state.formsToSelect.isNotEmpty() -> {
+                    FormSelectionList(
+                        forms = state.formsToSelect,
+                        onSelect = { viewModel.selectForm(it.id, it.title) }
+                    )
                 }
-            } else if (state.responses.isEmpty()) {
-                EmptyResponses(modifier = Modifier.fillMaxSize())
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    item { InsightsCallout(onClick = { viewModel.loadInsights() }) }
-                    items(state.responses, key = { it.id }) { resp ->
-                        ResponseCard(resp)
+                state.responses.isEmpty() && !state.loading -> {
+                    EmptyResponses(modifier = Modifier.fillMaxSize())
+                }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        item { InsightsCallout(onClick = { viewModel.loadInsights() }) }
+                        items(state.responses, key = { it.id }) { resp ->
+                            ResponseCard(resp)
+                        }
                     }
                 }
             }
@@ -367,5 +383,52 @@ private fun EmptyResponses(modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+    }
+}
+
+@Composable
+private fun FormSelectionList(
+    forms: List<com.suvojeetsengupta.suvform.data.remote.FormSummaryDto>,
+    onSelect: (com.suvojeetsengupta.suvform.data.remote.FormSummaryDto) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text(
+                "Select a form to view responses",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+        items(forms, key = { it.id }) { form ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                onClick = { onSelect(form) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.Inbox,
+                        null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Text(
+                        form.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
     }
 }

@@ -141,7 +141,11 @@ fun EditorScreen(
                 published = draft.published,
                 hasRemoteId = draft.remoteId != null,
                 shareUrl = draft.shareUrl,
-                onPublish = { viewModel.publish() },
+                saving = saveState.saving,
+                onPublish = {
+                    if (draft.remoteId == null) viewModel.saveAndPublish()
+                    else viewModel.publish()
+                },
                 onUnpublish = { viewModel.unpublish() },
                 onCopy = {
                     draft.shareUrl?.let {
@@ -425,6 +429,7 @@ private fun PublishBar(
     published: Boolean,
     hasRemoteId: Boolean,
     shareUrl: String?,
+    saving: Boolean,
     onPublish: () -> Unit,
     onUnpublish: () -> Unit,
     onCopy: () -> Unit,
@@ -432,44 +437,60 @@ private fun PublishBar(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        tonalElevation = 3.dp,
+        tonalElevation = 8.dp,
+        shadowElevation = 8.dp,
     ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             if (published && shareUrl != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "Live link",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            "Form is live",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
                         )
                         Text(
                             shareUrl,
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            fontWeight = FontWeight.Medium,
                         )
                     }
-                    androidx.compose.material3.OutlinedButton(onClick = onCopy) { Text("Copy") }
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = onCopy,
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("Copy") }
                     Spacer(Modifier.width(8.dp))
-                    androidx.compose.material3.FilledTonalButton(onClick = onShare) { Text("Share") }
+                    androidx.compose.material3.Button(
+                        onClick = onShare,
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("Share") }
                 }
-                Spacer(Modifier.height(8.dp))
-                Row {
-                    androidx.compose.material3.TextButton(onClick = onUnpublish) {
-                        Text("Unpublish", color = MaterialTheme.colorScheme.error)
-                    }
+                androidx.compose.material3.TextButton(
+                    onClick = onUnpublish,
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Text("Unpublish", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
                 }
             } else {
-                androidx.compose.material3.FilledTonalButton(
+                androidx.compose.material3.Button(
                     onClick = onPublish,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = hasRemoteId,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    enabled = !saving,
+                    shape = RoundedCornerShape(16.dp)
                 ) {
+                    if (saving) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(Modifier.width(12.dp))
+                    }
                     Text(
-                        if (hasRemoteId) "Publish & share" else "Save first to publish",
-                        fontWeight = FontWeight.SemiBold,
+                        if (hasRemoteId) "Publish now" else "Save & Publish",
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             }

@@ -63,6 +63,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -72,32 +75,12 @@ fun HomeScreen(
     onViewResponses: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var showSignOutDialog by remember { mutableStateOf(false) }
     var showDeleteId by remember { mutableStateOf<String?>(null) }
+    val refreshState = rememberPullToRefreshState()
 
-    // Refresh whenever we return to this screen.
-    LaunchedEffect(Unit) { viewModel.refresh() }
-
-    if (showSignOutDialog) {
-        AlertDialog(
-            onDismissRequest = { showSignOutDialog = false },
-            title = { Text("Sign out?") },
-            text = { Text("You'll need to sign in again to access your forms.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showSignOutDialog = false
-                    viewModel.signOut(context) { onSignedOut() }
-                }) {
-                    Text("Sign out", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") }
-            },
-        )
-    }
+    // Refresh whenever we return to this screen (but only if stale).
+    LaunchedEffect(Unit) { viewModel.refresh(force = false) }
 
     showDeleteId?.let { id ->
         AlertDialog(
@@ -123,14 +106,6 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = { Text("SuvForm", fontWeight = FontWeight.Bold) },
-                actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Filled.Refresh, "Refresh")
-                    }
-                    IconButton(onClick = { showSignOutDialog = true }) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, "Sign out")
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                 ),
@@ -144,40 +119,38 @@ fun HomeScreen(
             )
         },
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        PullToRefreshBox(
+            isRefreshing = state.loading,
+            onRefresh = { viewModel.refresh(force = true) },
+            state = refreshState,
+            modifier = Modifier.padding(padding)
         ) {
-            item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 4.dp),
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "Your forms",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        if (state.forms.isNotEmpty()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 4.dp),
+                    ) {
+                        Column(Modifier.weight(1f)) {
                             Text(
-                                "${state.forms.size} ${if (state.forms.size == 1) "form" else "forms"}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                "Your forms",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
                             )
+                            if (state.forms.isNotEmpty()) {
+                                Text(
+                                    "${state.forms.size} ${if (state.forms.size == 1) "form" else "forms"}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
-                    if (state.loading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    }
                 }
-            }
 
             if (state.offline) {
                 item {
@@ -240,6 +213,7 @@ fun HomeScreen(
             }
 
             item { Spacer(Modifier.height(80.dp)) } // breathing room above FAB
+            }
         }
     }
 }
