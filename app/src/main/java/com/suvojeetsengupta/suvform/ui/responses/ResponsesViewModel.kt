@@ -4,15 +4,21 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.suvojeetsengupta.suvform.data.draft.SelectedFormStore
+import com.suvojeetsengupta.suvform.data.local.ResponseDao
+import com.suvojeetsengupta.suvform.data.local.ResponseEntity
 import com.suvojeetsengupta.suvform.data.remote.FieldDto
 import com.suvojeetsengupta.suvform.data.remote.ResponseItemDto
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
 import com.suvojeetsengupta.suvform.util.ResponseExport
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -23,6 +29,7 @@ import javax.inject.Inject
 class ResponsesViewModel @Inject constructor(
     private val api: SuvFormApi,
     private val selectedForm: SelectedFormStore,
+    private val responseDao: ResponseDao,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
@@ -30,12 +37,33 @@ class ResponsesViewModel @Inject constructor(
     )
     val state: StateFlow<ResponsesUiState> = _state.asStateFlow()
 
-    init { refresh() }
+    init {
+        val initialId = selectedForm.formId
+        if (initialId != null) {
+            viewModelScope.launch {
+                responseDao.observeForForm(initialId).collectLatest { entities ->
+                    _state.update { it.copy(responses = entities.map { e -> e.toDto() }) }
+                }
+            }
+        }
+        refresh()
+    }
+
+    private fun observeResponses() {
+    }
 
     fun selectForm(formId: String, title: String) {
         selectedForm.formId = formId
         selectedForm.formTitle = title
         _state.update { it.copy(formTitle = title, responses = emptyList(), error = null) }
+        
+        // Start observing this form's responses from cache
+        viewModelScope.launch {
+            responseDao.observeForForm(formId).collectLatest { entities ->
+                _state.update { it.copy(responses = entities.map { e -> e.toDto() }) }
+            }
+        }
+        
         refresh()
     }
 
@@ -56,15 +84,23 @@ class ResponsesViewModel @Inject constructor(
         if (_state.value.loading) return
         _state.update { it.copy(loading = true, error = null, formsToSelect = emptyList()) }
         viewModelScope.launch {
-            // Load form (for schema) + responses in parallel-ish.
+            // Initial load from cache if not already observing
+            val cached = withContext(Dispatchers.IO) {
+                responseDao.observeForForm(id)
+            }
+            // Actually, the selectForm handles the observation. 
+            // If we just opened the app, we might need to start observing.
+            
             val formResult = runCatching { api.getForm(id) }
             val respResult = runCatching { api.listResponses(id) }
             respResult
                 .onSuccess { resp ->
+                    // Update cache
+                    responseDao.replaceForForm(id, resp.responses.map { ResponseEntity.fromDto(id, it) })
+                    
                     _state.update {
                         it.copy(
                             loading = false,
-                            responses = resp.responses,
                             fields = formResult.getOrNull()?.fields ?: it.fields,
                             formTitle = formResult.getOrNull()?.title ?: it.formTitle,
                         )

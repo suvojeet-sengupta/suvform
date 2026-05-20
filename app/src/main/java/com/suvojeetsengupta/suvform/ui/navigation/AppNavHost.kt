@@ -1,5 +1,9 @@
 package com.suvojeetsengupta.suvform.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -36,8 +40,17 @@ fun AppNavHost(initiallySignedIn: Boolean) {
 
     val startDestination = if (authState is FirebaseAuthState.SignedIn) Routes.Main else Routes.SignIn
 
-    NavHost(navController = nav, startDestination = startDestination) {
-        composable(Routes.SignIn) {
+    NavHost(
+        navController = nav,
+        startDestination = startDestination,
+        enterTransition = {
+            fadeIn(animationSpec = tween(300))
+        },
+        exitTransition = {
+            fadeOut(animationSpec = tween(300))
+        }
+    ) {
+...
             SignInScreen(onSignedIn = {
                 nav.navigate(Routes.Main) { popUpTo(Routes.SignIn) { inclusive = true } }
             })

@@ -12,6 +12,7 @@ data class FormSummaryEntity(
     val description: String?,
     val published: Int,
     val publicSlug: String?,
+    val shareUrl: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
 ) {
@@ -33,6 +34,7 @@ data class FormSummaryEntity(
             description = dto.description,
             published = dto.published,
             publicSlug = dto.publicSlug,
+            shareUrl = null, // Primes on first fetch/open
             createdAt = dto.createdAt,
             updatedAt = dto.updatedAt,
         )

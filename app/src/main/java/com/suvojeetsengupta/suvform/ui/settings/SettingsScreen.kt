@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -25,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -55,8 +57,11 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val user by viewModel.user.collectAsStateWithLifecycle()
+    val apiKey by viewModel.apiKey.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
+    var showApiKeyDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
 
     if (showSignOutDialog) {
         AlertDialog(
@@ -74,6 +79,66 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") }
             },
+        )
+    }
+
+    if (showApiKeyDialog) {
+        var tempKey by remember { mutableStateOf(apiKey) }
+        AlertDialog(
+            onDismissRequest = { showApiKeyDialog = false },
+            title = { Text("Gemini API Key") },
+            text = {
+                Column {
+                    Text("Enter your Google AI Studio API key to enable AI form generation features.")
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = tempKey,
+                        onValueChange = { tempKey = it },
+                        label = { Text("API Key") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.saveApiKey(tempKey)
+                    showApiKeyDialog = false
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApiKeyDialog = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            title = { Text("About SuvForm") },
+            text = {
+                Column {
+                    Text(
+                        "SuvForm is a personal project born out of a desire for a clean, efficient, " +
+                        "and mobile-first form management tool. I wanted to build something that " +
+                        "combines the simplicity of a notepad with the power of a professional data " +
+                        "collection platform."
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Whether you're conducting a quick poll, managing inventory, or gathering " +
+                        "feedback, SuvForm leverages Gemini AI to help you build forms instantly and " +
+                        "manages your data securely, even offline."
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text("Made with passion by Suvojeet Sengupta.", fontWeight = FontWeight.SemiBold)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAboutDialog = false }) { Text("Close") }
+            }
         )
     }
 
@@ -152,6 +217,34 @@ fun SettingsScreen(
             Spacer(Modifier.height(24.dp))
 
             Text(
+                "AI & Preferences",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                ListItem(
+                    headlineContent = { Text("Gemini API Key") },
+                    supportingContent = { Text(if (apiKey.isBlank()) "Not set" else "••••••••") },
+                    leadingContent = { Icon(Icons.Default.Key, null) },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(24.dp))
+                        .clickable { showApiKeyDialog = true },
+                    colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            Text(
                 "App",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
@@ -167,6 +260,18 @@ fun SettingsScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column {
+                    ListItem(
+                        headlineContent = { Text("About SuvForm") },
+                        leadingContent = { Icon(Icons.Default.Info, null) },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                            .clickable { showAboutDialog = true },
+                        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    )
                     ListItem(
                         headlineContent = { Text("Version") },
                         supportingContent = { Text(BuildConfig.VERSION_NAME) },

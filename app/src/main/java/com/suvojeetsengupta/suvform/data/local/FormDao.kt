@@ -21,6 +21,9 @@ interface FormDao {
     @Query("DELETE FROM form_summaries WHERE ownerUid = :uid")
     suspend fun deleteAllForOwner(uid: String)
 
+    @Query("UPDATE form_summaries SET shareUrl = :url WHERE id = :id")
+    suspend fun updateShareUrl(id: String, url: String)
+
     @Transaction
     suspend fun replaceForOwner(uid: String, items: List<FormSummaryEntity>) {
         deleteAllForOwner(uid)

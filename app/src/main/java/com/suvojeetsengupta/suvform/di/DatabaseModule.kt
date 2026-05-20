@@ -23,4 +23,7 @@ object DatabaseModule {
 
     @Provides
     fun provideFormDao(db: SuvFormDatabase): FormDao = db.formDao()
+
+    @Provides
+    fun provideResponseDao(db: SuvFormDatabase): ResponseDao = db.responseDao()
 }

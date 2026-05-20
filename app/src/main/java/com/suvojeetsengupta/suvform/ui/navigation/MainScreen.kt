@@ -1,5 +1,9 @@
 package com.suvojeetsengupta.suvform.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -41,7 +45,7 @@ sealed class BottomNavDestination(
         Routes.Responses, "Responses", Icons.Filled.Inbox, Icons.Outlined.Inbox
     )
     data object Settings : BottomNavDestination(
-        Routes.Settings, "Profile", Icons.Filled.Person, Icons.Outlined.Person
+        Routes.Settings, "Settings", Icons.Filled.Person, Icons.Outlined.Person
     )
 }
 
@@ -93,7 +97,31 @@ fun MainScreen(
         NavHost(
             navController = navController,
             startDestination = Routes.Home,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(400)
+                ) + fadeIn(animationSpec = tween(400))
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(400)
+                ) + fadeOut(animationSpec = tween(400))
+            },
+            popEnterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(400)
+                ) + fadeIn(animationSpec = tween(400))
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(400)
+                ) + fadeOut(animationSpec = tween(400))
+            }
         ) {
             composable(Routes.Home) {
                 HomeScreen(

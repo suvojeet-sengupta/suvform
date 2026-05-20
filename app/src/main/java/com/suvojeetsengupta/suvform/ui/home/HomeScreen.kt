@@ -17,13 +17,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -50,8 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -208,6 +205,7 @@ fun HomeScreen(
                             viewModel.selectForResponses(form)
                             onViewResponses()
                         },
+                        onShare = { context -> viewModel.shareForm(context, form) }
                     )
                 }
             }
@@ -226,9 +224,11 @@ private fun FormListCard(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     onViewResponses: () -> Unit,
+    onShare: (Context) -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val fmt = remember { SimpleDateFormat("d MMM, yyyy", Locale.getDefault()) }
+    val context = LocalContext.current
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -297,13 +297,13 @@ private fun FormListCard(
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
                             text = { Text("View responses") },
-                            leadingIcon = {
-                                Icon(
-                                    androidx.compose.material.icons.Icons.Filled.Inbox,
-                                    null,
-                                )
-                            },
+                            leadingIcon = { Icon(Icons.Filled.Inbox, null) },
                             onClick = { menuOpen = false; onViewResponses() },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Share") },
+                            leadingIcon = { Icon(Icons.Filled.Share, null) },
+                            onClick = { menuOpen = false; onShare(context) },
                         )
                         DropdownMenuItem(
                             text = { Text("Delete", color = MaterialTheme.colorScheme.error) },

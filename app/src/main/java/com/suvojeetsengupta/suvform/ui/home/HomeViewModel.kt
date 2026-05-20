@@ -51,6 +51,7 @@ class HomeViewModel @Inject constructor(
             HomeUiState(
                 loading = meta.loading,
                 forms = entities.map { it.toDto() },
+                shareUrls = entities.associate { it.id to it.shareUrl },
                 error = meta.error,
                 openingFormId = meta.openingFormId,
                 offline = meta.offline,
@@ -98,6 +99,9 @@ class HomeViewModel @Inject constructor(
                     val shareUrl = detail.publicSlug?.let { slug ->
                         com.suvojeetsengupta.suvform.BuildConfig.API_BASE_URL.trimEnd('/') + "/f/" + slug
                     }
+                    if (shareUrl != null) {
+                        formDao.updateShareUrl(detail.id, shareUrl)
+                    }
                     draftStore.set(
                         FormDraft(
                             remoteId = detail.id,
@@ -118,6 +122,42 @@ class HomeViewModel @Inject constructor(
                     _meta.update { it.copy(openingFormId = null, error = msg ?: "Failed to open") }
                 }
         }
+    }
+
+    fun shareForm(context: Context, form: FormSummaryDto) {
+        val cachedUrl = state.value.shareUrls[form.id]
+        if (cachedUrl != null) {
+            doShare(context, form.title, cachedUrl)
+            return
+        }
+
+        // Fetch URL from server if not cached
+        viewModelScope.launch {
+            runCatching { api.getForm(form.id) }
+                .onSuccess { detail ->
+                    val shareUrl = detail.publicSlug?.let { slug ->
+                        com.suvojeetsengupta.suvform.BuildConfig.API_BASE_URL.trimEnd('/') + "/f/" + slug
+                    }
+                    if (shareUrl != null) {
+                        formDao.updateShareUrl(form.id, shareUrl)
+                        doShare(context, form.title, shareUrl)
+                    } else {
+                        _meta.update { it.copy(error = "Form is not published.") }
+                    }
+                }
+                .onFailure { e ->
+                    _meta.update { it.copy(error = "Failed to get share link: ${e.message}") }
+                }
+        }
+    }
+
+    private fun doShare(context: Context, title: String, url: String) {
+        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(android.content.Intent.EXTRA_SUBJECT, "Share Form: $title")
+            putExtra(android.content.Intent.EXTRA_TEXT, "Fill out this form: $url")
+        }
+        context.startActivity(android.content.Intent.createChooser(intent, "Share via"))
     }
 
     fun delete(formId: String) {
@@ -152,6 +192,7 @@ class HomeViewModel @Inject constructor(
 data class HomeUiState(
     val loading: Boolean = false,
     val forms: List<FormSummaryDto> = emptyList(),
+    val shareUrls: Map<String, String?> = emptyMap(),
     val error: String? = null,
     val openingFormId: String? = null,
     val offline: Boolean = false,
