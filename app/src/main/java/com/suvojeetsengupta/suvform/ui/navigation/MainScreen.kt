@@ -44,6 +44,9 @@ sealed class BottomNavDestination(
     )
 }
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.Scaffold
+
 @Composable
 fun MainScreen(
     onSignedOut: () -> Unit,
@@ -57,11 +60,13 @@ fun MainScreen(
         BottomNavDestination.Settings,
     )
 
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0), // Disable default inset handling
         bottomBar = {
             NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
                 items.forEach { screen ->
                     val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                     NavigationBarItem(
