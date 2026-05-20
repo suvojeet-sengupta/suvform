@@ -3,6 +3,7 @@ package com.suvojeetsengupta.suvform.di
 import android.content.Context
 import androidx.room.Room
 import com.suvojeetsengupta.suvform.data.local.FormDao
+import com.suvojeetsengupta.suvform.data.local.ResponseDao
 import com.suvojeetsengupta.suvform.data.local.SuvFormDatabase
 import dagger.Module
 import dagger.Provides
