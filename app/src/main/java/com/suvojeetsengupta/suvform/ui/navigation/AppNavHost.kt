@@ -11,6 +11,7 @@ import com.suvojeetsengupta.suvform.data.repository.AuthRepository
 import com.suvojeetsengupta.suvform.data.repository.FirebaseAuthState
 import com.suvojeetsengupta.suvform.ui.auth.SignInScreen
 import com.suvojeetsengupta.suvform.ui.create.CreateScreen
+import com.suvojeetsengupta.suvform.ui.editor.EditorScreen
 import com.suvojeetsengupta.suvform.ui.home.HomeScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -48,7 +49,18 @@ fun AppNavHost(initiallySignedIn: Boolean) {
             )
         }
         composable(Routes.Create) {
-            CreateScreen(onBack = { nav.popBackStack() })
+            CreateScreen(
+                onBack = { nav.popBackStack() },
+                onOpenEditor = {
+                    nav.navigate(Routes.Editor) {
+                        // Replace Create in the back stack so back from Editor goes Home.
+                        popUpTo(Routes.Create) { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable(Routes.Editor) {
+            EditorScreen(onBack = { nav.popBackStack() })
         }
     }
 }

@@ -2,7 +2,8 @@ package com.suvojeetsengupta.suvform.ui.create
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.suvojeetsengupta.suvform.data.remote.GeneratedFormDto
+import com.suvojeetsengupta.suvform.data.draft.FormDraft
+import com.suvojeetsengupta.suvform.data.draft.FormDraftStore
 import com.suvojeetsengupta.suvform.data.remote.GenerateFormRequest
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,6 +18,7 @@ import javax.inject.Inject
 @HiltViewModel
 class CreateViewModel @Inject constructor(
     private val api: SuvFormApi,
+    private val draftStore: FormDraftStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CreateUiState())
@@ -26,32 +28,46 @@ class CreateViewModel @Inject constructor(
         _state.update { it.copy(prompt = value, error = null) }
     }
 
-    fun toggleLocale() {
-        _state.update { it.copy(locale = if (it.locale == "en") "hi" else "en") }
+    fun setLocale(locale: String) {
+        _state.update { it.copy(locale = locale) }
     }
 
+    /** Generate via AI, push result into the draft store, signal nav to editor. */
     fun generate() {
         val prompt = _state.value.prompt.trim()
         if (prompt.length < 3) {
-            _state.update { it.copy(error = "Likhna padega kya form chahiye") }
+            _state.update { it.copy(error = "Please describe the form you need.") }
             return
         }
         if (_state.value.loading) return
-        _state.update { it.copy(loading = true, error = null, result = null) }
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             runCatching { api.generateForm(GenerateFormRequest(prompt, _state.value.locale)) }
-                .onSuccess { form -> _state.update { it.copy(loading = false, result = form) } }
+                .onSuccess { generated ->
+                    draftStore.set(FormDraft.fromGenerated(generated))
+                    _state.update { it.copy(loading = false, navigateToEditor = true) }
+                }
                 .onFailure { e ->
                     val msg = when (e) {
                         is HttpException -> {
                             val body = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
                             "HTTP ${e.code()}${if (!body.isNullOrBlank()) ": $body" else ""}"
                         }
-                        else -> e.message ?: "Failed"
+                        else -> e.message ?: "Generation failed"
                     }
                     _state.update { it.copy(loading = false, error = msg) }
                 }
         }
+    }
+
+    /** Start with a blank form (manual mode). */
+    fun startBlank() {
+        draftStore.set(FormDraft.blank())
+        _state.update { it.copy(navigateToEditor = true) }
+    }
+
+    fun onNavigated() {
+        _state.update { it.copy(navigateToEditor = false) }
     }
 }
 
@@ -59,6 +75,6 @@ data class CreateUiState(
     val prompt: String = "",
     val locale: String = "en",
     val loading: Boolean = false,
-    val result: GeneratedFormDto? = null,
     val error: String? = null,
+    val navigateToEditor: Boolean = false,
 )
