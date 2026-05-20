@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Remove-Item 'F:\\\\SuvForm\\\\app\\\\src\\\\main\\\\java\\\\com\\\\suvojeet' -Recurse -Force -Confirm:$false)",
+      "PowerShell(Remove-Item 'F:\\\\SuvForm\\\\app\\\\src\\\\test\\\\java\\\\com\\\\suvojeet' -Recurse -Force -Confirm:$false)",
+      "PowerShell(Remove-Item 'F:\\\\SuvForm\\\\app\\\\src\\\\androidTest\\\\java\\\\com\\\\suvojeet' -Recurse -Force -Confirm:$false)",
+      "PowerShell(\"deleted\")"
+    ]
+  }
+}
