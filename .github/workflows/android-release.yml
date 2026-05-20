@@ -3,6 +3,14 @@ name: Android Release
 on:
   push:
     branches: [main]
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android-release.yml'
   workflow_dispatch:
 
 permissions:
