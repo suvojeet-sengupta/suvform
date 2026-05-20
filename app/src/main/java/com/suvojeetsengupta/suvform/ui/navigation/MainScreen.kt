@@ -20,10 +20,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -150,7 +152,7 @@ fun MainScreen(
                     val parentEntry = remember(it) {
                         runCatching { navController.getBackStackEntry("responses_flow") }.getOrNull()
                     }
-                    if (parentEntry != null) {
+                    if (parentEntry is NavBackStackEntry) {
                         val viewModel: ResponsesViewModel = hiltViewModel(parentEntry)
                         ResponsesScreen(
                             onBack = {
@@ -173,7 +175,7 @@ fun MainScreen(
                     val parentEntry = remember(it) {
                         runCatching { navController.getBackStackEntry("responses_flow") }.getOrNull()
                     }
-                    if (parentEntry != null) {
+                    if (parentEntry is NavBackStackEntry) {
                         val responsesVm: ResponsesViewModel = hiltViewModel(parentEntry)
                         val state by responsesVm.state.collectAsStateWithLifecycle()
                         val resp = state.selectedResponse
