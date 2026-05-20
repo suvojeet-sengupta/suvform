@@ -19,7 +19,6 @@ jobs:
   deploy:
     name: Deploy to Cloudflare Workers
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('worker/package.json') != '' }}
 
     defaults:
       run:

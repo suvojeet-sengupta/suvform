@@ -20,7 +20,6 @@ jobs:
   deploy:
     name: Build & deploy Next.js to Cloudflare Pages
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('web/package.json') != '' }}
 
     defaults:
       run:
