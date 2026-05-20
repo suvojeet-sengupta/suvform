@@ -20,7 +20,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.TableChart
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -67,9 +73,11 @@ fun ResponsesScreen(
     viewModel: ResponsesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val showInsights = state.insightsSummary != null || state.loadingInsights || state.insightsError != null
     var insightsOpen by remember { mutableStateOf(false) }
     if (showInsights && !insightsOpen) insightsOpen = true
+    var exportMenuOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -92,6 +100,42 @@ fun ResponsesScreen(
                 actions = {
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Filled.Refresh, "Refresh")
+                    }
+                    Box {
+                        IconButton(
+                            onClick = { exportMenuOpen = true },
+                            enabled = state.responses.isNotEmpty() && !state.exporting,
+                        ) {
+                            if (state.exporting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Icon(Icons.Filled.IosShare, "Export")
+                            }
+                        }
+                        DropdownMenu(
+                            expanded = exportMenuOpen,
+                            onDismissRequest = { exportMenuOpen = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Export as CSV") },
+                                leadingIcon = { Icon(Icons.Filled.TableChart, null) },
+                                onClick = {
+                                    exportMenuOpen = false
+                                    viewModel.exportCsv(context)
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Export as PDF") },
+                                leadingIcon = { Icon(Icons.Filled.PictureAsPdf, null) },
+                                onClick = {
+                                    exportMenuOpen = false
+                                    viewModel.exportPdf(context)
+                                },
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -154,52 +198,34 @@ fun ResponsesScreen(
 
 @Composable
 private fun InsightsCallout(onClick: () -> Unit) {
-    Card(
+    androidx.compose.material3.OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(16.dp),
         onClick = onClick,
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.tertiary,
-                            ),
-                        ),
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Filled.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(22.dp))
-            }
-            Spacer(Modifier.width(14.dp))
+            Icon(
+                Icons.Filled.AutoAwesome,
+                null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    "AI insights",
+                    "Summary",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
-                    "Get a smart summary of all responses",
+                    "Get a quick overview of all responses",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(
-                "→",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
         }
     }
 }

@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -146,42 +145,18 @@ private fun AiPromptCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Title with gradient sparkle badge
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.tertiary,
-                                ),
-                            ),
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Filled.AutoAwesome,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(
-                        "Describe your form",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        "AI builds it in seconds",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            // Section title — neutral, no gradient
+            Column {
+                Text(
+                    "Describe your form",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    "We'll draft the fields for you to refine.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             OutlinedTextField(
@@ -223,9 +198,7 @@ private fun AiPromptCard(
                     Spacer(Modifier.width(12.dp))
                     Text("Generating…", fontWeight = FontWeight.SemiBold)
                 } else {
-                    Icon(Icons.Filled.AutoAwesome, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Generate with AI", fontWeight = FontWeight.SemiBold)
+                    Text("Generate draft", fontWeight = FontWeight.SemiBold)
                 }
             }
         }

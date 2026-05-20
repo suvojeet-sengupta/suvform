@@ -1,16 +1,21 @@
 package com.suvojeetsengupta.suvform.ui.responses
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.suvojeetsengupta.suvform.data.draft.SelectedFormStore
+import com.suvojeetsengupta.suvform.data.remote.FieldDto
 import com.suvojeetsengupta.suvform.data.remote.ResponseItemDto
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
+import com.suvojeetsengupta.suvform.util.ResponseExport
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import javax.inject.Inject
 
@@ -35,13 +40,63 @@ class ResponsesViewModel @Inject constructor(
         if (_state.value.loading) return
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
-            runCatching { api.listResponses(id) }
+            // Load form (for schema) + responses in parallel-ish.
+            val formResult = runCatching { api.getForm(id) }
+            val respResult = runCatching { api.listResponses(id) }
+            respResult
                 .onSuccess { resp ->
-                    _state.update { it.copy(loading = false, responses = resp.responses) }
+                    _state.update {
+                        it.copy(
+                            loading = false,
+                            responses = resp.responses,
+                            fields = formResult.getOrNull()?.fields ?: it.fields,
+                            formTitle = formResult.getOrNull()?.title ?: it.formTitle,
+                        )
+                    }
                 }
                 .onFailure { e ->
                     val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
                     _state.update { it.copy(loading = false, error = msg ?: "Failed to load") }
+                }
+        }
+    }
+
+    // ---- Export ----
+
+    fun exportCsv(context: Context) {
+        val s = _state.value
+        if (s.responses.isEmpty()) return
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    ResponseExport.writeCsv(context, s.formTitle, s.fields, s.responses)
+                }
+            }
+                .onSuccess { file ->
+                    ResponseExport.share(context, file, "text/csv", "${s.formTitle} — responses")
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(error = "CSV export failed: ${e.message}") }
+                }
+        }
+    }
+
+    fun exportPdf(context: Context) {
+        val s = _state.value
+        if (s.responses.isEmpty()) return
+        _state.update { it.copy(exporting = true) }
+        viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    ResponseExport.writePdf(context, s.formTitle, s.fields, s.responses)
+                }
+            }
+                .onSuccess { file ->
+                    _state.update { it.copy(exporting = false) }
+                    ResponseExport.share(context, file, "application/pdf", "${s.formTitle} — responses")
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(exporting = false, error = "PDF export failed: ${e.message}") }
                 }
         }
     }
@@ -74,7 +129,9 @@ class ResponsesViewModel @Inject constructor(
 
 data class ResponsesUiState(
     val formTitle: String = "Responses",
+    val fields: List<FieldDto> = emptyList(),
     val loading: Boolean = false,
+    val exporting: Boolean = false,
     val responses: List<ResponseItemDto> = emptyList(),
     val error: String? = null,
     val loadingInsights: Boolean = false,

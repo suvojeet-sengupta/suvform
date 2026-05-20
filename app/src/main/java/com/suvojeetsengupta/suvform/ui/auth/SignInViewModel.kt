@@ -20,13 +20,17 @@ class SignInViewModel @Inject constructor(
     val state: StateFlow<SignInUiState> = _state.asStateFlow()
 
     fun signIn(context: Context) {
-        if (_state.value.loading) return
+        if (_state.value.loading || _state.value.success) return
         _state.value = SignInUiState(loading = true)
         viewModelScope.launch {
             authRepository.signInWithGoogle(context)
                 .onSuccess { _state.value = SignInUiState(success = true) }
                 .onFailure { e -> _state.value = SignInUiState(error = e.message ?: "Sign-in failed") }
         }
+    }
+
+    fun consumeSuccess() {
+        _state.value = SignInUiState()
     }
 }
 

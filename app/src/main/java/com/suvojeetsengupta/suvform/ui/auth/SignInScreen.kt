@@ -1,11 +1,6 @@
 package com.suvojeetsengupta.suvform.ui.auth
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -16,12 +11,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,14 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -65,25 +57,28 @@ fun SignInScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    LaunchedEffect(state.success) { if (state.success) onSignedIn() }
+    // On success: fire onSignedIn ONCE and clear state to avoid re-firing on recomposition.
+    LaunchedEffect(state.success) {
+        if (state.success) {
+            onSignedIn()
+            viewModel.consumeSuccess()
+        }
+    }
 
-    // Trigger entry animation once.
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { visible = true }
+    var entered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entered = true }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(brand_BackgroundBrush()),
+            .background(brandBackgroundBrush()),
     ) {
-        // Decorative blurred blobs (subtle, drawn as gradients)
+        // Decorative blurred blobs
         Box(
             modifier = Modifier
                 .size(280.dp)
                 .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(brand_AccentPurple.copy(alpha = 0.35f), Color.Transparent),
-                    ),
+                    Brush.radialGradient(listOf(BrandPurple.copy(alpha = 0.30f), Color.Transparent)),
                     shape = CircleShape,
                 )
                 .align(Alignment.TopStart),
@@ -92,9 +87,7 @@ fun SignInScreen(
             modifier = Modifier
                 .size(320.dp)
                 .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(brand_AccentCyan.copy(alpha = 0.30f), Color.Transparent),
-                    ),
+                    Brush.radialGradient(listOf(BrandCyan.copy(alpha = 0.28f), Color.Transparent)),
                     shape = CircleShape,
                 )
                 .align(Alignment.BottomEnd),
@@ -109,7 +102,7 @@ fun SignInScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             AnimatedVisibility(
-                visible = visible,
+                visible = entered,
                 enter = fadeIn(tween(700)) + slideInVertically(tween(700)) { it / 6 },
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -118,25 +111,23 @@ fun SignInScreen(
                     Wordmark()
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        text = "Forms, reimagined with AI",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "Sign in to manage your forms and responses",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
                         textAlign = TextAlign.Center,
                     )
-                    Spacer(Modifier.height(32.dp))
-                    FeatureChips()
                 }
             }
 
             Spacer(Modifier.height(48.dp))
 
             AnimatedVisibility(
-                visible = visible,
+                visible = entered,
                 enter = fadeIn(tween(700, delayMillis = 200)) +
                         slideInVertically(tween(700, delayMillis = 200)) { it / 4 },
             ) {
                 GoogleSignInButton(
-                    loading = state.loading,
+                    enabled = !state.loading && !state.success,
                     onClick = { viewModel.signIn(context) },
                 )
             }
@@ -171,42 +162,58 @@ fun SignInScreen(
             )
             Spacer(Modifier.height(8.dp))
         }
+
+        // Full-screen overlay while signing in — prevents UI flash + double-tap navigation.
+        if (state.loading || state.success) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 12.dp,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.5.dp,
+                        )
+                        Spacer(Modifier.width(14.dp))
+                        Text(
+                            "Signing in…",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
-// -------------------- Logo / Wordmark --------------------
+// ----- Logo / Wordmark -----
 
 @Composable
 private fun LogoBadge() {
-    // Animated subtle scale so the sparkle "breathes".
-    val transition = rememberInfiniteTransition(label = "logo")
-    val pulse by transition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1800, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "logo_pulse",
-    )
-
     Box(
         modifier = Modifier
-            .size(96.dp)
-            .shadow(elevation = 18.dp, shape = CircleShape, ambientColor = brand_AccentPurple, spotColor = brand_AccentPurple)
+            .size(88.dp)
+            .shadow(elevation = 18.dp, shape = CircleShape, ambientColor = BrandPurple, spotColor = BrandPurple)
             .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(brand_AccentPurple, brand_AccentCyan),
-                    start = Offset(0f, 0f),
-                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY),
-                ),
+                Brush.linearGradient(listOf(BrandPurple, BrandCyan)),
                 shape = CircleShape,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "✦",
-            fontSize = (44 * pulse).sp,
+            text = "S",
+            fontSize = 44.sp,
             color = Color.White,
             fontWeight = FontWeight.Black,
         )
@@ -215,59 +222,27 @@ private fun LogoBadge() {
 
 @Composable
 private fun Wordmark() {
-    val gradientText = buildAnnotatedString {
+    val gradient = buildAnnotatedString {
         withStyle(
             SpanStyle(
-                brush = Brush.linearGradient(listOf(brand_AccentPurple, brand_AccentCyan)),
+                brush = Brush.linearGradient(listOf(BrandPurple, BrandCyan)),
                 fontWeight = FontWeight.ExtraBold,
             ),
-        ) {
-            append("SuvForm")
-        }
+        ) { append("SuvForm") }
     }
     Text(
-        text = gradientText,
+        text = gradient,
         fontSize = 44.sp,
         letterSpacing = (-1).sp,
         textAlign = TextAlign.Center,
     )
 }
 
-// -------------------- Feature chips --------------------
-
-@Composable
-private fun FeatureChips() {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        FeatureChip("✨ AI-built")
-        FeatureChip("∑ Smart math")
-        FeatureChip("🔒 Private")
-    }
-}
-
-@Composable
-private fun FeatureChip(label: String) {
-    Surface(
-        shape = RoundedCornerShape(100),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
-        tonalElevation = 1.dp,
-        shadowElevation = 0.dp,
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
-        )
-    }
-}
-
-// -------------------- Google sign-in button --------------------
+// ----- Google sign-in button -----
 
 @Composable
 private fun GoogleSignInButton(
-    loading: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -275,53 +250,33 @@ private fun GoogleSignInButton(
             .fillMaxWidth()
             .height(58.dp)
             .shadow(
-                elevation = 14.dp,
+                elevation = 12.dp,
                 shape = RoundedCornerShape(16.dp),
-                ambientColor = Color.Black.copy(alpha = 0.4f),
+                ambientColor = Color.Black.copy(alpha = 0.35f),
             )
-            .clip(RoundedCornerShape(16.dp))
-            .pointerInput(loading) {
-                if (!loading) detectTapGestures(onTap = { onClick() })
-            },
+            .clip(RoundedCornerShape(16.dp)),
         color = Color.White,
         shape = RoundedCornerShape(16.dp),
+        onClick = onClick,
+        enabled = enabled,
     ) {
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
-            if (loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.5.dp,
-                    color = brand_AccentPurple,
-                )
-                Spacer(Modifier.width(14.dp))
-                Text(
-                    "Signing in…",
-                    color = Color(0xFF1F1F1F),
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                )
-            } else {
-                GoogleGlyph()
-                Spacer(Modifier.width(14.dp))
-                Text(
-                    "Continue with Google",
-                    color = Color(0xFF1F1F1F),
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                )
-            }
+            GoogleGlyph()
+            Spacer(Modifier.width(14.dp))
+            Text(
+                "Continue with Google",
+                color = Color(0xFF1F1F1F),
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+            )
         }
     }
 }
 
-/**
- * A simple Google-style "G" rendered as text — 4-color word built with annotated spans.
- * Trademark-clean: not the actual Google asset, but recognisable enough.
- */
 @Composable
 private fun GoogleGlyph() {
     val g = buildAnnotatedString {
@@ -335,13 +290,13 @@ private fun GoogleGlyph() {
     Text(text = g, fontSize = 18.sp)
 }
 
-// -------------------- Brand colors --------------------
+// ----- Brand colors -----
 
-private val brand_AccentPurple = Color(0xFF7C5CFF)
-private val brand_AccentCyan = Color(0xFF22D3EE)
+private val BrandPurple = Color(0xFF7C5CFF)
+private val BrandCyan = Color(0xFF22D3EE)
 
 @Composable
-private fun brand_BackgroundBrush(): Brush {
+private fun brandBackgroundBrush(): Brush {
     val base = MaterialTheme.colorScheme.background
     return Brush.verticalGradient(
         0f to base,

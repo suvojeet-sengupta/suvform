@@ -19,12 +19,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -73,9 +74,50 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var showSignOutDialog by remember { mutableStateOf(false) }
+    var showDeleteId by remember { mutableStateOf<String?>(null) }
 
     // Refresh whenever we return to this screen.
     LaunchedEffect(Unit) { viewModel.refresh() }
+
+    if (showSignOutDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignOutDialog = false },
+            title = { Text("Sign out?") },
+            text = { Text("You'll need to sign in again to access your forms.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSignOutDialog = false
+                    viewModel.signOut(context) { onSignedOut() }
+                }) {
+                    Text("Sign out", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutDialog = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    showDeleteId?.let { id ->
+        AlertDialog(
+            onDismissRequest = { showDeleteId = null },
+            title = { Text("Delete form?") },
+            text = { Text("This form and all its responses will be permanently deleted.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val toDelete = showDeleteId
+                    showDeleteId = null
+                    if (toDelete != null) viewModel.delete(toDelete)
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteId = null }) { Text("Cancel") }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -85,7 +127,7 @@ fun HomeScreen(
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Filled.Refresh, "Refresh")
                     }
-                    IconButton(onClick = { viewModel.signOut(context) { onSignedOut() } }) {
+                    IconButton(onClick = { showSignOutDialog = true }) {
                         Icon(Icons.AutoMirrored.Filled.Logout, "Sign out")
                     }
                 },
@@ -109,26 +151,61 @@ fun HomeScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item { HeroCallout(onCreateForm = onCreateForm) }
-
             item {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-                    Text(
-                        "Your forms",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.weight(1f))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Your forms",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        if (state.forms.isNotEmpty()) {
+                            Text(
+                                "${state.forms.size} ${if (state.forms.size == 1) "form" else "forms"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     if (state.loading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
                         )
                     }
                 }
             }
 
-            state.error?.let { msg ->
+            if (state.offline) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "Offline",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Showing your last synced forms.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        }
+                    }
+                }
+            } else state.error?.let { msg ->
                 item {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -153,7 +230,7 @@ fun HomeScreen(
                         form = form,
                         opening = state.openingFormId == form.id,
                         onClick = { viewModel.openForm(form.id) { onOpenForm() } },
-                        onDelete = { viewModel.delete(form.id) },
+                        onDelete = { showDeleteId = form.id },
                         onViewResponses = {
                             viewModel.selectForResponses(form)
                             onViewResponses()
@@ -163,53 +240,6 @@ fun HomeScreen(
             }
 
             item { Spacer(Modifier.height(80.dp)) } // breathing room above FAB
-        }
-    }
-}
-
-@Composable
-private fun HeroCallout(onCreateForm: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        onClick = onCreateForm,
-    ) {
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.tertiary,
-                            ),
-                        ),
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Filled.AutoAwesome, null, tint = Color.White, modifier = Modifier.size(24.dp))
-            }
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "Build a new form",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Text(
-                    "Describe it in words, or build manually",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
-                )
-            }
         }
     }
 }

@@ -3,18 +3,24 @@ package com.suvojeetsengupta.suvform.ui.home
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
+import com.suvojeetsengupta.suvform.data.draft.CalculationEdit
+import com.suvojeetsengupta.suvform.data.draft.FieldEdit
 import com.suvojeetsengupta.suvform.data.draft.FormDraft
 import com.suvojeetsengupta.suvform.data.draft.FormDraftStore
 import com.suvojeetsengupta.suvform.data.draft.SelectedFormStore
+import com.suvojeetsengupta.suvform.data.local.FormDao
+import com.suvojeetsengupta.suvform.data.local.FormSummaryEntity
 import com.suvojeetsengupta.suvform.data.remote.FormSummaryDto
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
 import com.suvojeetsengupta.suvform.data.repository.AuthRepository
-import com.suvojeetsengupta.suvform.data.draft.FieldEdit
-import com.suvojeetsengupta.suvform.data.draft.CalculationEdit
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -26,6 +32,8 @@ class HomeViewModel @Inject constructor(
     private val api: SuvFormApi,
     private val draftStore: FormDraftStore,
     private val selectedForm: SelectedFormStore,
+    private val formDao: FormDao,
+    private val auth: FirebaseAuth,
 ) : ViewModel() {
 
     fun selectForResponses(form: FormSummaryDto) {
@@ -33,32 +41,47 @@ class HomeViewModel @Inject constructor(
         selectedForm.formTitle = form.title
     }
 
+    private val _meta = MutableStateFlow(HomeMeta())
 
-    private val _state = MutableStateFlow(HomeUiState())
-    val state: StateFlow<HomeUiState> = _state.asStateFlow()
-
-    init {
-        refresh()
+    /** Combine local-cached forms with loading/error meta state. */
+    val state: StateFlow<HomeUiState> = run {
+        val uid = auth.currentUser?.uid
+        val cached = if (uid != null) formDao.observeForOwner(uid) else flowOf(emptyList())
+        combine(cached, _meta) { entities, meta ->
+            HomeUiState(
+                loading = meta.loading,
+                forms = entities.map { it.toDto() },
+                error = meta.error,
+                openingFormId = meta.openingFormId,
+                offline = meta.offline,
+            )
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState(loading = true))
     }
 
+    init { refresh() }
+
     fun refresh() {
-        if (_state.value.loading) return
-        _state.update { it.copy(loading = true, error = null) }
+        if (_meta.value.loading) return
+        _meta.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             runCatching { api.listForms() }
                 .onSuccess { resp ->
-                    _state.update { it.copy(loading = false, forms = resp.forms) }
+                    val uid = auth.currentUser?.uid
+                    if (uid != null) {
+                        formDao.replaceForOwner(uid, resp.forms.map { FormSummaryEntity.fromDto(uid, it) })
+                    }
+                    _meta.update { it.copy(loading = false, offline = false) }
                 }
                 .onFailure { e ->
                     val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
-                    _state.update { it.copy(loading = false, error = msg ?: "Failed to load") }
+                    // Don't blow away cached data — show offline banner.
+                    _meta.update { it.copy(loading = false, error = msg, offline = true) }
                 }
         }
     }
 
-    /** Load a saved form into the draft store and return success/failure via callback. */
     fun openForm(formId: String, onReady: () -> Unit) {
-        _state.update { it.copy(openingFormId = formId) }
+        _meta.update { it.copy(openingFormId = formId) }
         viewModelScope.launch {
             runCatching { api.getForm(formId) }
                 .onSuccess { detail ->
@@ -77,24 +100,25 @@ class HomeViewModel @Inject constructor(
                             shareUrl = shareUrl,
                         ),
                     )
-                    _state.update { it.copy(openingFormId = null) }
+                    _meta.update { it.copy(openingFormId = null) }
                     onReady()
                 }
                 .onFailure { e ->
                     val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
-                    _state.update { it.copy(openingFormId = null, error = msg ?: "Failed to open") }
+                    _meta.update { it.copy(openingFormId = null, error = msg ?: "Failed to open") }
                 }
         }
     }
 
     fun delete(formId: String) {
         viewModelScope.launch {
+            // Optimistic: remove from cache immediately.
+            formDao.deleteById(formId)
             runCatching { api.deleteForm(formId) }
-                .onSuccess {
-                    _state.update { s -> s.copy(forms = s.forms.filterNot { it.id == formId }) }
-                }
                 .onFailure { e ->
-                    _state.update { it.copy(error = e.message ?: "Delete failed") }
+                    _meta.update { it.copy(error = "Delete failed: ${e.message}") }
+                    // Re-fetch to restore in case server still has it.
+                    refresh()
                 }
         }
     }
@@ -102,9 +126,17 @@ class HomeViewModel @Inject constructor(
     fun signOut(context: Context, onDone: () -> Unit) {
         viewModelScope.launch {
             authRepository.signOut(context)
+            // Don't wipe the cache — preserves last-seen forms for the next sign-in.
             onDone()
         }
     }
+
+    private data class HomeMeta(
+        val loading: Boolean = false,
+        val error: String? = null,
+        val openingFormId: String? = null,
+        val offline: Boolean = false,
+    )
 }
 
 data class HomeUiState(
@@ -112,4 +144,5 @@ data class HomeUiState(
     val forms: List<FormSummaryDto> = emptyList(),
     val error: String? = null,
     val openingFormId: String? = null,
+    val offline: Boolean = false,
 )
