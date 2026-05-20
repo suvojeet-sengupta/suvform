@@ -94,6 +94,10 @@ async function importX509PublicKey(pem: string): Promise<CryptoKey> {
 }
 
 export async function verifyFirebaseIdToken(token: string, projectId: string): Promise<FirebaseUser> {
+  // Defensive trim — CLI tools sometimes inject CRLF/whitespace when secrets are piped.
+  const expectedProjectId = (projectId ?? "").trim();
+  if (!expectedProjectId) throw new Error("missing_project_id_config");
+
   const parts = token.split(".");
   if (parts.length !== 3) throw new Error("malformed_jwt");
   const [headerB64, payloadB64, signatureB64] = parts;
@@ -115,8 +119,10 @@ export async function verifyFirebaseIdToken(token: string, projectId: string): P
   const now = Math.floor(Date.now() / 1000);
   if (payload.exp < now) throw new Error("token_expired");
   if (payload.iat > now + 60) throw new Error("token_iat_in_future");
-  if (payload.aud !== projectId) throw new Error("wrong_audience");
-  if (payload.iss !== `https://securetoken.google.com/${projectId}`) throw new Error("wrong_issuer");
+  if (payload.aud !== expectedProjectId) {
+    throw new Error(`wrong_audience: got=${payload.aud} expected=${expectedProjectId}`);
+  }
+  if (payload.iss !== `https://securetoken.google.com/${expectedProjectId}`) throw new Error("wrong_issuer");
   if (!payload.sub) throw new Error("missing_sub");
 
   const jwks = await getJwks();
