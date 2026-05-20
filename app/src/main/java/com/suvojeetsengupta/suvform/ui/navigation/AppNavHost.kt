@@ -1,6 +1,5 @@
 package com.suvojeetsengupta.suvform.ui.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -17,9 +16,7 @@ import com.suvojeetsengupta.suvform.data.repository.FirebaseAuthState
 import com.suvojeetsengupta.suvform.ui.auth.SignInScreen
 import com.suvojeetsengupta.suvform.ui.create.CreateScreen
 import com.suvojeetsengupta.suvform.ui.editor.EditorScreen
-import com.suvojeetsengupta.suvform.ui.home.HomeScreen
 import com.suvojeetsengupta.suvform.ui.preview.PreviewScreen
-import com.suvojeetsengupta.suvform.ui.responses.ResponsesScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -50,7 +47,7 @@ fun AppNavHost(initiallySignedIn: Boolean) {
             fadeOut(animationSpec = tween(300))
         }
     ) {
-...
+        composable(Routes.SignIn) {
             SignInScreen(onSignedIn = {
                 nav.navigate(Routes.Main) { popUpTo(Routes.SignIn) { inclusive = true } }
             })
