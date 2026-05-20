@@ -70,7 +70,9 @@ app.get("/v1/forms", async (c) => {
 // POST /v1/forms — create a new (empty) form
 app.post("/v1/forms", async (c) => {
   const u = c.get("user");
-  const body = await c.req.json<{ title?: string; description?: string }>().catch(() => ({}));
+  const body: { title?: string; description?: string } = await c.req
+    .json<{ title?: string; description?: string }>()
+    .catch(() => ({}));
   const id = crypto.randomUUID();
   const now = Date.now();
   const title = body.title ?? "Untitled form";
