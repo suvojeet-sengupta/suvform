@@ -97,7 +97,7 @@ class HomeViewModel @Inject constructor(
             runCatching { api.getForm(formId) }
                 .onSuccess { detail ->
                     val shareUrl = detail.publicSlug?.let { slug ->
-                        com.suvojeetsengupta.suvform.BuildConfig.API_BASE_URL.trimEnd('/') + "/f/" + slug
+                        com.suvojeetsengupta.suvform.BuildConfig.PUBLIC_FORM_BASE_URL.trimEnd('/') + "/f/" + slug
                     }
                     if (shareUrl != null) {
                         formDao.updateShareUrl(detail.id, shareUrl)
@@ -136,7 +136,7 @@ class HomeViewModel @Inject constructor(
             runCatching { api.getForm(form.id) }
                 .onSuccess { detail ->
                     val shareUrl = detail.publicSlug?.let { slug ->
-                        com.suvojeetsengupta.suvform.BuildConfig.API_BASE_URL.trimEnd('/') + "/f/" + slug
+                        com.suvojeetsengupta.suvform.BuildConfig.PUBLIC_FORM_BASE_URL.trimEnd('/') + "/f/" + slug
                     }
                     if (shareUrl != null) {
                         formDao.updateShareUrl(form.id, shareUrl)
