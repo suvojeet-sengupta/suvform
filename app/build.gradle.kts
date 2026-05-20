@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.suvojeetsengupta.suvform"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.suvojeetsengupta.suvform"
