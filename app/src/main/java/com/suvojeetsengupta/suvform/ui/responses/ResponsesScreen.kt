@@ -1,5 +1,6 @@
 package com.suvojeetsengupta.suvform.ui.responses
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -77,6 +78,11 @@ fun ResponsesScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    BackHandler(enabled = state.formsToSelect.isEmpty() && state.responses.isNotEmpty()) {
+        viewModel.clearSelection()
+    }
+
     val showInsights = state.insightsSummary != null || state.loadingInsights || state.insightsError != null
     var insightsOpen by remember { mutableStateOf(false) }
     if (showInsights && !insightsOpen) insightsOpen = true

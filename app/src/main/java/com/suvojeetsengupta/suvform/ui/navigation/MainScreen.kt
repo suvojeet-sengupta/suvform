@@ -29,6 +29,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.suvojeetsengupta.suvform.ui.home.HomeScreen
 import com.suvojeetsengupta.suvform.ui.responses.ResponseDetailScreen
@@ -43,10 +44,10 @@ sealed class BottomNavDestination(
     val unselectedIcon: ImageVector,
 ) {
     data object Home : BottomNavDestination(
-        Routes.Home, "Home", Icons.Filled.Home, Icons.Outlined.Home
+        "home_tab", "Home", Icons.Filled.Home, Icons.Outlined.Home
     )
     data object Responses : BottomNavDestination(
-        Routes.Responses, "Responses", Icons.Filled.Inbox, Icons.Outlined.Inbox
+        "responses_flow", "Responses", Icons.Filled.Inbox, Icons.Outlined.Inbox
     )
     data object Settings : BottomNavDestination(
         Routes.Settings, "Settings", Icons.Filled.Person, Icons.Outlined.Person
@@ -100,7 +101,7 @@ fun MainScreen(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Routes.Home,
+            startDestination = "home_tab",
             modifier = Modifier.padding(innerPadding),
             enterTransition = {
                 slideIntoContainer(
@@ -127,13 +128,13 @@ fun MainScreen(
                 ) + fadeOut(animationSpec = tween(400))
             }
         ) {
-            composable(Routes.Home) {
+            composable("home_tab") {
                 HomeScreen(
                     onSignedOut = onSignedOut,
                     onCreateForm = onCreateForm,
                     onOpenForm = onOpenForm,
                     onViewResponses = {
-                        navController.navigate(Routes.Responses) {
+                        navController.navigate("responses_flow") {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }
@@ -143,38 +144,42 @@ fun MainScreen(
                     }
                 )
             }
-            composable(Routes.Responses) {
-                ResponsesScreen(
-                    onBack = {
-                        navController.navigate(Routes.Home) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
+            
+            navigation(startDestination = Routes.Responses, route = "responses_flow") {
+                composable(Routes.Responses) {
+                    ResponsesScreen(
+                        onBack = {
+                            navController.navigate("home_tab") {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
                             }
-                            launchSingleTop = true
-                            restoreState = true
+                        },
+                        onViewDetail = {
+                            navController.navigate(Routes.ResponseDetail)
                         }
-                    },
-                    onViewDetail = {
-                        navController.navigate(Routes.ResponseDetail)
-                    }
-                )
-            }
-            composable(Routes.ResponseDetail) {
-                val responsesVm: ResponsesViewModel = hiltViewModel(
-                    navController.getBackStackEntry(Routes.Responses)
-                )
-                val state by responsesVm.state.collectAsStateWithLifecycle()
-                val resp = state.selectedResponse
-                if (resp != null) {
-                    ResponseDetailScreen(
-                        response = resp,
-                        fields = state.fields,
-                        onBack = { navController.popBackStack() }
                     )
-                } else {
-                    navController.popBackStack()
+                }
+                composable(Routes.ResponseDetail) {
+                    val responsesVm: ResponsesViewModel = hiltViewModel(
+                        navController.getBackStackEntry("responses_flow")
+                    )
+                    val state by responsesVm.state.collectAsStateWithLifecycle()
+                    val resp = state.selectedResponse
+                    if (resp != null) {
+                        ResponseDetailScreen(
+                            response = resp,
+                            fields = state.fields,
+                            onBack = { navController.popBackStack() }
+                        )
+                    } else {
+                        navController.popBackStack()
+                    }
                 }
             }
+
             composable(Routes.Settings) {
                 SettingsScreen(onSignedOut = onSignedOut)
             }

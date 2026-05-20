@@ -81,10 +81,5 @@ fun AppNavHost(initiallySignedIn: Boolean) {
         composable(Routes.Preview) {
             PreviewScreen(onBack = { nav.popBackStack() })
         }
-        composable(Routes.ResponseDetail) {
-            // Need to get the ViewModel from the previous backstack entry (Responses)
-            // or just use a shared viewmodel if needed. 
-            // However, MainScreen has its own NavHost.
-        }
     }
 }

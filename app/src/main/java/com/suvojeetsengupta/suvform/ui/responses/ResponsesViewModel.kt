@@ -70,7 +70,14 @@ class ResponsesViewModel @Inject constructor(
     fun clearSelection() {
         selectedForm.formId = null
         selectedForm.formTitle = null
-        _state.update { it.copy(formTitle = "Responses", responses = emptyList(), formsToSelect = emptyList()) }
+        _state.update {
+            it.copy(
+                formTitle = "Responses",
+                responses = emptyList(),
+                formsToSelect = emptyList(),
+                selectedResponse = null
+            )
+        }
         refresh()
     }
 
