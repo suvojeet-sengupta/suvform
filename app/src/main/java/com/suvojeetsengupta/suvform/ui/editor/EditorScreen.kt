@@ -1,66 +1,31 @@
 package com.suvojeetsengupta.suvform.ui.editor
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedAssistChip
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.foundation.text.KeyboardOptions
 import com.suvojeetsengupta.suvform.data.draft.FieldEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldType
 
@@ -75,7 +40,9 @@ fun EditorScreen(
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     val saveState by viewModel.saveState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    val snackbar = remember { androidx.compose.material3.SnackbarHostState() }
+    val snackbar = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
 
     LaunchedEffect(saveState.saved) {
         if (saveState.saved) {
@@ -100,28 +67,25 @@ fun EditorScreen(
         saveState.error?.let { snackbar.showSnackbar(it) }
     }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
-
     Scaffold(
-        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbar) },
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("Edit form") },
+                title = { Text("Editor", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    TextButton(onClick = onPreview, enabled = draft.fields.isNotEmpty()) {
-                        Text("Preview")
+                    IconButton(onClick = onPreview, enabled = draft.fields.isNotEmpty()) {
+                        Icon(Icons.Default.Visibility, "Preview")
                     }
                     TextButton(
                         onClick = { viewModel.save() },
                         enabled = !saveState.saving && draft.fields.isNotEmpty(),
                     ) {
-                        Text(if (saveState.saving) "Saving…" else "Save")
+                        Text(if (saveState.saving) "Saving…" else "Save", fontWeight = FontWeight.Bold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -130,11 +94,14 @@ fun EditorScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
+            FloatingActionButton(
                 onClick = { viewModel.addField() },
-                icon = { Icon(Icons.Filled.Add, null) },
-                text = { Text("Add field") },
-            )
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Filled.Add, "Add field")
+            }
         },
         bottomBar = {
             PublishBar(
@@ -149,7 +116,7 @@ fun EditorScreen(
                 onUnpublish = { viewModel.unpublish() },
                 onCopy = {
                     draft.shareUrl?.let {
-                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(it))
+                        clipboard.setText(AnnotatedString(it))
                     }
                 },
                 onShare = {
@@ -169,14 +136,11 @@ fun EditorScreen(
                 .fillMaxSize()
                 .padding(padding),
             state = listState,
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp,
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // ----- Form header (title + description) -----
             item {
-                FormHeader(
+                FormHeaderCard(
                     title = draft.title,
                     description = draft.description,
                     onTitleChange = viewModel::setTitle,
@@ -185,26 +149,28 @@ fun EditorScreen(
             }
 
             item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
                     Text(
                         "Fields",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.width(8.dp))
-                    AssistChip(
-                        onClick = {},
-                        label = { Text("${draft.fields.size}") },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        ),
-                    )
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ) {
+                        Text("${draft.fields.size}", modifier = Modifier.padding(4.dp))
+                    }
                 }
             }
 
-            // ----- Field cards -----
             itemsIndexed(draft.fields, key = { _, f -> f.id }) { index, field ->
-                FieldCard(
+                FieldEditorCard(
                     field = field,
                     isFirst = index == 0,
                     isLast = index == draft.fields.lastIndex,
@@ -223,17 +189,16 @@ fun EditorScreen(
             }
 
             if (draft.fields.isEmpty()) {
-                item { EmptyFieldsHint() }
+                item { EmptyFieldsState() }
             }
+
+            item { Spacer(Modifier.height(80.dp)) }
         }
     }
 }
 
-// ----------------------- Form header -----------------------
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FormHeader(
+private fun FormHeaderCard(
     title: String,
     description: String,
     onTitleChange: (String) -> Unit,
@@ -241,16 +206,21 @@ private fun FormHeader(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             OutlinedTextField(
                 value = title,
                 onValueChange = onTitleChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Form title") },
+                placeholder = { Text("Untitled Form", style = MaterialTheme.typography.headlineSmall) },
+                textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                ),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             )
@@ -258,20 +228,21 @@ private fun FormHeader(
                 value = description,
                 onValueChange = onDescriptionChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Description (optional)") },
-                minLines = 2,
-                maxLines = 4,
+                placeholder = { Text("Add a description...") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                ),
+                minLines = 1,
+                maxLines = 3,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             )
         }
     }
 }
 
-// ----------------------- Field card -----------------------
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FieldCard(
+private fun FieldEditorCard(
     field: FieldEdit,
     isFirst: Boolean,
     isLast: Boolean,
@@ -287,142 +258,211 @@ private fun FieldCard(
     onOptionChange: (Int, String) -> Unit,
     onOptionRemove: (Int) -> Unit,
 ) {
+    var expanded by remember { mutableStateOf(false) }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (expanded) MaterialTheme.colorScheme.surfaceContainerHigh 
+                             else MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (expanded) 2.dp else 0.dp),
+        onClick = { expanded = !expanded }
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-
-            // Top action row: type chip + reorder + duplicate + delete
+        Column(Modifier.padding(if (expanded) 20.dp else 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TypePicker(current = field.type, onChange = onTypeChange)
-                Spacer(Modifier.width(8.dp))
-                Box(Modifier.weight(1f))
-                IconButton(onClick = onMoveUp, enabled = !isFirst) {
-                    Icon(Icons.Filled.ArrowUpward, "Move up", modifier = Modifier.size(20.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = CircleShape,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(field.type.emoji, fontSize = 16.sp)
+                    }
                 }
-                IconButton(onClick = onMoveDown, enabled = !isLast) {
-                    Icon(Icons.Filled.ArrowDownward, "Move down", modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = if (field.label.isBlank()) "New Field" else field.label,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = field.type.display,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                IconButton(onClick = onDuplicate) {
-                    Icon(Icons.Filled.ContentCopy, "Duplicate", modifier = Modifier.size(18.dp))
+                if (field.required) {
+                    Text(
+                        "*", 
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.titleLarge
+                    )
                 }
-                IconButton(onClick = onDelete) {
+                IconButton(onClick = { expanded = !expanded }) {
                     Icon(
-                        Icons.Filled.Delete,
-                        "Delete",
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.error,
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null
                     )
                 }
             }
 
-            OutlinedTextField(
-                value = field.label,
-                onValueChange = onLabelChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Label") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-            )
+            if (expanded) {
+                Spacer(Modifier.height(20.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(Modifier.height(20.dp))
 
-            if (field.type !in setOf(FieldType.SINGLE_CHOICE, FieldType.MULTI_CHOICE, FieldType.RATING, FieldType.DATE)) {
-                OutlinedTextField(
-                    value = field.placeholder.orEmpty(),
-                    onValueChange = onPlaceholderChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Placeholder (optional)") },
-                    singleLine = true,
-                )
-            }
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TypeSelector(current = field.type, onSelect = onTypeChange)
+                        
+                        Row {
+                            IconButton(onClick = onMoveUp, enabled = !isFirst) {
+                                Icon(Icons.Default.ArrowUpward, null, modifier = Modifier.size(20.dp))
+                            }
+                            IconButton(onClick = onMoveDown, enabled = !isLast) {
+                                Icon(Icons.Default.ArrowDownward, null, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
 
-            // Required toggle
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Required", style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.weight(1f))
-                Switch(checked = field.required, onCheckedChange = onRequiredChange)
-            }
-
-            // Options for choice types
-            if (field.type.hasOptions) {
-                HorizontalDivider()
-                Text(
-                    "Options",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                field.options.forEachIndexed { idx, opt ->
-                    OptionRow(
-                        value = opt,
-                        onValueChange = { onOptionChange(idx, it) },
-                        onRemove = { onOptionRemove(idx) },
+                    OutlinedTextField(
+                        value = field.label,
+                        onValueChange = onLabelChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Question Label") },
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     )
-                }
-                TextButton(onClick = onAddOption) {
-                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Add option")
+
+                    if (field.type !in setOf(FieldType.SINGLE_CHOICE, FieldType.MULTI_CHOICE, FieldType.RATING, FieldType.DATE)) {
+                        OutlinedTextField(
+                            value = field.placeholder.orEmpty(),
+                            onValueChange = onPlaceholderChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Placeholder (optional)") },
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                    }
+
+                    if (field.type.hasOptions) {
+                        Text(
+                            "Options",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        field.options.forEachIndexed { idx, opt ->
+                            OptionItem(
+                                value = opt,
+                                onValueChange = { onOptionChange(idx, it) },
+                                onRemove = { onOptionRemove(idx) }
+                            )
+                        }
+                        TextButton(onClick = onAddOption) {
+                            Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Add Option")
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = field.required, onCheckedChange = onRequiredChange)
+                            Text("Required", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        IconButton(onClick = onDuplicate) {
+                            Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(20.dp))
+                        }
+                        IconButton(
+                            onClick = onDelete,
+                            colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Icon(Icons.Default.Delete, null, modifier = Modifier.size(20.dp))
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun OptionRow(value: String, onValueChange: (String) -> Unit, onRemove: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun OptionItem(value: String, onValueChange: (String) -> Unit, onRemove: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Default.RadioButtonUnchecked, 
+            null, 
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.outline
+        )
+        Spacer(Modifier.width(12.dp))
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.weight(1f),
             singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = Color.Transparent,
+                focusedBorderColor = Color.Transparent,
+            )
         )
         IconButton(onClick = onRemove) {
-            Icon(Icons.Filled.Close, "Remove option", modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.Close, null, modifier = Modifier.size(18.dp))
         }
     }
 }
 
-// ----------------------- Type picker -----------------------
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TypePicker(current: FieldType, onChange: (FieldType) -> Unit) {
+private fun TypeSelector(current: FieldType, onSelect: (FieldType) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
+    
     Box {
-        ElevatedAssistChip(
+        InputChip(
+            selected = true,
             onClick = { expanded = true },
-            label = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(current.emoji, fontSize = 14.sp)
-                    Spacer(Modifier.width(6.dp))
-                    Text(current.display, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.width(2.dp))
-                    Icon(Icons.Filled.ExpandMore, null, modifier = Modifier.size(16.dp))
-                }
-            },
+            label = { Text(current.display) },
+            leadingIcon = { Text(current.emoji) },
+            trailingIcon = { Icon(Icons.Default.ArrowDropDown, null) },
+            shape = RoundedCornerShape(12.dp)
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             FieldType.entries.forEach { t ->
                 DropdownMenuItem(
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(t.emoji, fontSize = 14.sp)
-                            Spacer(Modifier.width(8.dp))
+                            Text(t.emoji)
+                            Spacer(Modifier.width(12.dp))
                             Text(t.display)
                         }
                     },
-                    onClick = { onChange(t); expanded = false },
+                    onClick = {
+                        onSelect(t)
+                        expanded = false
+                    }
                 )
             }
         }
     }
 }
-
-// ----------------------- Publish bar -----------------------
 
 @Composable
 private fun PublishBar(
@@ -437,16 +477,17 @@ private fun PublishBar(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        tonalElevation = 8.dp,
-        shadowElevation = 8.dp,
+        tonalElevation = 6.dp,
+        shadowElevation = 12.dp,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+        Column(Modifier.padding(20.dp)) {
             if (published && shareUrl != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "Form is live",
-                            style = MaterialTheme.typography.labelMedium,
+                            "Form is Live",
+                            style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
@@ -457,72 +498,79 @@ private fun PublishBar(
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         )
                     }
-                    androidx.compose.material3.OutlinedButton(
-                        onClick = onCopy,
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("Copy") }
-                    Spacer(Modifier.width(8.dp))
-                    androidx.compose.material3.Button(
+                    IconButton(onClick = onCopy) {
+                        Icon(Icons.Default.ContentCopy, null)
+                    }
+                    Button(
                         onClick = onShare,
                         shape = RoundedCornerShape(12.dp)
-                    ) { Text("Share") }
+                    ) {
+                        Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Share")
+                    }
                 }
-                androidx.compose.material3.TextButton(
+                TextButton(
                     onClick = onUnpublish,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 4.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Unpublish", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
+                    Text("Unpublish Form", style = MaterialTheme.typography.labelLarge)
                 }
             } else {
-                androidx.compose.material3.Button(
+                Button(
                     onClick = onPublish,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
                     enabled = !saving,
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     if (saving) {
-                        androidx.compose.material3.CircularProgressIndicator(
+                        CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Spacer(Modifier.width(12.dp))
+                        Text("Saving...")
+                    } else {
+                        Icon(Icons.Default.CloudUpload, null)
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            if (hasRemoteId) "Publish Changes" else "Save & Publish",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
                     }
-                    Text(
-                        if (hasRemoteId) "Publish now" else "Save & Publish",
-                        fontWeight = FontWeight.Bold,
-                    )
                 }
             }
         }
     }
 }
 
-// ----------------------- Empty state -----------------------
-
 @Composable
-private fun EmptyFieldsHint() {
-    Surface(
-        modifier = Modifier.fillMaxWidth().height(120.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+private fun EmptyFieldsState() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                "No fields yet",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Tap “Add field” to start building.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Icon(
+            Icons.Default.PostAdd,
+            null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.outline
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "No fields added yet",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            "Tap + to add your first question",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

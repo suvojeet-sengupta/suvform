@@ -192,6 +192,10 @@ class ResponsesViewModel @Inject constructor(
     fun dismissInsights() {
         _state.update { it.copy(insightsSummary = null) }
     }
+
+    fun selectResponse(response: ResponseItemDto) {
+        _state.update { it.copy(selectedResponse = response) }
+    }
 }
 
 data class ResponsesUiState(
@@ -205,4 +209,5 @@ data class ResponsesUiState(
     val loadingInsights: Boolean = false,
     val insightsSummary: String? = null,
     val insightsError: String? = null,
+    val selectedResponse: ResponseItemDto? = null,
 )

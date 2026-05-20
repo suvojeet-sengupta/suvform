@@ -22,6 +22,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -29,7 +31,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.suvojeetsengupta.suvform.ui.home.HomeScreen
+import com.suvojeetsengupta.suvform.ui.responses.ResponseDetailScreen
 import com.suvojeetsengupta.suvform.ui.responses.ResponsesScreen
+import com.suvojeetsengupta.suvform.ui.responses.ResponsesViewModel
 import com.suvojeetsengupta.suvform.ui.settings.SettingsScreen
 
 sealed class BottomNavDestination(
@@ -149,8 +153,27 @@ fun MainScreen(
                             launchSingleTop = true
                             restoreState = true
                         }
+                    },
+                    onViewDetail = {
+                        navController.navigate(Routes.ResponseDetail)
                     }
                 )
+            }
+            composable(Routes.ResponseDetail) {
+                val responsesVm: ResponsesViewModel = hiltViewModel(
+                    navController.getBackStackEntry(Routes.Responses)
+                )
+                val state by responsesVm.state.collectAsStateWithLifecycle()
+                val resp = state.selectedResponse
+                if (resp != null) {
+                    ResponseDetailScreen(
+                        response = resp,
+                        fields = state.fields,
+                        onBack = { navController.popBackStack() }
+                    )
+                } else {
+                    navController.popBackStack()
+                }
             }
             composable(Routes.Settings) {
                 SettingsScreen(onSignedOut = onSignedOut)

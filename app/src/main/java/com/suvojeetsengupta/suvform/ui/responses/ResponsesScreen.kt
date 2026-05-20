@@ -72,6 +72,7 @@ import java.util.Locale
 @Composable
 fun ResponsesScreen(
     onBack: () -> Unit,
+    onViewDetail: () -> Unit,
     viewModel: ResponsesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -174,7 +175,14 @@ fun ResponsesScreen(
                     ) {
                         item { InsightsCallout(onClick = { viewModel.loadInsights() }) }
                         items(state.responses, key = { it.id }) { resp ->
-                            ResponseCard(resp)
+                            ResponseCard(
+                                resp = resp,
+                                fields = state.fields,
+                                onClick = {
+                                    viewModel.selectResponse(resp)
+                                    onViewDetail()
+                                }
+                            )
                         }
                     }
                 }
@@ -247,13 +255,18 @@ private fun InsightsCallout(onClick: () -> Unit) {
 }
 
 @Composable
-private fun ResponseCard(resp: ResponseItemDto) {
+private fun ResponseCard(
+    resp: ResponseItemDto,
+    fields: List<com.suvojeetsengupta.suvform.data.remote.FieldDto>,
+    onClick: () -> Unit
+) {
     val fmt = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        onClick = onClick
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(
@@ -262,9 +275,31 @@ private fun ResponseCard(resp: ResponseItemDto) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(10.dp))
-            resp.answers.forEach { (key, value) ->
-                AnswerRow(key, value)
+            
+            // Show first few answers with labels
+            val previewFields = fields.take(3)
+            if (previewFields.isEmpty()) {
+                // Fallback to raw IDs if fields are not loaded yet
+                resp.answers.entries.take(3).forEach { (key, value) ->
+                    AnswerRow(key, value)
+                }
+            } else {
+                previewFields.forEach { field ->
+                    val answer = resp.answers[field.id]
+                    val label = field.label.ifBlank { field.id }
+                    AnswerRow(label, answer ?: JsonPrimitive(""))
+                }
             }
+            
+            if (fields.size > 3) {
+                Text(
+                    "+ ${fields.size - 3} more fields",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
             if (resp.calculated.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Text(
