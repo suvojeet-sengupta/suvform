@@ -14,7 +14,7 @@ android {
     defaultConfig {
         applicationId = "com.suvojeetsengupta.suvform"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
         // CI overrides via `-PversionCode=<run_number> -PversionName=1.0.<run_number>`.
         versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
         versionName = (project.findProperty("versionName") as String?) ?: "1.0"
