@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -40,7 +41,16 @@ class CreateViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { api.generateForm(GenerateFormRequest(prompt, _state.value.locale)) }
                 .onSuccess { form -> _state.update { it.copy(loading = false, result = form) } }
-                .onFailure { e -> _state.update { it.copy(loading = false, error = e.message ?: "Failed") } }
+                .onFailure { e ->
+                    val msg = when (e) {
+                        is HttpException -> {
+                            val body = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
+                            "HTTP ${e.code()}${if (!body.isNullOrBlank()) ": $body" else ""}"
+                        }
+                        else -> e.message ?: "Failed"
+                    }
+                    _state.update { it.copy(loading = false, error = msg) }
+                }
         }
     }
 }

@@ -4,6 +4,7 @@ import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFact
 import com.suvojeetsengupta.suvform.BuildConfig
 import com.suvojeetsengupta.suvform.data.remote.AuthInterceptor
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
+import com.suvojeetsengupta.suvform.data.remote.TokenAuthenticator
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,14 +28,19 @@ object NetworkModule {
     }
 
     @Provides @Singleton
-    fun provideOkHttp(authInterceptor: AuthInterceptor): OkHttpClient {
+    fun provideOkHttp(
+        authInterceptor: AuthInterceptor,
+        tokenAuthenticator: TokenAuthenticator,
+    ): OkHttpClient {
         val builder = OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)  // AI calls can take a few seconds
             .addInterceptor(authInterceptor)
-        if (BuildConfig.DEBUG) {
-            builder.addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC })
-        }
+            .authenticator(tokenAuthenticator)  // refresh + retry on 401
+        // Always log BODY for now — easier to diagnose 4xx; flip back to BASIC after stability.
+        builder.addInterceptor(
+            HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
+        )
         return builder.build()
     }
 
