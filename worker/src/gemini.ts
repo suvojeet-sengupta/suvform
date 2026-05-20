@@ -1,8 +1,11 @@
 // Gemini structured-output proxy. Keeps the API key on the server (Worker)
 // so it never ships in the Android APK.
 
-const MODEL = "gemini-1.5-flash";
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+// Cascade — same approach Advisor-Desk uses: try primary, fall back if quota exhausted.
+// 1.5/2.0 currently return quota=0 on this Google account; 2.5 series works.
+const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-1.5-flash"] as const;
+const endpointFor = (model: string) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
 /**
  * The JSON schema Gemini must produce. Mirrors what the Android editor /
@@ -111,16 +114,20 @@ export async function generateFormWithGemini(
     },
   };
 
-  const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`gemini_${res.status}: ${text.slice(0, 300)}`);
+  // Try each model in order; fall through on 429 (quota) / 503 (overloaded).
+  let res: Response | null = null;
+  let lastErr = "";
+  for (const model of MODELS) {
+    res = await fetch(`${endpointFor(model)}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) break;
+    lastErr = `${model}_${res.status}: ${(await res.text()).slice(0, 200)}`;
+    if (res.status !== 429 && res.status !== 503) break; // hard error — don't cascade
   }
+  if (!res || !res.ok) throw new Error(`gemini_failed: ${lastErr}`);
 
   const data = (await res.json()) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
