@@ -42,18 +42,7 @@ app.use("/v1/*", async (c, next) => {
 // POST /v1/me — upsert user profile after sign-in
 app.post("/v1/me", async (c) => {
   const u = c.get("user");
-  const now = Date.now();
-  await c.env.DB.prepare(
-    `INSERT INTO users (uid, email, display_name, photo_url, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT(uid) DO UPDATE SET
-       email = excluded.email,
-       display_name = excluded.display_name,
-       photo_url = excluded.photo_url,
-       updated_at = excluded.updated_at`,
-  )
-    .bind(u.uid, u.email ?? null, u.name ?? null, u.picture ?? null, now, now)
-    .run();
+  await upsertUser(c.env.DB, u);
   return c.json({ uid: u.uid, email: u.email, display_name: u.name, photo_url: u.picture });
 });
 
@@ -91,6 +80,10 @@ function validateFormBody(b: FormBody): { ok: true; data: Required<FormBody> } |
 // POST /v1/forms — create a new form (full payload)
 app.post("/v1/forms", async (c) => {
   const u = c.get("user");
+  
+  // Ensure user exists in D1 before creating form (FK constraint)
+  await upsertUser(c.env.DB, u);
+
   const body = await c.req.json<FormBody>().catch(() => ({} as FormBody));
   const v = validateFormBody(body);
   if (!v.ok) return c.json({ error: v.err }, 400);
@@ -470,6 +463,22 @@ app.get("/f/:slug", async (c) => {
 });
 
 // ---------- helpers ----------
+
+async function upsertUser(db: D1Database, u: FirebaseUser) {
+  const now = Date.now();
+  await db
+    .prepare(
+      `INSERT INTO users (uid, email, display_name, photo_url, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(uid) DO UPDATE SET
+         email = excluded.email,
+         display_name = excluded.display_name,
+         photo_url = excluded.photo_url,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(u.uid, u.email ?? null, u.name ?? null, u.picture ?? null, now, now)
+    .run();
+}
 
 function safeParse<T>(s: string, fallback: T): T {
   try { return JSON.parse(s) as T; } catch { return fallback; }
