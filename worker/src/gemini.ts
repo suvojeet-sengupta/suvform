@@ -1,0 +1,141 @@
+// Gemini structured-output proxy. Keeps the API key on the server (Worker)
+// so it never ships in the Android APK.
+
+const MODEL = "gemini-2.0-flash";
+const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+
+/**
+ * The JSON schema Gemini must produce. Mirrors what the Android editor /
+ * web filler expect. `response_schema` constrains the model so we get
+ * valid JSON without parsing hallucinations.
+ */
+const FORM_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    title: { type: "STRING", description: "Short form title" },
+    description: { type: "STRING", description: "1-2 line subtitle shown under the title" },
+    fields: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          id: { type: "STRING", description: "snake_case stable id" },
+          type: {
+            type: "STRING",
+            enum: [
+              "short_text",
+              "long_text",
+              "number",
+              "email",
+              "phone",
+              "single_choice",
+              "multi_choice",
+              "date",
+              "rating",
+            ],
+          },
+          label: { type: "STRING" },
+          required: { type: "BOOLEAN" },
+          options: { type: "ARRAY", items: { type: "STRING" } },
+          placeholder: { type: "STRING" },
+        },
+        required: ["id", "type", "label"],
+      },
+    },
+    calculations: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          id: { type: "STRING" },
+          label: { type: "STRING" },
+          expression: {
+            type: "STRING",
+            description: "Math expression using field ids, e.g. `quantity * price`",
+          },
+          format: { type: "STRING", enum: ["number", "currency", "percent"] },
+        },
+        required: ["id", "label", "expression"],
+      },
+    },
+  },
+  required: ["title", "fields"],
+} as const;
+
+const SYSTEM_PROMPT = `You design clean, mobile-friendly forms. Given a short user description,
+produce a JSON form definition matching the provided schema. Rules:
+- Choose the smallest set of fields that captures what the user asked for.
+- Use snake_case for field ids.
+- Mark obvious required fields (name, email, primary number) as required.
+- For pricing/quantity-style fields, also add a calculation (e.g. total = quantity * price).
+- For rating fields use type "rating" (1-5).
+- Localize labels to the requested locale (en or hi).
+- Return ONLY the JSON object, no commentary.`;
+
+export type GeneratedForm = {
+  title: string;
+  description?: string;
+  fields: Array<{
+    id: string;
+    type: string;
+    label: string;
+    required?: boolean;
+    options?: string[];
+    placeholder?: string;
+  }>;
+  calculations?: Array<{
+    id: string;
+    label: string;
+    expression: string;
+    format?: string;
+  }>;
+};
+
+export async function generateFormWithGemini(
+  apiKey: string,
+  prompt: string,
+  locale: "en" | "hi" = "en",
+): Promise<GeneratedForm> {
+  const userText =
+    `Locale: ${locale}\n` +
+    `User description:\n${prompt}\n\n` +
+    `Respond with JSON matching the schema.`;
+
+  const body = {
+    contents: [{ role: "user", parts: [{ text: userText }] }],
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    generationConfig: {
+      temperature: 0.4,
+      response_mime_type: "application/json",
+      response_schema: FORM_SCHEMA,
+    },
+  };
+
+  const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`gemini_${res.status}: ${text.slice(0, 300)}`);
+  }
+
+  const data = (await res.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("gemini_empty_response");
+
+  let parsed: GeneratedForm;
+  try {
+    parsed = JSON.parse(text) as GeneratedForm;
+  } catch (e) {
+    throw new Error(`gemini_parse_failed: ${(e as Error).message}`);
+  }
+  if (!parsed.title || !Array.isArray(parsed.fields)) {
+    throw new Error("gemini_bad_shape");
+  }
+  return parsed;
+}

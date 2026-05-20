@@ -10,7 +10,13 @@
       "Bash(curl -s \"https://dl.google.com/dl/android/maven2/com/android/tools/build/gradle/maven-metadata.xml\")",
       "Bash(curl -s \"https://dl.google.com/dl/android/maven2/androidx/compose/compose-bom/maven-metadata.xml\")",
       "Bash(curl -s \"https://repo1.maven.org/maven2/com/google/dagger/hilt-android/maven-metadata.xml\")",
-      "Bash(curl -s \"https://dl.google.com/dl/android/maven2/com/google/firebase/firebase-bom/maven-metadata.xml\")"
+      "Bash(curl -s \"https://dl.google.com/dl/android/maven2/com/google/firebase/firebase-bom/maven-metadata.xml\")",
+      "Bash(git -C F:/SuvForm add worker/package.json .github/workflows/android-release.yml)",
+      "Bash(git -C F:/SuvForm commit -m \"CI: passWithNoTests + scope android-release to app/gradle paths only\")",
+      "Bash(git -C F:/SuvForm push)",
+      "Bash(git -C F:/SuvForm add .github/workflows/)",
+      "Bash(git -C F:/SuvForm commit -m \"CI: use npm install instead of npm ci for cross-platform binaries\")",
+      "Bash(git -C F:/SuvForm commit -m \"CI: setup-node cache-dependency-path multiline format\")"
     ]
   }
 }

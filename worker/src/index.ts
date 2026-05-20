@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { verifyFirebaseIdToken, type FirebaseUser } from "./auth";
+import { generateFormWithGemini } from "./gemini";
 
 type Bindings = {
   DB: D1Database;
@@ -84,6 +85,32 @@ app.post("/v1/forms", async (c) => {
     .bind(id, u.uid, title, description, now, now)
     .run();
   return c.json({ id, title, description, published: 0, public_slug: null }, 201);
+});
+
+// POST /v1/ai/generate-form — Gemini proxy with simple per-user daily quota.
+app.post("/v1/ai/generate-form", async (c) => {
+  const u = c.get("user");
+  const body = await c.req
+    .json<{ prompt?: string; locale?: "en" | "hi" }>()
+    .catch(() => ({} as { prompt?: string; locale?: "en" | "hi" }));
+  const prompt = (body.prompt ?? "").trim();
+  if (prompt.length < 3) return c.json({ error: "prompt_too_short" }, 400);
+  if (prompt.length > 2000) return c.json({ error: "prompt_too_long" }, 400);
+
+  // Per-user soft quota: 50 generations / 24h via KV. Cheap and approximate.
+  const day = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
+  const quotaKey = `quota:${u.uid}:${day}`;
+  const used = parseInt((await c.env.RATE_LIMIT.get(quotaKey)) ?? "0", 10);
+  if (used >= 50) return c.json({ error: "quota_exceeded", limit: 50 }, 429);
+
+  try {
+    const form = await generateFormWithGemini(c.env.GEMINI_API_KEY, prompt, body.locale ?? "en");
+    // Increment quota (24h TTL).
+    await c.env.RATE_LIMIT.put(quotaKey, String(used + 1), { expirationTtl: 24 * 60 * 60 });
+    return c.json(form);
+  } catch (e) {
+    return c.json({ error: "generation_failed", detail: (e as Error).message }, 502);
+  }
 });
 
 // Public read for the web filler — published forms only

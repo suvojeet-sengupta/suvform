@@ -13,4 +13,7 @@ interface SuvFormApi {
 
     @POST("v1/forms")
     suspend fun createForm(@Body body: CreateFormRequest = CreateFormRequest()): FormSummaryDto
+
+    @POST("v1/ai/generate-form")
+    suspend fun generateForm(@Body body: GenerateFormRequest): GeneratedFormDto
 }

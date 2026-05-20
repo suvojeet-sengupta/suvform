@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import com.suvojeetsengupta.suvform.data.repository.AuthRepository
 import com.suvojeetsengupta.suvform.data.repository.FirebaseAuthState
 import com.suvojeetsengupta.suvform.ui.auth.SignInScreen
+import com.suvojeetsengupta.suvform.ui.create.CreateScreen
 import com.suvojeetsengupta.suvform.ui.home.HomeScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -39,9 +40,15 @@ fun AppNavHost(initiallySignedIn: Boolean) {
             })
         }
         composable(Routes.Home) {
-            HomeScreen(onSignedOut = {
-                nav.navigate(Routes.SignIn) { popUpTo(Routes.Home) { inclusive = true } }
-            })
+            HomeScreen(
+                onSignedOut = {
+                    nav.navigate(Routes.SignIn) { popUpTo(Routes.Home) { inclusive = true } }
+                },
+                onCreateForm = { nav.navigate(Routes.Create) },
+            )
+        }
+        composable(Routes.Create) {
+            CreateScreen(onBack = { nav.popBackStack() })
         }
     }
 }

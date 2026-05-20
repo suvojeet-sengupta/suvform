@@ -27,3 +27,34 @@ data class FormListDto(val forms: List<FormSummaryDto>)
 
 @Serializable
 data class CreateFormRequest(val title: String = "Untitled form", val description: String = "")
+
+// --- AI form generation ---
+
+@Serializable
+data class GenerateFormRequest(val prompt: String, val locale: String = "en")
+
+@Serializable
+data class FieldDto(
+    val id: String,
+    val type: String,
+    val label: String,
+    val required: Boolean = false,
+    val options: List<String> = emptyList(),
+    val placeholder: String? = null,
+)
+
+@Serializable
+data class CalculationDto(
+    val id: String,
+    val label: String,
+    val expression: String,
+    val format: String? = null,
+)
+
+@Serializable
+data class GeneratedFormDto(
+    val title: String,
+    val description: String? = null,
+    val fields: List<FieldDto> = emptyList(),
+    val calculations: List<CalculationDto> = emptyList(),
+)
