@@ -3,6 +3,7 @@ package com.suvojeetsengupta.suvform.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -13,9 +14,9 @@ import com.suvojeetsengupta.suvform.ui.auth.SignInScreen
 import com.suvojeetsengupta.suvform.ui.create.CreateScreen
 import com.suvojeetsengupta.suvform.ui.editor.EditorScreen
 import com.suvojeetsengupta.suvform.ui.home.HomeScreen
+import com.suvojeetsengupta.suvform.ui.preview.PreviewScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import androidx.lifecycle.ViewModel
 
 @HiltViewModel
 class AuthStateViewModel @Inject constructor(
@@ -29,7 +30,7 @@ fun AppNavHost(initiallySignedIn: Boolean) {
     val nav = rememberNavController()
     val authVm: AuthStateViewModel = hiltViewModel()
     val authState by authVm.authState.collectAsStateWithLifecycle(
-        initialValue = if (initiallySignedIn) FirebaseAuthState.SignedIn("") else FirebaseAuthState.SignedOut
+        initialValue = if (initiallySignedIn) FirebaseAuthState.SignedIn("") else FirebaseAuthState.SignedOut,
     )
 
     val startDestination = if (authState is FirebaseAuthState.SignedIn) Routes.Home else Routes.SignIn
@@ -46,6 +47,7 @@ fun AppNavHost(initiallySignedIn: Boolean) {
                     nav.navigate(Routes.SignIn) { popUpTo(Routes.Home) { inclusive = true } }
                 },
                 onCreateForm = { nav.navigate(Routes.Create) },
+                onOpenForm = { nav.navigate(Routes.Editor) },
             )
         }
         composable(Routes.Create) {
@@ -53,14 +55,24 @@ fun AppNavHost(initiallySignedIn: Boolean) {
                 onBack = { nav.popBackStack() },
                 onOpenEditor = {
                     nav.navigate(Routes.Editor) {
-                        // Replace Create in the back stack so back from Editor goes Home.
+                        // Replace Create in back stack — back from Editor goes Home.
                         popUpTo(Routes.Create) { inclusive = true }
                     }
                 },
             )
         }
         composable(Routes.Editor) {
-            EditorScreen(onBack = { nav.popBackStack() })
+            EditorScreen(
+                onBack = { nav.popBackStack() },
+                onPreview = { nav.navigate(Routes.Preview) },
+                onSaved = {
+                    // After Save, go back to Home — Home auto-refreshes via LaunchedEffect.
+                    nav.popBackStack(Routes.Home, inclusive = false)
+                },
+            )
+        }
+        composable(Routes.Preview) {
+            PreviewScreen(onBack = { nav.popBackStack() })
         }
     }
 }

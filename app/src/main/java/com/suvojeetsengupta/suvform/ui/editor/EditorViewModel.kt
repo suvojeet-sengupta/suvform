@@ -1,18 +1,31 @@
 package com.suvojeetsengupta.suvform.ui.editor
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.suvojeetsengupta.suvform.data.draft.FieldEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldType
 import com.suvojeetsengupta.suvform.data.draft.FormDraftStore
+import com.suvojeetsengupta.suvform.data.remote.SaveFormRequest
+import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import javax.inject.Inject
 
 @HiltViewModel
 class EditorViewModel @Inject constructor(
     private val store: FormDraftStore,
+    private val api: SuvFormApi,
 ) : ViewModel() {
 
     val draft = store.draft
+
+    private val _save = MutableStateFlow(SaveUiState())
+    val saveState: StateFlow<SaveUiState> = _save.asStateFlow()
 
     // ---- Form-level ----
     fun setTitle(value: String) = store.update { it.copy(title = value) }
@@ -54,7 +67,6 @@ class EditorViewModel @Inject constructor(
 
     fun setFieldLabel(index: Int, label: String) = mutateField(index) { it.copy(label = label) }
     fun setFieldType(index: Int, type: FieldType) = mutateField(index) {
-        // When switching away from a choice type, drop options.
         if (!type.hasOptions) it.copy(type = type, options = emptyList())
         else it.copy(type = type)
     }
@@ -63,7 +75,7 @@ class EditorViewModel @Inject constructor(
         it.copy(placeholder = placeholder.takeIf { p -> p.isNotBlank() })
     }
 
-    // ---- Options (for choice fields) ----
+    // ---- Options ----
     fun addOption(fieldIndex: Int) = mutateField(fieldIndex) {
         it.copy(options = it.options + "Option ${it.options.size + 1}")
     }
@@ -74,6 +86,50 @@ class EditorViewModel @Inject constructor(
         it.copy(options = it.options.toMutableList().apply { removeAt(optionIndex) })
     }
 
+    // ---- Save ----
+    fun save() {
+        if (_save.value.saving) return
+        val d = store.draft.value
+        if (d.fields.isEmpty()) {
+            _save.value = SaveUiState(error = "Add at least one field before saving.")
+            return
+        }
+        _save.value = SaveUiState(saving = true)
+        viewModelScope.launch {
+            val req = SaveFormRequest(
+                title = d.title.ifBlank { "Untitled form" },
+                description = d.description,
+                fields = d.fields.map { it.toDto() },
+                calculations = d.calculations.map { it.toDto() },
+            )
+            runCatching {
+                if (d.remoteId == null) api.createForm(req)
+                else {
+                    api.updateForm(d.remoteId, req)
+                    null  // detail not returned by PUT — we already have it
+                }
+            }
+                .onSuccess { detail ->
+                    if (detail != null) store.update { it.copy(remoteId = detail.id) }
+                    _save.value = SaveUiState(saved = true)
+                }
+                .onFailure { e ->
+                    val msg = when (e) {
+                        is HttpException -> {
+                            val body = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
+                            "HTTP ${e.code()}${if (!body.isNullOrBlank()) ": $body" else ""}"
+                        }
+                        else -> e.message ?: "Save failed"
+                    }
+                    _save.value = SaveUiState(error = msg)
+                }
+        }
+    }
+
+    fun consumeSaved() {
+        _save.value = SaveUiState()
+    }
+
     private inline fun mutateField(index: Int, crossinline transform: (FieldEdit) -> FieldEdit) {
         store.update { d ->
             val f = d.fields.getOrNull(index) ?: return@update d
@@ -81,3 +137,9 @@ class EditorViewModel @Inject constructor(
         }
     }
 }
+
+data class SaveUiState(
+    val saving: Boolean = false,
+    val saved: Boolean = false,
+    val error: String? = null,
+)

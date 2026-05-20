@@ -5,4 +5,5 @@ object Routes {
     const val Home = "home"
     const val Create = "create"
     const val Editor = "editor"
+    const val Preview = "preview"
 }

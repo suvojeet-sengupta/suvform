@@ -69,12 +69,27 @@ import com.suvojeetsengupta.suvform.data.draft.FieldType
 fun EditorScreen(
     onBack: () -> Unit,
     onPreview: () -> Unit = {},
+    onSaved: () -> Unit = {},
     viewModel: EditorViewModel = hiltViewModel(),
 ) {
     val draft by viewModel.draft.collectAsStateWithLifecycle()
+    val saveState by viewModel.saveState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
+    val snackbar = remember { androidx.compose.material3.SnackbarHostState() }
+
+    LaunchedEffect(saveState.saved) {
+        if (saveState.saved) {
+            snackbar.showSnackbar("Form saved")
+            viewModel.consumeSaved()
+            onSaved()
+        }
+    }
+    LaunchedEffect(saveState.error) {
+        saveState.error?.let { snackbar.showSnackbar(it) }
+    }
 
     Scaffold(
+        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { Text("Edit form") },
@@ -86,6 +101,12 @@ fun EditorScreen(
                 actions = {
                     TextButton(onClick = onPreview, enabled = draft.fields.isNotEmpty()) {
                         Text("Preview")
+                    }
+                    TextButton(
+                        onClick = { viewModel.save() },
+                        enabled = !saveState.saving && draft.fields.isNotEmpty(),
+                    ) {
+                        Text(if (saveState.saving) "Saving…" else "Save")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

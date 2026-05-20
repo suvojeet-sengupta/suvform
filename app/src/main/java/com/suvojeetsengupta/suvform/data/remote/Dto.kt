@@ -58,3 +58,32 @@ data class GeneratedFormDto(
     val fields: List<FieldDto> = emptyList(),
     val calculations: List<CalculationDto> = emptyList(),
 )
+
+// --- Save / load ---
+
+@Serializable
+data class SaveFormRequest(
+    val title: String,
+    val description: String = "",
+    val fields: List<FieldDto> = emptyList(),
+    val calculations: List<CalculationDto> = emptyList(),
+)
+
+@Serializable
+data class FormDetailDto(
+    val id: String,
+    val title: String,
+    val description: String? = null,
+    val fields: List<FieldDto> = emptyList(),
+    val calculations: List<CalculationDto> = emptyList(),
+    val published: Int = 0,
+    @SerialName("public_slug") val publicSlug: String? = null,
+    @SerialName("created_at") val createdAt: Long = 0,
+    @SerialName("updated_at") val updatedAt: Long = 0,
+)
+
+@Serializable
+data class UpdateAckDto(
+    val id: String,
+    @SerialName("updated_at") val updatedAt: Long,
+)

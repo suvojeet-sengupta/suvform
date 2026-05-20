@@ -68,23 +68,139 @@ app.get("/v1/forms", async (c) => {
   return c.json({ forms: results });
 });
 
-// POST /v1/forms — create a new (empty) form
+type FormBody = {
+  title?: string;
+  description?: string;
+  fields?: unknown[];
+  calculations?: unknown[];
+};
+
+function validateFormBody(b: FormBody): { ok: true; data: Required<FormBody> } | { ok: false; err: string } {
+  const title = (b.title ?? "").toString().trim() || "Untitled form";
+  if (title.length > 200) return { ok: false, err: "title_too_long" };
+  const description = (b.description ?? "").toString();
+  if (description.length > 2000) return { ok: false, err: "description_too_long" };
+  const fields = Array.isArray(b.fields) ? b.fields : [];
+  if (fields.length > 200) return { ok: false, err: "too_many_fields" };
+  const calculations = Array.isArray(b.calculations) ? b.calculations : [];
+  if (calculations.length > 50) return { ok: false, err: "too_many_calculations" };
+  return { ok: true, data: { title, description, fields, calculations } };
+}
+
+// POST /v1/forms — create a new form (full payload)
 app.post("/v1/forms", async (c) => {
   const u = c.get("user");
-  const body: { title?: string; description?: string } = await c.req
-    .json<{ title?: string; description?: string }>()
-    .catch(() => ({}));
+  const body = await c.req.json<FormBody>().catch(() => ({} as FormBody));
+  const v = validateFormBody(body);
+  if (!v.ok) return c.json({ error: v.err }, 400);
   const id = crypto.randomUUID();
   const now = Date.now();
-  const title = body.title ?? "Untitled form";
-  const description = body.description ?? "";
   await c.env.DB.prepare(
     `INSERT INTO forms (id, owner_uid, title, description, schema_json, calculations_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, '[]', '[]', ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, u.uid, title, description, now, now)
+    .bind(
+      id,
+      u.uid,
+      v.data.title,
+      v.data.description,
+      JSON.stringify(v.data.fields),
+      JSON.stringify(v.data.calculations),
+      now,
+      now,
+    )
     .run();
-  return c.json({ id, title, description, published: 0, public_slug: null }, 201);
+  return c.json(
+    {
+      id,
+      title: v.data.title,
+      description: v.data.description,
+      published: 0,
+      public_slug: null,
+      created_at: now,
+      updated_at: now,
+    },
+    201,
+  );
+});
+
+// GET /v1/forms/:id — get one form (owner-only)
+app.get("/v1/forms/:id", async (c) => {
+  const u = c.get("user");
+  const row = await c.env.DB.prepare(
+    `SELECT id, title, description, schema_json, calculations_json,
+            published, public_slug, created_at, updated_at, owner_uid
+       FROM forms WHERE id = ?`,
+  )
+    .bind(c.req.param("id"))
+    .first<{
+      id: string;
+      title: string;
+      description: string;
+      schema_json: string;
+      calculations_json: string;
+      published: number;
+      public_slug: string | null;
+      created_at: number;
+      updated_at: number;
+      owner_uid: string;
+    }>();
+  if (!row) return c.json({ error: "not_found" }, 404);
+  if (row.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
+  return c.json({
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    fields: JSON.parse(row.schema_json || "[]"),
+    calculations: JSON.parse(row.calculations_json || "[]"),
+    published: row.published,
+    public_slug: row.public_slug,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  });
+});
+
+// PUT /v1/forms/:id — update an existing form (owner-only)
+app.put("/v1/forms/:id", async (c) => {
+  const u = c.get("user");
+  const id = c.req.param("id");
+  const owner = await c.env.DB.prepare(`SELECT owner_uid FROM forms WHERE id = ?`)
+    .bind(id)
+    .first<{ owner_uid: string }>();
+  if (!owner) return c.json({ error: "not_found" }, 404);
+  if (owner.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
+
+  const body = await c.req.json<FormBody>().catch(() => ({} as FormBody));
+  const v = validateFormBody(body);
+  if (!v.ok) return c.json({ error: v.err }, 400);
+  const now = Date.now();
+  await c.env.DB.prepare(
+    `UPDATE forms SET title = ?, description = ?, schema_json = ?, calculations_json = ?, updated_at = ?
+       WHERE id = ?`,
+  )
+    .bind(
+      v.data.title,
+      v.data.description,
+      JSON.stringify(v.data.fields),
+      JSON.stringify(v.data.calculations),
+      now,
+      id,
+    )
+    .run();
+  return c.json({ id, updated_at: now });
+});
+
+// DELETE /v1/forms/:id — delete (owner-only). Cascades to responses.
+app.delete("/v1/forms/:id", async (c) => {
+  const u = c.get("user");
+  const id = c.req.param("id");
+  const owner = await c.env.DB.prepare(`SELECT owner_uid FROM forms WHERE id = ?`)
+    .bind(id)
+    .first<{ owner_uid: string }>();
+  if (!owner) return c.json({ error: "not_found" }, 404);
+  if (owner.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
+  await c.env.DB.prepare(`DELETE FROM forms WHERE id = ?`).bind(id).run();
+  return c.json({ ok: true });
 });
 
 // POST /v1/ai/generate-form — Gemini proxy with simple per-user daily quota.
