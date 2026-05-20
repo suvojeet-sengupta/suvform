@@ -482,13 +482,28 @@ async function sha256Short(input: string): Promise<string> {
 }
 
 function notFoundHtml(): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Form not found</title>
-<script src="https://cdn.tailwindcss.com"></script></head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center px-6">
-<div class="text-center">
-  <div class="text-6xl mb-4">🔍</div>
-  <h1 class="text-2xl font-bold mb-2">Form not found</h1>
-  <p class="text-slate-500">This form may have been unpublished or never existed.</p>
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light dark" />
+<title>Form not found – SuvForm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>body { font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }</style>
+</head>
+<body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center px-6">
+<div class="text-center max-w-sm">
+  <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-900 mb-5">
+    <svg class="h-6 w-6 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+    </svg>
+  </div>
+  <h1 class="text-xl font-semibold mb-2 tracking-tight">Form not found</h1>
+  <p class="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">This form may have been unpublished or the link is incorrect. Ask the form owner for a new link.</p>
 </div>
 </body></html>`;
 }
