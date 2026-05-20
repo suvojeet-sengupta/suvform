@@ -29,4 +29,16 @@ interface SuvFormApi {
 
     @POST("v1/ai/generate-form")
     suspend fun generateForm(@Body body: GenerateFormRequest): GeneratedFormDto
+
+    @POST("v1/forms/{id}/publish")
+    suspend fun publishForm(@Path("id") id: String): PublishResponse
+
+    @POST("v1/forms/{id}/unpublish")
+    suspend fun unpublishForm(@Path("id") id: String): JsonObject
+
+    @GET("v1/forms/{id}/responses")
+    suspend fun listResponses(@Path("id") id: String): ResponsesListDto
+
+    @POST("v1/forms/{id}/insights")
+    suspend fun getInsights(@Path("id") id: String): InsightsDto
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.suvojeetsengupta.suvform.data.draft.FormDraft
 import com.suvojeetsengupta.suvform.data.draft.FormDraftStore
+import com.suvojeetsengupta.suvform.data.draft.SelectedFormStore
 import com.suvojeetsengupta.suvform.data.remote.FormSummaryDto
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
 import com.suvojeetsengupta.suvform.data.repository.AuthRepository
@@ -24,7 +25,14 @@ class HomeViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val api: SuvFormApi,
     private val draftStore: FormDraftStore,
+    private val selectedForm: SelectedFormStore,
 ) : ViewModel() {
+
+    fun selectForResponses(form: FormSummaryDto) {
+        selectedForm.formId = form.id
+        selectedForm.formTitle = form.title
+    }
+
 
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -54,6 +62,9 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { api.getForm(formId) }
                 .onSuccess { detail ->
+                    val shareUrl = detail.publicSlug?.let { slug ->
+                        com.suvojeetsengupta.suvform.BuildConfig.API_BASE_URL.trimEnd('/') + "/f/" + slug
+                    }
                     draftStore.set(
                         FormDraft(
                             remoteId = detail.id,
@@ -61,6 +72,9 @@ class HomeViewModel @Inject constructor(
                             description = detail.description.orEmpty(),
                             fields = detail.fields.map { FieldEdit.fromDto(it) },
                             calculations = detail.calculations.map { CalculationEdit.fromDto(it) },
+                            published = detail.published == 1,
+                            publicSlug = detail.publicSlug,
+                            shareUrl = shareUrl,
                         ),
                     )
                     _state.update { it.copy(openingFormId = null) }

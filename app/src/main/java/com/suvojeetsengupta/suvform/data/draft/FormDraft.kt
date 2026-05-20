@@ -12,6 +12,9 @@ data class FormDraft(
     val description: String = "",
     val fields: List<FieldEdit> = emptyList(),
     val calculations: List<CalculationEdit> = emptyList(),
+    val published: Boolean = false,
+    val publicSlug: String? = null,
+    val shareUrl: String? = null,
 ) {
     companion object {
         fun blank() = FormDraft(

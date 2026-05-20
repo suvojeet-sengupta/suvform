@@ -87,3 +87,29 @@ data class UpdateAckDto(
     val id: String,
     @SerialName("updated_at") val updatedAt: Long,
 )
+
+// --- Publish / responses / insights ---
+
+@Serializable
+data class PublishResponse(
+    val slug: String,
+    val url: String,
+    val published: Int,
+)
+
+@Serializable
+data class ResponseItemDto(
+    val id: String,
+    @SerialName("submitted_at") val submittedAt: Long,
+    val answers: Map<String, kotlinx.serialization.json.JsonElement> = emptyMap(),
+    val calculated: Map<String, Double> = emptyMap(),
+)
+
+@Serializable
+data class ResponsesListDto(val responses: List<ResponseItemDto> = emptyList())
+
+@Serializable
+data class InsightsDto(
+    val summary: String,
+    @SerialName("response_count") val responseCount: Int = 0,
+)

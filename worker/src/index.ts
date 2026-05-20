@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { verifyFirebaseIdToken, type FirebaseUser } from "./auth";
-import { generateFormWithGemini } from "./gemini";
+import { generateFormWithGemini, summarizeResponsesWithGemini } from "./gemini";
+import { publicFormHtml } from "./publicForm";
 
 type Bindings = {
   DB: D1Database;
@@ -229,7 +230,143 @@ app.post("/v1/ai/generate-form", async (c) => {
   }
 });
 
-// Public read for the web filler — published forms only
+// ---------- Publish / unpublish ----------
+
+function makeSlug(len = 8): string {
+  const alphabet = "23456789abcdefghjkmnpqrstuvwxyz"; // omit confusing chars (0/o, 1/l, i)
+  let s = "";
+  const bytes = new Uint8Array(len);
+  crypto.getRandomValues(bytes);
+  for (let i = 0; i < len; i++) s += alphabet[bytes[i] % alphabet.length];
+  return s;
+}
+
+// POST /v1/forms/:id/publish — generate a public slug and mark published
+app.post("/v1/forms/:id/publish", async (c) => {
+  const u = c.get("user");
+  const id = c.req.param("id");
+  const row = await c.env.DB.prepare(
+    `SELECT owner_uid, public_slug FROM forms WHERE id = ?`,
+  )
+    .bind(id)
+    .first<{ owner_uid: string; public_slug: string | null }>();
+  if (!row) return c.json({ error: "not_found" }, 404);
+  if (row.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
+
+  // Re-use existing slug if already published.
+  let slug = row.public_slug;
+  if (!slug) {
+    // Try a few times in the unlikely event of a collision.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = makeSlug();
+      const exists = await c.env.DB.prepare(
+        `SELECT 1 FROM forms WHERE public_slug = ? LIMIT 1`,
+      )
+        .bind(candidate)
+        .first();
+      if (!exists) { slug = candidate; break; }
+    }
+    if (!slug) return c.json({ error: "slug_collision" }, 500);
+  }
+  const now = Date.now();
+  await c.env.DB.prepare(
+    `UPDATE forms SET published = 1, public_slug = ?, updated_at = ? WHERE id = ?`,
+  )
+    .bind(slug, now, id)
+    .run();
+  const url = new URL(c.req.url);
+  const shareUrl = `${url.origin}/f/${slug}`;
+  return c.json({ slug, url: shareUrl, published: 1 });
+});
+
+// POST /v1/forms/:id/unpublish
+app.post("/v1/forms/:id/unpublish", async (c) => {
+  const u = c.get("user");
+  const id = c.req.param("id");
+  const row = await c.env.DB.prepare(`SELECT owner_uid FROM forms WHERE id = ?`)
+    .bind(id)
+    .first<{ owner_uid: string }>();
+  if (!row) return c.json({ error: "not_found" }, 404);
+  if (row.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
+  await c.env.DB.prepare(`UPDATE forms SET published = 0, updated_at = ? WHERE id = ?`)
+    .bind(Date.now(), id)
+    .run();
+  return c.json({ published: 0 });
+});
+
+// ---------- Responses (owner-only) ----------
+
+// GET /v1/forms/:id/responses — list responses for owner's form
+app.get("/v1/forms/:id/responses", async (c) => {
+  const u = c.get("user");
+  const id = c.req.param("id");
+  const owner = await c.env.DB.prepare(`SELECT owner_uid FROM forms WHERE id = ?`)
+    .bind(id)
+    .first<{ owner_uid: string }>();
+  if (!owner) return c.json({ error: "not_found" }, 404);
+  if (owner.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, answers_json, calculated_json, submitted_at
+       FROM responses WHERE form_id = ? ORDER BY submitted_at DESC LIMIT 500`,
+  )
+    .bind(id)
+    .all();
+  return c.json({
+    responses: (results as Array<{
+      id: string; answers_json: string; calculated_json: string | null; submitted_at: number;
+    }>).map((r) => ({
+      id: r.id,
+      submitted_at: r.submitted_at,
+      answers: safeParse(r.answers_json, {}),
+      calculated: safeParse(r.calculated_json ?? "{}", {}),
+    })),
+  });
+});
+
+// POST /v1/forms/:id/insights — Gemini summary of responses
+app.post("/v1/forms/:id/insights", async (c) => {
+  const u = c.get("user");
+  const id = c.req.param("id");
+  const form = await c.env.DB.prepare(
+    `SELECT owner_uid, title, schema_json FROM forms WHERE id = ?`,
+  )
+    .bind(id)
+    .first<{ owner_uid: string; title: string; schema_json: string }>();
+  if (!form) return c.json({ error: "not_found" }, 404);
+  if (form.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT answers_json, calculated_json FROM responses
+       WHERE form_id = ? ORDER BY submitted_at DESC LIMIT 50`,
+  )
+    .bind(id)
+    .all();
+  const responses = (results as Array<{ answers_json: string; calculated_json: string | null }>).map((r) => ({
+    ...safeParse(r.answers_json, {}),
+    _calc: safeParse(r.calculated_json ?? "{}", {}),
+  }));
+  if (responses.length === 0) {
+    return c.json({ summary: "No responses yet — share your form to start collecting!" });
+  }
+
+  const fields = (safeParse(form.schema_json, []) as Array<{ id: string; label: string; type: string }>);
+  try {
+    const summary = await summarizeResponsesWithGemini(
+      c.env.GEMINI_API_KEY,
+      form.title,
+      fields,
+      responses,
+    );
+    return c.json({ summary, response_count: responses.length });
+  } catch (e) {
+    return c.json({ error: "insights_failed", detail: (e as Error).message }, 502);
+  }
+});
+
+// ---------- Public read + submit ----------
+
+// JSON read for the web filler / Android preview
 app.get("/v1/public/forms/:slug", async (c) => {
   const slug = c.req.param("slug");
   const row = await c.env.DB.prepare(
@@ -242,9 +379,118 @@ app.get("/v1/public/forms/:slug", async (c) => {
   return c.json({
     title: row.title,
     description: row.description,
-    fields: JSON.parse(row.schema_json),
-    calculations: JSON.parse(row.calculations_json || "[]"),
+    fields: safeParse(row.schema_json, []),
+    calculations: safeParse(row.calculations_json || "[]", []),
   });
 });
+
+// POST /v1/public/forms/:slug/responses — rate-limited public submit
+app.post("/v1/public/forms/:slug/responses", async (c) => {
+  const slug = c.req.param("slug");
+  const form = await c.env.DB.prepare(
+    `SELECT id, schema_json FROM forms WHERE public_slug = ? AND published = 1`,
+  )
+    .bind(slug)
+    .first<{ id: string; schema_json: string }>();
+  if (!form) return c.json({ error: "not_found" }, 404);
+
+  // Rate limit: 10 submissions / hour / form / IP
+  const ip = c.req.header("CF-Connecting-IP") ?? "0.0.0.0";
+  const ipHash = await sha256Short(ip);
+  const rlKey = `rl:${slug}:${ipHash}:${Math.floor(Date.now() / 3_600_000)}`;
+  const used = parseInt((await c.env.RATE_LIMIT.get(rlKey)) ?? "0", 10);
+  if (used >= 10) return c.json({ error: "rate_limited" }, 429);
+
+  const body = await c.req.json<{ answers?: Record<string, unknown>; calculated?: Record<string, number> }>()
+    .catch(() => ({} as { answers?: Record<string, unknown>; calculated?: Record<string, number> }));
+  const answers = body.answers ?? {};
+  const calculated = body.calculated ?? {};
+
+  // Validate required fields
+  const fields = safeParse(form.schema_json, []) as Array<{
+    id: string; label: string; type: string; required?: boolean;
+  }>;
+  const missing: string[] = [];
+  for (const f of fields) {
+    if (!f.required) continue;
+    const v = (answers as Record<string, unknown>)[f.id];
+    const empty =
+      v === undefined || v === null || v === "" ||
+      (Array.isArray(v) && v.length === 0);
+    if (empty) missing.push(f.label);
+  }
+  if (missing.length) return c.json({ error: "missing_required", fields: missing }, 400);
+
+  const id = crypto.randomUUID();
+  const now = Date.now();
+  await c.env.DB.prepare(
+    `INSERT INTO responses (id, form_id, answers_json, calculated_json, submitter_ip_hash, submitted_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(id, form.id, JSON.stringify(answers), JSON.stringify(calculated), ipHash, now)
+    .run();
+
+  await c.env.RATE_LIMIT.put(rlKey, String(used + 1), { expirationTtl: 3600 });
+
+  return c.json({ ok: true, id });
+});
+
+// ---------- Public HTML form filler ----------
+
+// GET /f/:slug — the form filler page
+app.get("/f/:slug", async (c) => {
+  const slug = c.req.param("slug");
+  const row = await c.env.DB.prepare(
+    `SELECT title, description, schema_json, calculations_json
+       FROM forms WHERE public_slug = ? AND published = 1`,
+  )
+    .bind(slug)
+    .first<{ title: string; description: string; schema_json: string; calculations_json: string }>();
+  if (!row) {
+    return new Response(notFoundHtml(), {
+      status: 404,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
+  const url = new URL(c.req.url);
+  const html = publicFormHtml({
+    slug,
+    title: row.title,
+    description: row.description ?? "",
+    fields: safeParse(row.schema_json, []),
+    calculations: safeParse(row.calculations_json || "[]", []),
+    submitUrl: `${url.origin}/v1/public/forms/${slug}/responses`,
+  });
+  return new Response(html, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "public, max-age=60",
+    },
+  });
+});
+
+// ---------- helpers ----------
+
+function safeParse<T>(s: string, fallback: T): T {
+  try { return JSON.parse(s) as T; } catch { return fallback; }
+}
+
+async function sha256Short(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  const arr = Array.from(new Uint8Array(buf)).slice(0, 8);
+  return arr.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function notFoundHtml(): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Form not found</title>
+<script src="https://cdn.tailwindcss.com"></script></head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center px-6">
+<div class="text-center">
+  <div class="text-6xl mb-4">🔍</div>
+  <h1 class="text-2xl font-bold mb-2">Form not found</h1>
+  <p class="text-slate-500">This form may have been unpublished or never existed.</p>
+</div>
+</body></html>`;
+}
 
 export default app;

@@ -84,9 +84,24 @@ fun EditorScreen(
             onSaved()
         }
     }
+    LaunchedEffect(saveState.published) {
+        if (saveState.published) {
+            snackbar.showSnackbar("Published — link is ready to share")
+            viewModel.consumeSaved()
+        }
+    }
+    LaunchedEffect(saveState.unpublished) {
+        if (saveState.unpublished) {
+            snackbar.showSnackbar("Form unpublished")
+            viewModel.consumeSaved()
+        }
+    }
     LaunchedEffect(saveState.error) {
         saveState.error?.let { snackbar.showSnackbar(it) }
     }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
 
     Scaffold(
         snackbarHost = { androidx.compose.material3.SnackbarHost(snackbar) },
@@ -119,6 +134,29 @@ fun EditorScreen(
                 onClick = { viewModel.addField() },
                 icon = { Icon(Icons.Filled.Add, null) },
                 text = { Text("Add field") },
+            )
+        },
+        bottomBar = {
+            PublishBar(
+                published = draft.published,
+                hasRemoteId = draft.remoteId != null,
+                shareUrl = draft.shareUrl,
+                onPublish = { viewModel.publish() },
+                onUnpublish = { viewModel.unpublish() },
+                onCopy = {
+                    draft.shareUrl?.let {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(it))
+                    }
+                },
+                onShare = {
+                    val link = draft.shareUrl ?: return@PublishBar
+                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_SUBJECT, draft.title)
+                        putExtra(android.content.Intent.EXTRA_TEXT, "${draft.title}\n$link")
+                    }
+                    context.startActivity(android.content.Intent.createChooser(intent, "Share form"))
+                },
             )
         },
     ) { padding ->
@@ -375,6 +413,65 @@ private fun TypePicker(current: FieldType, onChange: (FieldType) -> Unit) {
                     },
                     onClick = { onChange(t); expanded = false },
                 )
+            }
+        }
+    }
+}
+
+// ----------------------- Publish bar -----------------------
+
+@Composable
+private fun PublishBar(
+    published: Boolean,
+    hasRemoteId: Boolean,
+    shareUrl: String?,
+    onPublish: () -> Unit,
+    onUnpublish: () -> Unit,
+    onCopy: () -> Unit,
+    onShare: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        tonalElevation = 3.dp,
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            if (published && shareUrl != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Live link",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            shareUrl,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                    androidx.compose.material3.OutlinedButton(onClick = onCopy) { Text("Copy") }
+                    Spacer(Modifier.width(8.dp))
+                    androidx.compose.material3.FilledTonalButton(onClick = onShare) { Text("Share") }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row {
+                    androidx.compose.material3.TextButton(onClick = onUnpublish) {
+                        Text("Unpublish", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            } else {
+                androidx.compose.material3.FilledTonalButton(
+                    onClick = onPublish,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = hasRemoteId,
+                ) {
+                    Text(
+                        if (hasRemoteId) "Publish & share" else "Save first to publish",
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }

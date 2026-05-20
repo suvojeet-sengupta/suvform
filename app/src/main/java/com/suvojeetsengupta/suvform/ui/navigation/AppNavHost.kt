@@ -15,6 +15,7 @@ import com.suvojeetsengupta.suvform.ui.create.CreateScreen
 import com.suvojeetsengupta.suvform.ui.editor.EditorScreen
 import com.suvojeetsengupta.suvform.ui.home.HomeScreen
 import com.suvojeetsengupta.suvform.ui.preview.PreviewScreen
+import com.suvojeetsengupta.suvform.ui.responses.ResponsesScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -48,6 +49,7 @@ fun AppNavHost(initiallySignedIn: Boolean) {
                 },
                 onCreateForm = { nav.navigate(Routes.Create) },
                 onOpenForm = { nav.navigate(Routes.Editor) },
+                onViewResponses = { nav.navigate(Routes.Responses) },
             )
         }
         composable(Routes.Create) {
@@ -65,14 +67,15 @@ fun AppNavHost(initiallySignedIn: Boolean) {
             EditorScreen(
                 onBack = { nav.popBackStack() },
                 onPreview = { nav.navigate(Routes.Preview) },
-                onSaved = {
-                    // After Save, go back to Home — Home auto-refreshes via LaunchedEffect.
-                    nav.popBackStack(Routes.Home, inclusive = false)
-                },
+                // Stay on Editor after save so user can also Publish & share.
+                onSaved = {},
             )
         }
         composable(Routes.Preview) {
             PreviewScreen(onBack = { nav.popBackStack() })
+        }
+        composable(Routes.Responses) {
+            ResponsesScreen(onBack = { nav.popBackStack() })
         }
     }
 }

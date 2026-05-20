@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
@@ -67,6 +68,7 @@ fun HomeScreen(
     onSignedOut: () -> Unit,
     onCreateForm: () -> Unit,
     onOpenForm: () -> Unit,
+    onViewResponses: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -152,6 +154,10 @@ fun HomeScreen(
                         opening = state.openingFormId == form.id,
                         onClick = { viewModel.openForm(form.id) { onOpenForm() } },
                         onDelete = { viewModel.delete(form.id) },
+                        onViewResponses = {
+                            viewModel.selectForResponses(form)
+                            onViewResponses()
+                        },
                     )
                 }
             }
@@ -215,6 +221,7 @@ private fun FormListCard(
     opening: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onViewResponses: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val fmt = remember { SimpleDateFormat("d MMM, yyyy", Locale.getDefault()) }
@@ -246,12 +253,30 @@ private fun FormListCard(
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(
-                    form.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        form.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    if (form.published == 1) {
+                        Spacer(Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(100),
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                        ) {
+                            Text(
+                                "● LIVE",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        }
+                    }
+                }
                 Text(
                     "Updated " + fmt.format(Date(form.updatedAt)),
                     style = MaterialTheme.typography.bodySmall,
@@ -266,6 +291,16 @@ private fun FormListCard(
                         Icon(Icons.Filled.MoreVert, "More")
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("View responses") },
+                            leadingIcon = {
+                                Icon(
+                                    androidx.compose.material.icons.Icons.Filled.Inbox,
+                                    null,
+                                )
+                            },
+                            onClick = { menuOpen = false; onViewResponses() },
+                        )
                         DropdownMenuItem(
                             text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                             leadingIcon = {

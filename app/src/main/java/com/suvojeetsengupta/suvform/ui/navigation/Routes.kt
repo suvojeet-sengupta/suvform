@@ -6,4 +6,5 @@ object Routes {
     const val Create = "create"
     const val Editor = "editor"
     const val Preview = "preview"
+    const val Responses = "responses"
 }

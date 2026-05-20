@@ -94,6 +94,58 @@ export type GeneratedForm = {
   }>;
 };
 
+/** Calls Gemini using the model cascade and returns the raw text response. */
+async function callGemini(apiKey: string, body: unknown): Promise<string> {
+  let lastErr = "";
+  for (const model of MODELS) {
+    const res = await fetch(`${endpointFor(model)}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      };
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error("gemini_empty_response");
+      return text;
+    }
+    lastErr = `${model}_${res.status}: ${(await res.text()).slice(0, 200)}`;
+    if (res.status !== 429 && res.status !== 503) break;
+  }
+  throw new Error(`gemini_failed: ${lastErr}`);
+}
+
+/**
+ * Asks Gemini for a short plain-language summary of a form's responses.
+ * Returns markdown-ish text (already trimmed).
+ */
+export async function summarizeResponsesWithGemini(
+  apiKey: string,
+  formTitle: string,
+  fields: Array<{ id: string; label: string; type: string }>,
+  responses: Array<Record<string, unknown>>,
+): Promise<string> {
+  const fieldMap = fields.map((f) => `- ${f.label} (id: ${f.id}, type: ${f.type})`).join("\n");
+  const sample = responses.slice(0, 50);
+  const userPrompt =
+    `Form: "${formTitle}"\n\n` +
+    `Fields:\n${fieldMap}\n\n` +
+    `Total responses: ${responses.length}\n` +
+    `Sample (up to 50): ${JSON.stringify(sample)}\n\n` +
+    `Write a concise 4-6 sentence summary of what the responses show. ` +
+    `Mention common patterns, averages for numeric fields, top picks for choice fields, ` +
+    `and one surprising or actionable insight. Plain text, no preamble.`;
+
+  const body = {
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    generationConfig: { temperature: 0.5, maxOutputTokens: 400 },
+  };
+  const text = await callGemini(apiKey, body);
+  return text.trim();
+}
+
 export async function generateFormWithGemini(
   apiKey: string,
   prompt: string,

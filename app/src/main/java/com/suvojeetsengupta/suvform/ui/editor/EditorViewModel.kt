@@ -130,6 +130,44 @@ class EditorViewModel @Inject constructor(
         _save.value = SaveUiState()
     }
 
+    // ---- Publish / unpublish ----
+    fun publish() {
+        if (_save.value.saving) return
+        val d = store.draft.value
+        val id = d.remoteId
+        if (id == null) {
+            _save.value = SaveUiState(error = "Save the form first, then publish.")
+            return
+        }
+        _save.value = SaveUiState(saving = true)
+        viewModelScope.launch {
+            runCatching { api.publishForm(id) }
+                .onSuccess { r ->
+                    store.update { it.copy(published = true, publicSlug = r.slug, shareUrl = r.url) }
+                    _save.value = SaveUiState(published = true)
+                }
+                .onFailure { e ->
+                    _save.value = SaveUiState(error = e.message ?: "Publish failed")
+                }
+        }
+    }
+
+    fun unpublish() {
+        if (_save.value.saving) return
+        val id = store.draft.value.remoteId ?: return
+        _save.value = SaveUiState(saving = true)
+        viewModelScope.launch {
+            runCatching { api.unpublishForm(id) }
+                .onSuccess {
+                    store.update { it.copy(published = false) }
+                    _save.value = SaveUiState(unpublished = true)
+                }
+                .onFailure { e ->
+                    _save.value = SaveUiState(error = e.message ?: "Unpublish failed")
+                }
+        }
+    }
+
     private inline fun mutateField(index: Int, crossinline transform: (FieldEdit) -> FieldEdit) {
         store.update { d ->
             val f = d.fields.getOrNull(index) ?: return@update d
@@ -141,5 +179,7 @@ class EditorViewModel @Inject constructor(
 data class SaveUiState(
     val saving: Boolean = false,
     val saved: Boolean = false,
+    val published: Boolean = false,
+    val unpublished: Boolean = false,
     val error: String? = null,
 )
