@@ -2,8 +2,12 @@
  * Gemini integration for AI form generation and response summarization.
  */
 
+// Current GA model. gemini-1.5-* was retired by Google, so the old name 404'd.
+const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+
 export async function generateFormWithGemini(apiKey: string, prompt: string, locale: string) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const url = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
   const systemInstructions =
     locale === "hi"
@@ -46,13 +50,14 @@ export async function generateFormWithGemini(apiKey: string, prompt: string, loc
       }, 25000); // 25s timeout for AI generation
 
       if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
         if (res.status === 429 || res.status >= 500) {
           attempt++;
-          if (attempt >= maxAttempts) throw new Error(`gemini_api_error_${res.status}`);
+          if (attempt >= maxAttempts) throw new Error(`gemini_api_error_${res.status}: ${errBody.slice(0, 300)}`);
           await new Promise((r) => setTimeout(r, 1000 * attempt)); // simple backoff
           continue;
         }
-        throw new Error(`gemini_api_error_${res.status}`);
+        throw new Error(`gemini_api_error_${res.status}: ${errBody.slice(0, 300)}`);
       }
 
       const data = await res.json() as any;
@@ -77,7 +82,7 @@ export async function summarizeResponsesWithGemini(
   fields: Array<{ id: string; label: string; type: string }>,
   responses: any[],
 ) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const url = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
   const context = `Form: ${formTitle}\nFields: ${JSON.stringify(fields)}\nResponses: ${JSON.stringify(responses)}`;
 
@@ -104,7 +109,10 @@ export async function summarizeResponsesWithGemini(
       body: JSON.stringify(payload),
     }, 15000); // 15s for summarization
 
-    if (!res.ok) throw new Error(`gemini_api_error_${res.status}`);
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      throw new Error(`gemini_api_error_${res.status}: ${errBody.slice(0, 300)}`);
+    }
 
     const data = await res.json() as any;
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
