@@ -12,10 +12,8 @@ import {
   Plus, 
   Trash2, 
   GripVertical, 
-  Settings2,
   Eye,
   Send,
-  CheckCircle2,
   XCircle,
   Hash,
   Type,
@@ -23,7 +21,11 @@ import {
   CheckSquare,
   ChevronDown,
   ExternalLink,
-  Info
+  Info,
+  Menu,
+  X,
+  Loader2,
+  ChevronRight
 } from "lucide-react";
 
 interface Field {
@@ -70,6 +72,7 @@ export default function EditFormPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"fields" | "calculations" | "settings">("fields");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -104,7 +107,6 @@ export default function EditFormPage() {
         fields: form.fields,
         calculations: form.calculations
       });
-      // Show success toast or similar
     } catch (error) {
       console.error("Failed to save form", error);
       alert("Failed to save changes.");
@@ -143,6 +145,7 @@ export default function EditFormPage() {
       options: type === "select" || type === "radio" || type === "checkbox" ? ["Option 1"] : [],
     };
     setForm({ ...form, fields: [...form.fields, newField] });
+    if (window.innerWidth < 1024) setIsSidebarOpen(false);
   };
 
   const updateField = (fieldId: string, updates: Partial<Field>) => {
@@ -169,6 +172,7 @@ export default function EditFormPage() {
       expression: "",
     };
     setForm({ ...form, calculations: [...form.calculations, newCalc] });
+    if (window.innerWidth < 1024) setIsSidebarOpen(false);
   };
 
   const updateCalculation = (calcId: string, updates: Partial<Calculation>) => {
@@ -202,74 +206,79 @@ export default function EditFormPage() {
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* Top Bar */}
-      <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0 z-10 shadow-sm">
-        <div className="flex items-center gap-4">
-          <button onClick={() => router.push("/")} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+      <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 shrink-0 z-20 shadow-sm">
+        <div className="flex items-center gap-2 md:gap-4 overflow-hidden">
+          <button onClick={() => router.push("/")} className="p-2 hover:bg-gray-100 rounded-full transition-colors shrink-0">
             <ArrowLeft className="h-5 w-5 text-gray-600" />
           </button>
-          <div className="h-6 w-[1px] bg-gray-200 mx-2"></div>
-          <div>
+          <div className="hidden sm:block h-6 w-[1px] bg-gray-200 mx-1"></div>
+          <div className="truncate">
             <input 
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="text-lg font-bold text-gray-900 bg-transparent border-none focus:ring-0 p-0 w-64 truncate"
+              className="text-sm md:text-lg font-bold text-gray-900 bg-transparent border-none focus:ring-0 p-0 w-full truncate"
               placeholder="Form Title"
             />
           </div>
           {form.published === 1 && (
-            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 text-green-700 text-[10px] font-bold uppercase tracking-wider rounded border border-green-100">
+            <span className="hidden xs:flex items-center gap-1.5 px-2 py-0.5 bg-green-50 text-green-700 text-[10px] font-bold uppercase tracking-wider rounded border border-green-100">
               Live
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button 
-            onClick={() => router.push(`/form/${id}/responses`)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg text-blue-600"
           >
-            <Eye className="h-4 w-4" />
-            View Responses
+            {isSidebarOpen ? <X className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
           </button>
+          
           <button 
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-bold rounded-lg shadow-md shadow-blue-500/20 transition-all"
+            className="p-2 md:px-4 md:py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg shadow-md shadow-blue-500/20 transition-all flex items-center gap-2"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Save
+            <span className="hidden md:inline text-sm font-bold">Save</span>
           </button>
+          
           <div className="h-6 w-[1px] bg-gray-200 mx-1"></div>
+          
           {form.published === 0 ? (
             <button 
               onClick={handlePublish}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-lg shadow-md shadow-green-500/20 transition-all"
+              className="p-2 md:px-4 md:py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-md shadow-green-500/20 transition-all flex items-center gap-2"
             >
               <Send className="h-4 w-4" />
-              Publish
+              <span className="hidden md:inline text-sm font-bold">Publish</span>
             </button>
           ) : (
             <button 
               onClick={handleUnpublish}
-              className="flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-sm font-bold rounded-lg transition-all"
+              className="p-2 md:px-4 md:py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-all flex items-center gap-2"
             >
               <XCircle className="h-4 w-4" />
-              Unpublish
+              <span className="hidden md:inline text-sm font-bold">Unpublish</span>
             </button>
           )}
         </div>
       </header>
 
       {/* Main Layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Toolset */}
-        <aside className="w-80 bg-white border-r border-gray-200 flex flex-col shrink-0">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Sidebar - Toolset */}
+        <aside className={`
+          fixed lg:relative inset-y-0 left-0 z-10 w-80 bg-white border-r border-gray-200 flex flex-col shrink-0 transition-transform duration-300 lg:translate-x-0
+          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+        `}>
           <div className="flex border-b border-gray-100">
             {(["fields", "calculations", "settings"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${
+                className={`flex-1 py-4 text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all border-b-2 ${
                   activeTab === tab 
                     ? "text-blue-600 border-blue-600" 
                     : "text-gray-400 border-transparent hover:text-gray-600"
@@ -301,15 +310,6 @@ export default function EditFormPage() {
                     ))}
                   </div>
                 </div>
-                
-                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                  <div className="flex items-start gap-3">
-                    <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-                    <p className="text-xs text-blue-700 leading-relaxed">
-                      Select an element to add it to your form. You can drag to reorder them later.
-                    </p>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -322,104 +322,88 @@ export default function EditFormPage() {
                   <Plus className="h-4 w-4" />
                   Add Calculation
                 </button>
-                <div className="p-4 bg-purple-50 rounded-2xl border border-purple-100 mt-6">
-                  <div className="flex items-start gap-3">
-                    <Info className="h-5 w-5 text-purple-500 shrink-0 mt-0.5" />
-                    <div className="space-y-2">
-                      <p className="text-xs text-purple-700 font-bold">Calculation Tips</p>
-                      <p className="text-[11px] text-purple-600 leading-relaxed">
-                        Use field IDs in curly braces like <code className="bg-white px-1 rounded border border-purple-200">{"{field_id}"}</code> to reference values.
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 
             {activeTab === "settings" && (
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Form Description</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase">Description</label>
                   <textarea 
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                     className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 h-32"
-                    placeholder="Describe what this form is for..."
+                    placeholder="Form description..."
                   />
                 </div>
-
                 {form.published === 1 && publicUrl && (
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-500 uppercase">Public Link</label>
                     <div className="flex items-center gap-2">
-                      <input 
-                        readOnly
-                        value={publicUrl}
-                        className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs truncate"
-                      />
-                      <button 
-                        onClick={() => window.open(publicUrl, "_blank")}
-                        className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                      >
+                      <input readOnly value={publicUrl} className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-lg text-[10px] truncate" />
+                      <button onClick={() => window.open(publicUrl, "_blank")} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
                         <ExternalLink className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
                 )}
+                <button 
+                  onClick={() => router.push(`/form/${id}/responses`)}
+                  className="w-full flex items-center justify-center gap-2 p-3 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50"
+                >
+                  <Eye className="h-4 w-4" />
+                  View Responses
+                </button>
               </div>
             )}
           </div>
         </aside>
 
+        {/* Backdrop for mobile sidebar */}
+        {isSidebarOpen && (
+          <div className="fixed inset-0 bg-black/20 z-0 lg:hidden" onClick={() => setIsSidebarOpen(false)}></div>
+        )}
+
         {/* Form Preview Area */}
-        <main className="flex-1 overflow-y-auto p-12 bg-gray-50/50 flex justify-center">
+        <main className="flex-1 overflow-y-auto p-4 md:p-12 bg-gray-50/50 flex justify-center">
           <div className="w-full max-w-3xl space-y-8 pb-20">
             {activeTab === "fields" && (
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 {form.fields.length === 0 ? (
                   <div className="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-3xl">
-                    <p className="text-gray-400 font-medium">Your form is empty. Add some fields from the sidebar!</p>
+                    <p className="text-gray-400 font-medium px-4">Your form is empty. Use the + button to add fields!</p>
                   </div>
                 ) : (
                   form.fields.map((field) => (
                     <div 
                       key={field.id}
-                      className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm group relative hover:border-blue-200 transition-all"
+                      className="bg-white border border-gray-200 rounded-2xl p-4 md:p-6 shadow-sm group relative hover:border-blue-200 transition-all"
                     >
-                      <div className="absolute -left-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all cursor-grab active:cursor-grabbing p-1 bg-white border border-gray-200 rounded-lg shadow-sm">
-                        <GripVertical className="h-4 w-4 text-gray-400" />
-                      </div>
-
                       <div className="flex items-start justify-between gap-4 mb-4">
                         <div className="flex-1">
                           <input 
                             value={field.label}
                             onChange={(e) => updateField(field.id, { label: e.target.value })}
-                            className="text-base font-bold text-gray-900 w-full border-none focus:ring-0 p-0"
+                            className="text-sm md:text-base font-bold text-gray-900 w-full border-none focus:ring-0 p-0"
                             placeholder="Field Label"
                           />
-                          <p className="text-[10px] font-mono text-gray-400 mt-1 uppercase tracking-tighter">ID: {field.id}</p>
+                          <p className="text-[9px] font-mono text-gray-400 mt-1 uppercase">ID: {field.id}</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => removeField(field.id)}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                        <button 
+                          onClick={() => removeField(field.id)}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
 
                       <div className="space-y-4">
-                        {/* Mock Input Preview */}
-                        <div className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 text-sm">
+                        <div className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 text-xs md:text-sm">
                           {field.placeholder || `Enter ${field.label.toLowerCase()}...`}
                         </div>
 
-                        {/* Field Options for Choice Types */}
                         {(field.type === "select" || field.type === "radio" || field.type === "checkbox") && (
                           <div className="pt-4 border-t border-gray-50">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-3">Options</label>
                             <div className="space-y-2">
                               {field.options.map((opt, idx) => (
                                 <div key={idx} className="flex items-center gap-2">
@@ -431,25 +415,15 @@ export default function EditFormPage() {
                                       newOpts[idx] = e.target.value;
                                       updateField(field.id, { options: newOpts });
                                     }}
-                                    className="flex-1 text-sm text-gray-700 bg-transparent border-none focus:ring-0 p-0"
+                                    className="flex-1 text-xs md:text-sm text-gray-700 bg-transparent border-none focus:ring-0 p-0"
                                   />
-                                  <button 
-                                    onClick={() => {
-                                      const newOpts = field.options.filter((_, i) => i !== idx);
-                                      updateField(field.id, { options: newOpts });
-                                    }}
-                                    className="p-1 text-gray-300 hover:text-red-400"
-                                  >
+                                  <button onClick={() => updateField(field.id, { options: field.options.filter((_, i) => i !== idx) })} className="p-1 text-gray-300 hover:text-red-400">
                                     <Trash2 className="h-3 w-3" />
                                   </button>
                                 </div>
                               ))}
-                              <button 
-                                onClick={() => updateField(field.id, { options: [...field.options, `Option ${field.options.length + 1}`] })}
-                                className="flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-700 mt-2"
-                              >
-                                <Plus className="h-3 w-3" />
-                                Add Option
+                              <button onClick={() => updateField(field.id, { options: [...field.options, `Option ${field.options.length + 1}`] })} className="flex items-center gap-2 text-xs font-bold text-blue-600 mt-2">
+                                <Plus className="h-3 w-3" /> Add Option
                               </button>
                             </div>
                           </div>
@@ -462,61 +436,32 @@ export default function EditFormPage() {
             )}
 
             {activeTab === "calculations" && (
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 {form.calculations.length === 0 ? (
                    <div className="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-3xl">
-                   <p className="text-gray-400 font-medium">No calculations yet. Add one to perform math on form data.</p>
+                   <p className="text-gray-400 font-medium px-4">No calculations yet. Add one to perform math!</p>
                  </div>
                 ) : (
                   form.calculations.map((calc) => (
-                    <div 
-                      key={calc.id}
-                      className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:border-purple-200 transition-all"
-                    >
+                    <div key={calc.id} className="bg-white border border-gray-200 rounded-2xl p-4 md:p-6 shadow-sm hover:border-purple-200 transition-all">
                       <div className="flex items-start justify-between gap-4 mb-6">
                         <div className="flex-1">
                           <input 
                             value={calc.label}
                             onChange={(e) => updateCalculation(calc.id, { label: e.target.value })}
-                            className="text-base font-bold text-gray-900 w-full border-none focus:ring-0 p-0"
-                            placeholder="Calculation Label"
+                            className="text-sm md:text-base font-bold text-gray-900 w-full border-none focus:ring-0 p-0"
                           />
-                          <p className="text-[10px] font-mono text-gray-400 mt-1 uppercase tracking-tighter">ID: {calc.id}</p>
                         </div>
-                        <button 
-                          onClick={() => removeCalculation(calc.id)}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        >
+                        <button onClick={() => removeCalculation(calc.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
-
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Expression</label>
-                          <input 
-                            value={calc.expression}
-                            onChange={(e) => updateCalculation(calc.id, { expression: e.target.value })}
-                            className="w-full p-3 bg-gray-900 text-green-400 font-mono text-sm rounded-xl focus:ring-2 focus:ring-purple-500/20"
-                            placeholder="{field_1} * 2 + {field_2}"
-                          />
-                        </div>
-                        <div className="flex items-center gap-4">
-                           <div className="flex-1 space-y-2">
-                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Format</label>
-                             <select 
-                               value={calc.format || ""}
-                               onChange={(e) => updateCalculation(calc.id, { format: e.target.value })}
-                               className="w-full p-2 border border-gray-200 rounded-lg text-sm bg-white"
-                             >
-                               <option value="">Default</option>
-                               <option value="currency">Currency ($)</option>
-                               <option value="percentage">Percentage (%)</option>
-                               <option value="decimal">2 Decimal Places</option>
-                             </select>
-                           </div>
-                        </div>
-                      </div>
+                      <input 
+                        value={calc.expression}
+                        onChange={(e) => updateCalculation(calc.id, { expression: e.target.value })}
+                        className="w-full p-3 bg-gray-900 text-green-400 font-mono text-xs md:text-sm rounded-xl"
+                        placeholder="{field_id} * 2"
+                      />
                     </div>
                   ))
                 )}
@@ -526,24 +471,5 @@ export default function EditFormPage() {
         </main>
       </div>
     </div>
-  );
-}
-
-function Loader2(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
   );
 }
