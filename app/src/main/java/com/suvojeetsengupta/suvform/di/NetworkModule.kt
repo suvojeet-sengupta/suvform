@@ -37,9 +37,15 @@ object NetworkModule {
             .readTimeout(60, TimeUnit.SECONDS)  // AI calls can take a few seconds
             .addInterceptor(authInterceptor)
             .authenticator(tokenAuthenticator)  // refresh + retry on 401
-        // Always log BODY for now — easier to diagnose 4xx; flip back to BASIC after stability.
+        // Never log bodies in release: they contain Firebase ID tokens and response PII.
         builder.addInterceptor(
-            HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
+            HttpLoggingInterceptor().apply {
+                level = if (BuildConfig.DEBUG) {
+                    HttpLoggingInterceptor.Level.BODY
+                } else {
+                    HttpLoggingInterceptor.Level.NONE
+                }
+            }
         )
         return builder.build()
     }

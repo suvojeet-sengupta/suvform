@@ -4,8 +4,6 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.suvojeetsengupta.suvform.data.draft.SelectedFormStore
-import com.suvojeetsengupta.suvform.data.local.ResponseDao
-import com.suvojeetsengupta.suvform.data.local.ResponseEntity
 import com.suvojeetsengupta.suvform.data.remote.FieldDto
 import com.suvojeetsengupta.suvform.data.remote.ResponseItemDto
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
@@ -49,7 +47,6 @@ data class ResponsesUiState(
 class ResponsesViewModel @Inject constructor(
     private val api: SuvFormApi,
     private val selectedForm: SelectedFormStore,
-    private val responseDao: ResponseDao,
 ) : ViewModel() {
 
     private val _selectedFormId = MutableStateFlow(selectedForm.formId)
@@ -174,16 +171,30 @@ class ResponsesViewModel @Inject constructor(
 
     // ---- Export ----
 
+    /**
+     * Fetches every response for a form by walking the paginated endpoint until
+     * the server reports no more pages, so exports are never silently truncated.
+     */
+    private suspend fun fetchAllResponses(id: String): List<ResponseItemDto> {
+        val pageSize = 200
+        val all = mutableListOf<ResponseItemDto>()
+        var offset = 0
+        while (true) {
+            val page = api.listResponses(id, limit = pageSize, offset = offset)
+            all += page.responses
+            if (!page.hasMore || page.responses.isEmpty()) break
+            offset += page.responses.size
+        }
+        return all
+    }
+
     fun exportCsv(context: Context) {
-        // NOTE: Export still uses the full list, which Paging 3 doesn't easily provide.
-        // For now, we might need a separate call or fetch all for export.
-        // This is a known limitation of Paging 3 when needing the full dataset for other purposes.
         val id = selectedForm.formId ?: return
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val all = api.listResponses(id, limit = 500) // Fetch a large batch for export
-                    ResponseExport.writeCsv(context, _state.value.formTitle, _state.value.fields, all.responses)
+                    val all = fetchAllResponses(id)
+                    ResponseExport.writeCsv(context, _state.value.formTitle, _state.value.fields, all)
                 }
             }
                 .onSuccess { file ->
@@ -201,8 +212,8 @@ class ResponsesViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val all = api.listResponses(id, limit = 500)
-                    ResponseExport.writePdf(context, _state.value.formTitle, _state.value.fields, all.responses)
+                    val all = fetchAllResponses(id)
+                    ResponseExport.writePdf(context, _state.value.formTitle, _state.value.fields, all)
                 }
             }
                 .onSuccess { file ->

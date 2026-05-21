@@ -37,18 +37,75 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
   const used = parseInt((await c.env.RATE_LIMIT.get(rlKey)) ?? "0", 10);
   if (used >= 10) return c.json({ error: "rate_limited" }, 429);
 
-  const body = await c.req.json<{ answers?: Record<string, unknown>; calculated?: Record<string, number> }>().catch(() => ({}));
-  const answers = ("answers" in body ? body.answers : null) ?? {};
-  const calculated = ("calculated" in body ? body.calculated : null) ?? {};
+  // Reject oversized payloads early to prevent storage abuse / DoS.
+  const MAX_BODY_BYTES = 64 * 1024;
+  const rawBody = await c.req.text();
+  if (rawBody.length > MAX_BODY_BYTES) return c.json({ error: "payload_too_large" }, 413);
+
+  const body = safeParse<{ answers?: Record<string, unknown>; calculated?: Record<string, number> }>(rawBody, {});
+  const rawAnswers = (body && typeof body === "object" && body.answers && typeof body.answers === "object")
+    ? (body.answers as Record<string, unknown>)
+    : {};
+  const calculated = (body && typeof body === "object" && body.calculated && typeof body.calculated === "object")
+    ? (body.calculated as Record<string, number>)
+    : {};
 
   const fields = safeParse(form.schema_json, []) as any[];
+  const MAX_TEXT_LEN = 5000;
+
+  // Build answers only from known fields, validating each by type. Unknown keys are dropped.
+  const answers: Record<string, unknown> = {};
   const missing: string[] = [];
+  const invalid: string[] = [];
+
   for (const f of fields) {
-    if (!f.required) continue;
-    const v = answers[f.id];
-    if (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) missing.push(f.label);
+    const raw = rawAnswers[f.id];
+    const empty = raw === undefined || raw === null || raw === "" || (Array.isArray(raw) && raw.length === 0);
+
+    if (empty) {
+      if (f.required) missing.push(f.label);
+      continue;
+    }
+
+    const options: string[] = Array.isArray(f.options) ? f.options : [];
+    switch (f.type) {
+      case "short_text":
+      case "long_text":
+      case "date": {
+        if (typeof raw !== "string" || raw.length > MAX_TEXT_LEN) { invalid.push(f.label); continue; }
+        answers[f.id] = raw;
+        break;
+      }
+      case "number":
+      case "rating": {
+        const num = typeof raw === "number" ? raw : Number(raw);
+        if (!Number.isFinite(num)) { invalid.push(f.label); continue; }
+        answers[f.id] = num;
+        break;
+      }
+      case "single_choice": {
+        if (typeof raw !== "string" || (options.length > 0 && !options.includes(raw))) { invalid.push(f.label); continue; }
+        answers[f.id] = raw;
+        break;
+      }
+      case "multi_choice": {
+        if (!Array.isArray(raw) || (options.length > 0 && !raw.every((v) => typeof v === "string" && options.includes(v)))) {
+          invalid.push(f.label);
+          continue;
+        }
+        answers[f.id] = raw;
+        break;
+      }
+      default: {
+        // Unknown field type: accept strings up to the text cap, reject the rest.
+        if (typeof raw === "string" && raw.length <= MAX_TEXT_LEN) answers[f.id] = raw;
+        else invalid.push(f.label);
+      }
+    }
   }
+
   if (missing.length) return c.json({ error: "missing_required", fields: missing }, 400);
+  if (invalid.length) return c.json({ error: "invalid_answers", fields: invalid }, 400);
 
   const id = crypto.randomUUID();
   const now = Date.now();

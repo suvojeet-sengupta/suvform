@@ -31,9 +31,10 @@ class ResponsesPagingSource @Inject constructor(
     }
 
     override fun getRefreshKey(state: PagingState<Int, ResponseItemDto>): Int? {
+        val pageSize = state.config.pageSize
         return state.anchorPosition?.let { anchorPosition ->
-            state.closestPageToPosition(anchorPosition)?.prevKey?.plus(50)
-                ?: state.closestPageToPosition(anchorPosition)?.nextKey?.minus(50)
+            state.closestPageToPosition(anchorPosition)?.prevKey?.plus(pageSize)
+                ?: state.closestPageToPosition(anchorPosition)?.nextKey?.minus(pageSize)
         }
     }
 }

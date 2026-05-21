@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { Bindings, Variables } from "../types";
 import { ensureUserExists } from "../db";
 import { safeParse, makeSlug } from "../utils/helpers";
+import { summarizeResponsesWithGemini } from "../gemini";
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -211,8 +212,8 @@ app.get("/:id/responses", async (c) => {
   if (!owner) return c.json({ error: "not_found" }, 404);
   if (owner.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
 
-  const limit = Math.min(parseInt(c.req.query("limit") || "50"), 200);
-  const offset = parseInt(c.req.query("offset") || "0");
+  const limit = Math.min(Math.max(parseInt(c.req.query("limit") || "50") || 50, 1), 200);
+  const offset = Math.max(parseInt(c.req.query("offset") || "0") || 0, 0);
 
   const { results } = await c.env.DB.prepare(
     `SELECT id, answers_json, calculated_json, submitted_at
@@ -235,6 +236,46 @@ app.get("/:id/responses", async (c) => {
     total_count: countRow?.count ?? 0,
     has_more: (offset + results.length) < (countRow?.count ?? 0)
   });
+});
+
+// POST /v1/forms/:id/insights
+app.post("/:id/insights", async (c) => {
+  const u = c.get("user");
+  const id = c.req.param("id");
+  const form = await c.env.DB.prepare(
+    `SELECT owner_uid, title, schema_json FROM forms WHERE id = ?`,
+  )
+    .bind(id)
+    .first<{ owner_uid: string; title: string; schema_json: string }>();
+  if (!form) return c.json({ error: "not_found" }, 404);
+  if (form.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT answers_json, calculated_json FROM responses
+       WHERE form_id = ? ORDER BY submitted_at DESC LIMIT 50`,
+  )
+    .bind(id)
+    .all();
+  const responses = (results as any[]).map((r) => ({
+    ...safeParse(r.answers_json, {}),
+    _calc: safeParse(r.calculated_json ?? "{}", {}),
+  }));
+  if (responses.length === 0) {
+    return c.json({ summary: "No responses yet — share your form to start collecting!" });
+  }
+
+  const fields = safeParse(form.schema_json, []) as any[];
+  try {
+    const summary = await summarizeResponsesWithGemini(
+      c.env.GEMINI_API_KEY,
+      form.title,
+      fields,
+      responses,
+    );
+    return c.json({ summary, response_count: responses.length });
+  } catch (e) {
+    return c.json({ error: "insights_failed", detail: (e as Error).message }, 502);
+  }
 });
 
 export default app;
