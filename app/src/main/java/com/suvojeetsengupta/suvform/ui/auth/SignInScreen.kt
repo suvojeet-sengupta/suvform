@@ -34,6 +34,7 @@ fun SignInScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val isDark = isSystemInDarkTheme()
 
     LaunchedEffect(state.success) {
         if (state.success) {
@@ -42,23 +43,27 @@ fun SignInScreen(
         }
     }
 
-    val backgroundColor = Color(0xFFF8FAFC)
+    val backgroundColor = MaterialTheme.colorScheme.background
     val brandPurple = Color(0xFF7C5CFF)
     val brandCyan = Color(0xFF22D3EE)
     val aiGradient = Brush.linearGradient(listOf(brandPurple, brandCyan))
+    
+    val textColorPrimary = MaterialTheme.colorScheme.onBackground
+    val textColorSecondary = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(backgroundColor)
     ) {
-        // AI Decorative Blobs
+        // AI Decorative Blobs - Reduced alpha for dark mode to keep it subtle
+        val blobAlpha = if (isDark) 0.08f else 0.12f
         Box(
             modifier = Modifier
                 .size(300.dp)
                 .offset(x = (-100).dp, y = (-50).dp)
                 .background(
-                    Brush.radialGradient(listOf(brandPurple.copy(alpha = 0.12f), Color.Transparent)),
+                    Brush.radialGradient(listOf(brandPurple.copy(alpha = blobAlpha), Color.Transparent)),
                     shape = CircleShape
                 )
         )
@@ -68,7 +73,7 @@ fun SignInScreen(
                 .align(Alignment.BottomEnd)
                 .offset(x = 120.dp, y = 80.dp)
                 .background(
-                    Brush.radialGradient(listOf(brandCyan.copy(alpha = 0.15f), Color.Transparent)),
+                    Brush.radialGradient(listOf(brandCyan.copy(alpha = blobAlpha + 0.03f), Color.Transparent)),
                     shape = CircleShape
                 )
         )
@@ -76,10 +81,12 @@ fun SignInScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding() // Ensures content doesn't overlap with transparent status bar
+                .navigationBarsPadding() // Ensures content doesn't overlap with navigation bar
                 .padding(horizontal = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(80.dp))
+            Spacer(modifier = Modifier.height(60.dp))
 
             // Logo + Branding (Professional Layout with AI Gradient)
             Column(
@@ -88,7 +95,12 @@ fun SignInScreen(
                 Box(
                     modifier = Modifier
                         .size(92.dp)
-                        .shadow(12.dp, RoundedCornerShape(24.dp), ambientColor = brandPurple, spotColor = brandPurple)
+                        .shadow(
+                            elevation = 12.dp, 
+                            shape = RoundedCornerShape(24.dp), 
+                            ambientColor = brandPurple, 
+                            spotColor = brandPurple
+                        )
                         .background(aiGradient, shape = RoundedCornerShape(24.dp)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -118,7 +130,7 @@ fun SignInScreen(
                 Text(
                     text = "Create. Share. Understand.",
                     fontSize = 17.sp,
-                    color = Color(0xFF475569),
+                    color = textColorSecondary,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -134,7 +146,7 @@ fun SignInScreen(
                     text = "Sign in to start building\nintelligent forms",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF1E2937),
+                    color = textColorPrimary,
                     textAlign = TextAlign.Center,
                     lineHeight = 28.sp
                 )
@@ -148,9 +160,13 @@ fun SignInScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(60.dp)
-                        .shadow(8.dp, RoundedCornerShape(18.dp)),
+                        .shadow(
+                            elevation = 8.dp, 
+                            shape = RoundedCornerShape(18.dp),
+                            ambientColor = if (isDark) Color.Black else brandPurple.copy(alpha = 0.5f)
+                        ),
                     shape = RoundedCornerShape(18.dp),
-                    color = Color.White,
+                    color = Color.Transparent, // Using transparent to show gradient Box below
                     border = null
                 ) {
                     Box(
@@ -206,7 +222,7 @@ fun SignInScreen(
                 Text(
                     text = "By continuing, you agree to our Terms of Service\nand Privacy Policy.",
                     fontSize = 12.sp,
-                    color = Color(0xFF94A3B8),
+                    color = textColorSecondary.copy(alpha = 0.5f),
                     textAlign = TextAlign.Center,
                     lineHeight = 18.sp
                 )
