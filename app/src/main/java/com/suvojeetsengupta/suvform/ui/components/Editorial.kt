@@ -29,19 +29,9 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.suvojeetsengupta.suvform.ui.theme.Accent
-import com.suvojeetsengupta.suvform.ui.theme.AccentDeep
-import com.suvojeetsengupta.suvform.ui.theme.AccentSoft
-import com.suvojeetsengupta.suvform.ui.theme.CardWhite
 import com.suvojeetsengupta.suvform.ui.theme.Fraunces
-import com.suvojeetsengupta.suvform.ui.theme.Ink
-import com.suvojeetsengupta.suvform.ui.theme.Line
-import com.suvojeetsengupta.suvform.ui.theme.Line2
 import com.suvojeetsengupta.suvform.ui.theme.Mono
-import com.suvojeetsengupta.suvform.ui.theme.Muted
-import com.suvojeetsengupta.suvform.ui.theme.Ok
-import com.suvojeetsengupta.suvform.ui.theme.OkSoft
-import com.suvojeetsengupta.suvform.ui.theme.Paper2
+import com.suvojeetsengupta.suvform.ui.theme.SuvTheme
 
 /** White editorial card with hairline border. */
 @Composable
@@ -49,7 +39,7 @@ fun SuvCard(
     modifier: Modifier = Modifier,
     radius: Int = 18,
     border: Boolean = true,
-    container: Color = CardWhite,
+    container: Color = SuvTheme.colors.card,
     contentPadding: PaddingValues = PaddingValues(16.dp),
     content: @Composable () -> Unit,
 ) {
@@ -58,7 +48,7 @@ fun SuvCard(
         modifier = modifier
             .clip(shape)
             .background(container, shape)
-            .then(if (border) Modifier.border(1.dp, Line2, shape) else Modifier)
+            .then(if (border) Modifier.border(1.dp, SuvTheme.colors.line2, shape) else Modifier)
             .padding(contentPadding),
     ) { content() }
 }
@@ -68,12 +58,12 @@ fun SuvCard(
 fun SectionLabel(
     text: String,
     modifier: Modifier = Modifier,
-    color: Color = Muted,
+    color: Color = SuvTheme.colors.muted,
     tick: Boolean = false,
 ) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         if (tick) {
-            Box(Modifier.width(16.dp).height(1.dp).background(Accent))
+            Box(Modifier.width(16.dp).height(1.dp).background(SuvTheme.colors.accent))
             Spacer(Modifier.width(8.dp))
         }
         Text(
@@ -92,7 +82,7 @@ fun SectionLabel(
 fun MonoMeta(
     text: String,
     modifier: Modifier = Modifier,
-    color: Color = Muted,
+    color: Color = SuvTheme.colors.muted,
     size: Int = 11,
 ) {
     Text(
@@ -113,12 +103,13 @@ fun SuvChip(
     variant: ChipVariant = ChipVariant.Outline,
     modifier: Modifier = Modifier,
 ) {
+    val c = SuvTheme.colors
     val shape = RoundedCornerShape(100.dp)
     val (bg, fg, borderColor) = when (variant) {
-        ChipVariant.Outline -> Triple(CardWhite, Ink, Line)
-        ChipVariant.SolidInk -> Triple(Ink, CardWhite, Ink)
-        ChipVariant.Accent -> Triple(AccentSoft, AccentDeep, Color.Transparent)
-        ChipVariant.Live -> Triple(OkSoft, Ok, Color.Transparent)
+        ChipVariant.Outline -> Triple(c.card, c.ink, c.line)
+        ChipVariant.SolidInk -> Triple(c.feature, c.onFeature, c.feature)
+        ChipVariant.Accent -> Triple(c.accentSoft, c.accentDeep, Color.Transparent)
+        ChipVariant.Live -> Triple(c.okSoft, c.ok, Color.Transparent)
     }
     Row(
         modifier = modifier
@@ -129,7 +120,7 @@ fun SuvChip(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (variant == ChipVariant.Live) {
-            Box(Modifier.size(6.dp).clip(CircleShape).background(Ok))
+            Box(Modifier.size(6.dp).clip(CircleShape).background(c.ok))
             Spacer(Modifier.width(6.dp))
         }
         Text(
@@ -149,8 +140,8 @@ fun GlyphIcon(
     modifier: Modifier = Modifier,
     size: Int = 44,
     radius: Int = 12,
-    container: Color = Paper2,
-    content: Color = Ink,
+    container: Color = SuvTheme.colors.paper2,
+    content: Color = SuvTheme.colors.ink,
 ) {
     Box(
         modifier = modifier
@@ -184,10 +175,11 @@ fun SuvButton(
     height: Int = 52,
     radius: Int = 14,
 ) {
+    val c = SuvTheme.colors
     val (bg, fg) = when (variant) {
-        ButtonVariant.Ink -> Ink to CardWhite
-        ButtonVariant.Accent -> Accent to CardWhite
-        ButtonVariant.Ghost -> Color.Transparent to Ink
+        ButtonVariant.Ink -> c.feature to c.onFeature
+        ButtonVariant.Accent -> c.accent to c.onAccent
+        ButtonVariant.Ghost -> Color.Transparent to c.ink
     }
     val shape = RoundedCornerShape(radius.dp)
     Surface(
@@ -195,7 +187,7 @@ fun SuvButton(
         enabled = enabled,
         shape = shape,
         color = if (enabled) bg else bg.copy(alpha = 0.4f),
-        border = if (variant == ButtonVariant.Ghost) BorderStroke(1.dp, Ink) else null,
+        border = if (variant == ButtonVariant.Ghost) BorderStroke(1.dp, c.ink) else null,
         modifier = modifier.fillMaxWidth().height(height.dp),
     ) {
         Row(

@@ -1,7 +1,6 @@
 package com.suvojeetsengupta.suvform.ui.create
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,7 +10,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,22 +32,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suvojeetsengupta.suvform.ui.components.ButtonVariant
 import com.suvojeetsengupta.suvform.ui.components.ChipVariant
 import com.suvojeetsengupta.suvform.ui.components.SectionLabel
 import com.suvojeetsengupta.suvform.ui.components.SuvButton
-import com.suvojeetsengupta.suvform.ui.components.ButtonVariant
 import com.suvojeetsengupta.suvform.ui.components.SuvCard
 import com.suvojeetsengupta.suvform.ui.components.SuvChip
-import com.suvojeetsengupta.suvform.ui.theme.Accent
-import com.suvojeetsengupta.suvform.ui.theme.AccentDeep
-import com.suvojeetsengupta.suvform.ui.theme.AccentSoft
-import com.suvojeetsengupta.suvform.ui.theme.CardWhite
 import com.suvojeetsengupta.suvform.ui.theme.Fraunces
-import com.suvojeetsengupta.suvform.ui.theme.Ink
-import com.suvojeetsengupta.suvform.ui.theme.Line
 import com.suvojeetsengupta.suvform.ui.theme.Mono
-import com.suvojeetsengupta.suvform.ui.theme.Muted
-import com.suvojeetsengupta.suvform.ui.theme.Muted2
+import com.suvojeetsengupta.suvform.ui.theme.SuvTheme
 
 private val examples = listOf(
     "Quotation form for interior design with item, quantity, unit price and an auto-calculated total.",
@@ -64,6 +55,7 @@ fun CreateScreen(
     viewModel: CreateViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val c = SuvTheme.colors
 
     LaunchedEffect(state.navigateToEditor) {
         if (state.navigateToEditor) {
@@ -72,7 +64,7 @@ fun CreateScreen(
         }
     }
 
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+    Scaffold(containerColor = c.paper) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             Column(
                 Modifier
@@ -81,64 +73,63 @@ fun CreateScreen(
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 96.dp),
             ) {
-                // Top row
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Ink) }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = c.ink) }
                     Spacer(Modifier.width(4.dp))
-                    Text("Back", style = MaterialTheme.typography.bodyMedium, color = Ink)
+                    Text("Back", style = MaterialTheme.typography.bodyMedium, color = c.ink)
                 }
 
-                // AI hero (ink)
-                SuvCard(radius = 24, border = false, container = Ink, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 40.dp)) {
+                // AI hero (feature surface)
+                SuvCard(radius = 24, border = false, container = c.feature, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 40.dp)) {
                     Column {
-                        SectionLabel("AI Builder", color = CardWhite.copy(alpha = 0.6f), tick = true)
+                        SectionLabel("AI Builder", color = c.onFeature.copy(alpha = 0.6f), tick = true)
                         Spacer(Modifier.height(14.dp))
                         Text(
                             buildAnnotatedString {
                                 append("Describe your ")
                                 withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append("form") }
-                                withStyle(SpanStyle(color = Accent)) { append(",") }
+                                withStyle(SpanStyle(color = c.accent)) { append(",") }
                                 append("\nwe'll draft it.")
                             },
                             fontFamily = Fraunces,
                             fontSize = 30.sp,
                             lineHeight = 32.sp,
                             letterSpacing = (-0.6).sp,
-                            color = CardWhite,
+                            color = c.onFeature,
                         )
                         Spacer(Modifier.height(8.dp))
-                        Text("AI turns a sentence into fields and calculations you can refine.", style = MaterialTheme.typography.bodyMedium, color = CardWhite.copy(alpha = 0.7f))
+                        Text("AI turns a sentence into fields and calculations you can refine.", style = MaterialTheme.typography.bodyMedium, color = c.onFeature.copy(alpha = 0.7f))
                     }
                 }
 
                 // Prompt card overlapping the hero
                 Box(Modifier.offset(y = (-28).dp)) {
-                    SuvCard(radius = 20, container = CardWhite, contentPadding = PaddingValues(16.dp)) {
+                    SuvCard(radius = 20, contentPadding = PaddingValues(16.dp)) {
                         Column {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 SectionLabel("Your prompt")
-                                Text("${state.prompt.length}/3000", fontFamily = Mono, fontSize = 10.sp, color = Muted2)
+                                Text("${state.prompt.length}/3000", fontFamily = Mono, fontSize = 10.sp, color = c.muted2)
                             }
                             Spacer(Modifier.height(10.dp))
                             BasicTextField(
                                 value = state.prompt,
                                 onValueChange = viewModel::updatePrompt,
                                 enabled = !state.loading,
-                                textStyle = TextStyle(fontFamily = MaterialTheme.typography.bodyLarge.fontFamily, fontSize = 14.sp, lineHeight = 21.sp, color = Ink),
-                                cursorBrush = SolidColor(Accent),
+                                textStyle = TextStyle(fontFamily = MaterialTheme.typography.bodyLarge.fontFamily, fontSize = 14.sp, lineHeight = 21.sp, color = c.ink),
+                                cursorBrush = SolidColor(c.accent),
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp),
                                 decorationBox = { inner ->
                                     if (state.prompt.isEmpty()) {
-                                        Text("e.g. Quotation form for interior design with item, qty, price and total", fontSize = 14.sp, lineHeight = 21.sp, color = Muted2)
+                                        Text("e.g. Quotation form for interior design with item, qty, price and total", fontSize = 14.sp, lineHeight = 21.sp, color = c.muted2)
                                     }
                                     inner()
                                 },
                             )
                             Spacer(Modifier.height(14.dp))
-                            Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                            Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
                             Spacer(Modifier.height(14.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Language", style = MaterialTheme.typography.bodySmall, color = Muted)
+                                Text("Language", style = MaterialTheme.typography.bodySmall, color = c.muted)
                                 Spacer(Modifier.width(10.dp))
                                 Box(Modifier.clip(RoundedCornerShape(100.dp)).clickable { viewModel.setLocale("en") }) {
                                     SuvChip("English", if (state.locale == "en") ChipVariant.SolidInk else ChipVariant.Outline)
@@ -152,23 +143,21 @@ fun CreateScreen(
                     }
                 }
 
-                // Error
                 state.error?.let { msg ->
-                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(AccentSoft).padding(14.dp)) {
-                        Text(msg, style = MaterialTheme.typography.bodyMedium, color = AccentDeep)
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.accentSoft).padding(14.dp)) {
+                        Text(msg, style = MaterialTheme.typography.bodyMedium, color = c.accentDeep)
                     }
                     Spacer(Modifier.height(16.dp))
                 }
 
-                // Examples
                 SectionLabel("Try an example")
                 Spacer(Modifier.height(12.dp))
                 examples.forEachIndexed { i, ex ->
                     Box(Modifier.clip(RoundedCornerShape(14.dp)).clickable(enabled = !state.loading) { viewModel.updatePrompt(ex) }) {
-                        SuvCard(radius = 14, container = CardWhite, contentPadding = PaddingValues(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        SuvCard(radius = 14, contentPadding = PaddingValues(12.dp), modifier = Modifier.fillMaxWidth()) {
                             Row {
-                                Text("0${i + 1}", fontFamily = Mono, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Accent, modifier = Modifier.width(22.dp).padding(top = 2.dp))
-                                Text(ex, style = MaterialTheme.typography.bodyMedium, color = Ink, lineHeight = 18.sp)
+                                Text("0${i + 1}", fontFamily = Mono, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = c.accent, modifier = Modifier.width(22.dp).padding(top = 2.dp))
+                                Text(ex, style = MaterialTheme.typography.bodyMedium, color = c.ink, lineHeight = 18.sp)
                             }
                         }
                     }
@@ -176,20 +165,18 @@ fun CreateScreen(
                 }
 
                 Spacer(Modifier.height(8.dp))
-                // Manual fallback
                 Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable { viewModel.startBlank() }.padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
                     Text(
                         buildAnnotatedString {
                             append("or ")
-                            withStyle(SpanStyle(color = Ink, fontWeight = FontWeight.SemiBold)) { append("start from scratch") }
+                            withStyle(SpanStyle(color = c.ink, fontWeight = FontWeight.SemiBold)) { append("start from scratch") }
                         },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Muted,
+                        color = c.muted,
                     )
                 }
             }
 
-            // Generate button pinned
             SuvButton(
                 text = if (state.loading) "Generating…" else "Generate draft",
                 onClick = viewModel::generate,
