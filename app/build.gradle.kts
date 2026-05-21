@@ -173,7 +173,12 @@ dependencies {
     implementation(libs.google.id)
 
     // Charts (Week 4)
-    implementation(libs.vico.compose.m3)
+    implementation(libs.vico.compose-m3)
+
+    // Paging
+    implementation(libs.androidx.paging.runtime)
+    implementation(libs.androidx.paging.compose)
+    implementation(libs.androidx.paging.common)
 
     // Unit tests
     testImplementation(libs.junit)

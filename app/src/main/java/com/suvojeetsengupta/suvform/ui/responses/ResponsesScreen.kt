@@ -40,6 +40,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemContentType
+import androidx.paging.compose.itemKey
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResponsesScreen(
@@ -49,25 +54,10 @@ fun ResponsesScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val listState = rememberLazyListState()
+    val lazyPagingItems = viewModel.responsesPagingData.collectAsLazyPagingItems()
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
-    }
-
-    // Load more when reaching end
-    val shouldLoadMore = remember {
-        derivedStateOf {
-            val layoutInfo = listState.layoutInfo
-            val totalItemsNumber = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-            lastVisibleItemIndex > (totalItemsNumber - 5)
-        }
-    }
-    LaunchedEffect(shouldLoadMore.value) {
-        if (shouldLoadMore.value && state.hasMore && !state.loadingMore && !state.loading) {
-            viewModel.loadMore()
-        }
     }
 
     BackHandler(enabled = true) {
@@ -112,7 +102,7 @@ fun ResponsesScreen(
                     Box {
                         IconButton(
                             onClick = { exportMenuOpen = true },
-                            enabled = state.responses.isNotEmpty() && !state.exporting,
+                            enabled = lazyPagingItems.itemCount > 0 && !state.exporting,
                         ) {
                             if (state.exporting) {
                                 CircularProgressIndicator(
@@ -153,13 +143,13 @@ fun ResponsesScreen(
         },
     ) { padding ->
         PullToRefreshBox(
-            isRefreshing = state.loading,
-            onRefresh = { viewModel.refresh() },
+            isRefreshing = lazyPagingItems.loadState.refresh is LoadState.Loading && lazyPagingItems.itemCount > 0,
+            onRefresh = { lazyPagingItems.refresh() },
             state = refreshState,
             modifier = Modifier.fillMaxSize().padding(padding)
         ) {
             when {
-                state.loading && state.responses.isEmpty() -> {
+                lazyPagingItems.loadState.refresh is LoadState.Loading && lazyPagingItems.itemCount == 0 -> {
                     Column(Modifier.fillMaxSize()) {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         ResponsesShimmer()
@@ -171,28 +161,36 @@ fun ResponsesScreen(
                         onSelect = { viewModel.selectForm(it.id, it.title) }
                     )
                 }
-                state.responses.isEmpty() && !state.loading -> {
+                lazyPagingItems.itemCount == 0 && lazyPagingItems.loadState.refresh is LoadState.NotLoading -> {
                     EmptyResponses(modifier = Modifier.fillMaxSize())
                 }
                 else -> {
                     LazyColumn(
-                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(20.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         item { InsightsCallout(onClick = { viewModel.loadInsights() }) }
-                        items(state.responses, key = { it.id }) { resp ->
-                            ResponseCard(
-                                resp = resp,
-                                fields = state.fields,
-                                onClick = {
-                                    viewModel.selectResponse(resp)
-                                    onViewDetail()
-                                }
-                            )
+                        
+                        items(
+                            count = lazyPagingItems.itemCount,
+                            key = lazyPagingItems.itemKey { it.id },
+                            contentType = lazyPagingItems.itemContentType { "response" }
+                        ) { index ->
+                            val resp = lazyPagingItems[index]
+                            if (resp != null) {
+                                ResponseCard(
+                                    resp = resp,
+                                    fields = state.fields,
+                                    onClick = {
+                                        viewModel.selectResponse(resp)
+                                        onViewDetail()
+                                    }
+                                )
+                            }
                         }
-                        if (state.loadingMore) {
+
+                        if (lazyPagingItems.loadState.append is LoadState.Loading) {
                             item {
                                 Box(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
@@ -200,6 +198,26 @@ fun ResponsesScreen(
                                 ) {
                                     CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                                 }
+                            }
+                        }
+
+                        if (lazyPagingItems.loadState.refresh is LoadState.Error) {
+                            val e = lazyPagingItems.loadState.refresh as LoadState.Error
+                            item {
+                                ErrorItem(
+                                    msg = e.error.message ?: "Failed to load",
+                                    onRetry = { lazyPagingItems.retry() }
+                                )
+                            }
+                        }
+
+                        if (lazyPagingItems.loadState.append is LoadState.Error) {
+                            val e = lazyPagingItems.loadState.append as LoadState.Error
+                            item {
+                                ErrorItem(
+                                    msg = e.error.message ?: "Failed to load more",
+                                    onRetry = { lazyPagingItems.retry() }
+                                )
                             }
                         }
                     }
@@ -235,6 +253,30 @@ fun ResponsesScreen(
                 viewModel.dismissInsights()
             },
         )
+    }
+}
+
+@Composable
+private fun ErrorItem(msg: String, onRetry: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                msg,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+            TextButton(onClick = onRetry) {
+                Text("Retry", fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 

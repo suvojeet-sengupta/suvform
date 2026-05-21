@@ -39,6 +39,8 @@ playServicesAuth = "21.4.0"
 googleServicesPlugin = "4.4.4"
 # Charts (Week 4)
 vico = "2.2.0"
+# Paging
+paging = "3.5.0-alpha01"
 # Testing
 junit = "4.13.2"
 junitExt = "1.3.0"
@@ -104,6 +106,10 @@ firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 # Charts
 vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }
+# Paging
+androidx-paging-runtime = { group = "androidx.paging", name = "paging-runtime", version.ref = "paging" }
+androidx-paging-compose = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }
+androidx-paging-common = { group = "androidx.paging", name = "paging-common", version.ref = "paging" }
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitExt" }

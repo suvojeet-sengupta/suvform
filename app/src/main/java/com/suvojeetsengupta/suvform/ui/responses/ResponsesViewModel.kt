@@ -25,13 +25,27 @@ import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import javax.inject.Inject
 
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import com.suvojeetsengupta.suvform.data.remote.ResponsesPagingSource
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import retrofit2.HttpException
+import javax.inject.Inject
+
 data class ResponsesUiState(
     val formTitle: String = "Responses",
     val fields: List<FieldDto> = emptyList(),
     val loading: Boolean = false,
-    val loadingMore: Boolean = false,
     val exporting: Boolean = false,
-    val responses: List<ResponseItemDto> = emptyList(),
     val formsToSelect: List<com.suvojeetsengupta.suvform.data.remote.FormSummaryDto> = emptyList(),
     val error: String? = null,
     val loadingInsights: Boolean = false,
@@ -39,7 +53,6 @@ data class ResponsesUiState(
     val insightsError: String? = null,
     val selectedResponse: ResponseItemDto? = null,
     val selectedFormId: String? = null,
-    val hasMore: Boolean = false,
     val totalCount: Int = 0,
 )
 
@@ -50,6 +63,9 @@ class ResponsesViewModel @Inject constructor(
     private val responseDao: ResponseDao,
 ) : ViewModel() {
 
+    private val _selectedFormId = MutableStateFlow(selectedForm.formId)
+    val selectedFormId = _selectedFormId.asStateFlow()
+
     private val _state = MutableStateFlow(
         ResponsesUiState(
             formTitle = selectedForm.formTitle ?: "Responses",
@@ -58,51 +74,54 @@ class ResponsesViewModel @Inject constructor(
     )
     val state: StateFlow<ResponsesUiState> = _state.asStateFlow()
 
-    private var observationJob: kotlinx.coroutines.Job? = null
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val responsesPagingData: Flow<PagingData<ResponseItemDto>> = 
+        _selectedFormId
+            .filterNotNull()
+            .flatMapLatest { formId ->
+                Pager(
+                    config = PagingConfig(
+                        pageSize = 50,
+                        prefetchDistance = 20,
+                        enablePlaceholders = false,
+                        initialLoadSize = 50
+                    ),
+                    pagingSourceFactory = {
+                        ResponsesPagingSource(api, formId)
+                    }
+                ).flow.cachedIn(viewModelScope)
+            }
 
     init {
         refresh()
     }
 
-    private fun startObservation(formId: String) {
-        observationJob?.cancel()
-        observationJob = viewModelScope.launch {
-            responseDao.observeForForm(formId).collectLatest { entities ->
-                _state.update { it.copy(responses = entities.map { e -> e.toDto() }) }
-            }
-        }
-    }
-
     fun selectForm(formId: String, title: String) {
         selectedForm.formId = formId
         selectedForm.formTitle = title
+        _selectedFormId.value = formId
         _state.update {
             it.copy(
                 formTitle = title,
-                responses = emptyList(),
                 error = null,
                 selectedFormId = formId,
                 formsToSelect = emptyList(),
-                hasMore = false,
                 totalCount = 0
             )
         }
-        startObservation(formId)
         refresh()
     }
 
     fun clearSelection() {
         selectedForm.formId = null
         selectedForm.formTitle = null
-        observationJob?.cancel()
+        _selectedFormId.value = null
         _state.update {
             it.copy(
                 formTitle = "Responses",
-                responses = emptyList(),
                 formsToSelect = emptyList(),
                 selectedResponse = null,
                 selectedFormId = null,
-                hasMore = false,
                 totalCount = 0
             )
         }
@@ -112,16 +131,14 @@ class ResponsesViewModel @Inject constructor(
     fun refresh() {
         val id = selectedForm.formId
         
-        // Synchronize state with store in case it changed elsewhere
         if (id != _state.value.selectedFormId) {
             _state.update { 
                 it.copy(
                     selectedFormId = id, 
-                    formTitle = selectedForm.formTitle ?: "Responses",
-                    responses = emptyList() 
+                    formTitle = selectedForm.formTitle ?: "Responses"
                 ) 
             }
-            if (id != null) startObservation(id) else observationJob?.cancel()
+            _selectedFormId.value = id
         }
 
         if (id == null) {
@@ -133,53 +150,21 @@ class ResponsesViewModel @Inject constructor(
         _state.update { it.copy(loading = true, error = null, formsToSelect = emptyList()) }
         viewModelScope.launch {
             val formResult = runCatching { api.getForm(id) }
-            val respResult = runCatching { api.listResponses(id, limit = 50, offset = 0) }
-            respResult
-                .onSuccess { resp ->
-                    // Update cache (full refresh of first page replaces local data for now to stay synced)
-                    responseDao.replaceForForm(id, resp.responses.map { ResponseEntity.fromDto(id, it) })
-                    
-                    _state.update {
-                        it.copy(
-                            loading = false,
-                            fields = formResult.getOrNull()?.fields ?: it.fields,
-                            formTitle = formResult.getOrNull()?.title ?: it.formTitle,
-                            hasMore = resp.hasMore,
-                            totalCount = resp.totalCount
-                        )
-                    }
-                }
-                .onFailure { e ->
-                    val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
-                    _state.update { it.copy(loading = false, error = msg ?: "Failed to load") }
-                }
-        }
-    }
-
-    fun loadMore() {
-        val id = selectedForm.formId ?: return
-        val s = _state.value
-        if (s.loading || s.loadingMore || !s.hasMore) return
-
-        _state.update { it.copy(loadingMore = true) }
-        viewModelScope.launch {
-            val offset = s.responses.size
-            runCatching { api.listResponses(id, limit = 50, offset = offset) }
-                .onSuccess { resp ->
-                    // Add to cache
-                    responseDao.upsertAll(resp.responses.map { ResponseEntity.fromDto(id, it) })
-                    
-                    _state.update {
-                        it.copy(
-                            loadingMore = false,
-                            hasMore = resp.hasMore,
-                            totalCount = resp.totalCount
-                        )
-                    }
-                }
-                .onFailure { e ->
-                    _state.update { it.copy(loadingMore = false) }
-                }
+            val respResult = runCatching { api.listResponses(id, limit = 1, offset = 0) }
+            
+            _state.update {
+                it.copy(
+                    loading = false,
+                    fields = formResult.getOrNull()?.fields ?: it.fields,
+                    formTitle = formResult.getOrNull()?.title ?: it.formTitle,
+                    totalCount = respResult.getOrNull()?.totalCount ?: it.totalCount
+                )
+            }
+            
+            respResult.onFailure { e ->
+                val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
+                _state.update { it.copy(error = msg ?: "Failed to load") }
+            }
         }
     }
 
@@ -201,16 +186,19 @@ class ResponsesViewModel @Inject constructor(
     // ---- Export ----
 
     fun exportCsv(context: Context) {
-        val s = _state.value
-        if (s.responses.isEmpty()) return
+        // NOTE: Export still uses the full list, which Paging 3 doesn't easily provide.
+        // For now, we might need a separate call or fetch all for export.
+        // This is a known limitation of Paging 3 when needing the full dataset for other purposes.
+        val id = selectedForm.formId ?: return
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    ResponseExport.writeCsv(context, s.formTitle, s.fields, s.responses)
+                    val all = api.listResponses(id, limit = 500) // Fetch a large batch for export
+                    ResponseExport.writeCsv(context, _state.value.formTitle, _state.value.fields, all.responses)
                 }
             }
                 .onSuccess { file ->
-                    ResponseExport.share(context, file, "text/csv", "${s.formTitle} — responses")
+                    ResponseExport.share(context, file, "text/csv", "${_state.value.formTitle} — responses")
                 }
                 .onFailure { e ->
                     _state.update { it.copy(error = "CSV export failed: ${e.message}") }
@@ -219,18 +207,18 @@ class ResponsesViewModel @Inject constructor(
     }
 
     fun exportPdf(context: Context) {
-        val s = _state.value
-        if (s.responses.isEmpty()) return
+        val id = selectedForm.formId ?: return
         _state.update { it.copy(exporting = true) }
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    ResponseExport.writePdf(context, s.formTitle, s.fields, s.responses)
+                    val all = api.listResponses(id, limit = 500)
+                    ResponseExport.writePdf(context, _state.value.formTitle, _state.value.fields, all.responses)
                 }
             }
                 .onSuccess { file ->
                     _state.update { it.copy(exporting = false) }
-                    ResponseExport.share(context, file, "application/pdf", "${s.formTitle} — responses")
+                    ResponseExport.share(context, file, "application/pdf", "${_state.value.formTitle} — responses")
                 }
                 .onFailure { e ->
                     _state.update { it.copy(exporting = false, error = "PDF export failed: ${e.message}") }
