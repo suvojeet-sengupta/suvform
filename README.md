@@ -9,24 +9,23 @@ Native Android (Kotlin + Jetpack Compose) + Cloudflare Workers + D1 + Pages, wit
 ## Project layout
 
 ```
-F:\SuvForm\
-├── app\                         # Android app (Kotlin + Compose + Hilt + Room)
-├── worker\                      # Cloudflare Worker (Hono + D1 + Gemini proxy)
-├── web\                         # Cloudflare Pages (Next.js public form filler)
-└── .github\workflows\           # CI/CD — signed APK + AAB on every push to main
+/
+├── app/                         # Android app (Kotlin + Compose + Hilt + Room)
+├── worker/                      # Cloudflare Worker (Hono + D1 + Gemini proxy)
+├── web/                         # Admin Dashboard (Next.js + Firebase + Tailwind)
+└── .github/workflows/           # CI/CD — signed APK + AAB + Deployments
 ```
 
 ## Tech stack
 
 | Layer | Choice |
 |---|---|
-| Android | Kotlin 2.3.21, Jetpack Compose BOM 2026.04.01, Material 3, Hilt, Navigation Compose, Room, Retrofit + OkHttp + kotlinx-serialization, Coil 3, Vico charts |
+| Android | Kotlin 2.3.21, Jetpack Compose, Material 3, Hilt, Room |
+| Web Dashboard | Next.js 15, Tailwind CSS, Lucide Icons, Firebase SDK |
 | Auth | Firebase Auth (Google Sign-In) |
-| Push | Firebase Cloud Messaging |
-| API & DB | Cloudflare Workers (Hono, TypeScript) + Cloudflare D1 (SQLite) |
-| AI | Gemini 2.0 Flash via secure Worker proxy (free tier ~1500 req/day) |
-| Public forms | Cloudflare Pages (Next.js 15, Tailwind) |
-| Build | Gradle 9.5.1, AGP 9.2.0, Java 17, KSP |
+| API & DB | Cloudflare Workers (Hono) + Cloudflare D1 (SQLite) |
+| AI | Gemini 1.5 Flash via Worker proxy |
+| Public forms | Served as HTML directly by Cloudflare Worker |
 
 ## Local setup
 
