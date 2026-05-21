@@ -1,37 +1,15 @@
 package com.suvojeetsengupta.suvform.ui.auth
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,7 +35,6 @@ fun SignInScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // On success: fire onSignedIn ONCE and clear state to avoid re-firing on recomposition.
     LaunchedEffect(state.success) {
         if (state.success) {
             onSignedIn()
@@ -65,242 +42,191 @@ fun SignInScreen(
         }
     }
 
-    var entered by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { entered = true }
+    val backgroundColor = Color(0xFFF8FAFC)
+    val brandPurple = Color(0xFF7C5CFF)
+    val brandCyan = Color(0xFF22D3EE)
+    val aiGradient = Brush.linearGradient(listOf(brandPurple, brandCyan))
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(brandBackgroundBrush()),
+            .background(backgroundColor)
     ) {
-        // Decorative blurred blobs
+        // AI Decorative Blobs
         Box(
             modifier = Modifier
-                .size(280.dp)
+                .size(300.dp)
+                .offset(x = (-100).dp, y = (-50).dp)
                 .background(
-                    Brush.radialGradient(listOf(BrandPurple.copy(alpha = 0.30f), Color.Transparent)),
-                    shape = CircleShape,
+                    Brush.radialGradient(listOf(brandPurple.copy(alpha = 0.12f), Color.Transparent)),
+                    shape = CircleShape
                 )
-                .align(Alignment.TopStart),
         )
         Box(
             modifier = Modifier
-                .size(320.dp)
+                .size(350.dp)
+                .align(Alignment.BottomEnd)
+                .offset(x = 120.dp, y = 80.dp)
                 .background(
-                    Brush.radialGradient(listOf(BrandCyan.copy(alpha = 0.28f), Color.Transparent)),
-                    shape = CircleShape,
+                    Brush.radialGradient(listOf(brandCyan.copy(alpha = 0.15f), Color.Transparent)),
+                    shape = CircleShape
                 )
-                .align(Alignment.BottomEnd),
         )
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.systemBars)
                 .padding(horizontal = 28.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AnimatedVisibility(
-                visible = entered,
-                enter = fadeIn(tween(700)) + slideInVertically(tween(700)) { it / 6 },
+            Spacer(modifier = Modifier.height(80.dp))
+
+            // Logo + Branding (Professional Layout with AI Gradient)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    LogoBadge()
-                    Spacer(Modifier.height(24.dp))
-                    Wordmark()
-                    Spacer(Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .size(92.dp)
+                        .shadow(12.dp, RoundedCornerShape(24.dp), ambientColor = brandPurple, spotColor = brandPurple)
+                        .background(aiGradient, shape = RoundedCornerShape(24.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = "Sign in to manage your forms and responses",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
-                        textAlign = TextAlign.Center,
+                        text = "S",
+                        color = Color.White,
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
-            }
 
-            Spacer(Modifier.height(48.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
-            AnimatedVisibility(
-                visible = entered,
-                enter = fadeIn(tween(700, delayMillis = 200)) +
-                        slideInVertically(tween(700, delayMillis = 200)) { it / 4 },
-            ) {
-                GoogleSignInButton(
-                    enabled = !state.loading && !state.success,
-                    onClick = { viewModel.signIn(context) },
+                val wordmark = buildAnnotatedString {
+                    withStyle(SpanStyle(brush = aiGradient, fontWeight = FontWeight.Bold)) {
+                        append("SuvForm")
+                    }
+                }
+                Text(
+                    text = wordmark,
+                    fontSize = 36.sp,
+                    letterSpacing = (-1).sp
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Create. Share. Understand.",
+                    fontSize = 17.sp,
+                    color = Color(0xFF475569),
+                    fontWeight = FontWeight.Medium
                 )
             }
 
-            AnimatedVisibility(
-                visible = state.error != null,
-                enter = fadeIn() + expandVertically(),
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Main Content
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(bottom = 40.dp)
             ) {
-                state.error?.let {
-                    Spacer(Modifier.height(16.dp))
-                    Surface(
-                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.92f),
-                        shape = RoundedCornerShape(14.dp),
+                Text(
+                    text = "Sign in to start building\nintelligent forms",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF1E2937),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 28.sp
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Professional Sign In Button with AI Gradient
+                Surface(
+                    onClick = { viewModel.signIn(context) },
+                    enabled = !state.loading && !state.success,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .shadow(8.dp, RoundedCornerShape(18.dp)),
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White,
+                    border = null
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(aiGradient)
+                            .padding(horizontal = 24.dp),
+                        contentAlignment = Alignment.Center
                     ) {
+                        if (state.loading || state.success) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.5.dp
+                            )
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                GoogleGlyph()
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Text(
+                                    text = "Continue with Google",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Error Message
+                AnimatedVisibility(
+                    visible = state.error != null,
+                    enter = fadeIn() + expandVertically(),
+                ) {
+                    state.error?.let {
+                        Spacer(Modifier.height(16.dp))
                         Text(
                             text = it,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                             textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                Text(
+                    text = "By continuing, you agree to our Terms of Service\nand Privacy Policy.",
+                    fontSize = 12.sp,
+                    color = Color(0xFF94A3B8),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp
+                )
             }
-
-            Spacer(Modifier.height(24.dp))
-            Text(
-                text = "By continuing you agree to Terms & Privacy",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(8.dp))
-        }
-
-        // Full-screen overlay while signing in — prevents UI flash + double-tap navigation.
-        if (state.loading || state.success) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 12.dp,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.5.dp,
-                        )
-                        Spacer(Modifier.width(14.dp))
-                        Text(
-                            "Signing in…",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ----- Logo / Wordmark -----
-
-@Composable
-private fun LogoBadge() {
-    Box(
-        modifier = Modifier
-            .size(88.dp)
-            .shadow(elevation = 18.dp, shape = CircleShape, ambientColor = BrandPurple, spotColor = BrandPurple)
-            .background(
-                Brush.linearGradient(listOf(BrandPurple, BrandCyan)),
-                shape = CircleShape,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "S",
-            fontSize = 44.sp,
-            color = Color.White,
-            fontWeight = FontWeight.Black,
-        )
-    }
-}
-
-@Composable
-private fun Wordmark() {
-    val gradient = buildAnnotatedString {
-        withStyle(
-            SpanStyle(
-                brush = Brush.linearGradient(listOf(BrandPurple, BrandCyan)),
-                fontWeight = FontWeight.ExtraBold,
-            ),
-        ) { append("SuvForm") }
-    }
-    Text(
-        text = gradient,
-        fontSize = 44.sp,
-        letterSpacing = (-1).sp,
-        textAlign = TextAlign.Center,
-    )
-}
-
-// ----- Google sign-in button -----
-
-@Composable
-private fun GoogleSignInButton(
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(58.dp)
-            .shadow(
-                elevation = 12.dp,
-                shape = RoundedCornerShape(16.dp),
-                ambientColor = Color.Black.copy(alpha = 0.35f),
-            )
-            .clip(RoundedCornerShape(16.dp)),
-        color = Color.White,
-        shape = RoundedCornerShape(16.dp),
-        onClick = onClick,
-        enabled = enabled,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            GoogleGlyph()
-            Spacer(Modifier.width(14.dp))
-            Text(
-                "Continue with Google",
-                color = Color(0xFF1F1F1F),
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp,
-            )
         }
     }
 }
 
 @Composable
 private fun GoogleGlyph() {
-    val g = buildAnnotatedString {
-        withStyle(SpanStyle(color = Color(0xFF4285F4), fontWeight = FontWeight.Black)) { append("G") }
-        withStyle(SpanStyle(color = Color(0xFFEA4335), fontWeight = FontWeight.Black)) { append("o") }
-        withStyle(SpanStyle(color = Color(0xFFFBBC05), fontWeight = FontWeight.Black)) { append("o") }
-        withStyle(SpanStyle(color = Color(0xFF4285F4), fontWeight = FontWeight.Black)) { append("g") }
-        withStyle(SpanStyle(color = Color(0xFF34A853), fontWeight = FontWeight.Black)) { append("l") }
-        withStyle(SpanStyle(color = Color(0xFFEA4335), fontWeight = FontWeight.Black)) { append("e") }
+    Surface(
+        modifier = Modifier.size(24.dp),
+        shape = CircleShape,
+        color = Color.White
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            val g = buildAnnotatedString {
+                withStyle(SpanStyle(color = Color(0xFF4285F4), fontWeight = FontWeight.Black)) { append("G") }
+            }
+            Text(text = g, fontSize = 14.sp)
+        }
     }
-    Text(text = g, fontSize = 18.sp)
-}
-
-// ----- Brand colors -----
-
-private val BrandPurple = Color(0xFF7C5CFF)
-private val BrandCyan = Color(0xFF22D3EE)
-
-@Composable
-private fun brandBackgroundBrush(): Brush {
-    val base = MaterialTheme.colorScheme.background
-    return Brush.verticalGradient(
-        0f to base,
-        0.55f to base,
-        1f to MaterialTheme.colorScheme.surface,
-    )
 }
