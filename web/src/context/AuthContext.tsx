@@ -28,7 +28,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      // Sync user profile with backend after login
+      const token = await result.user.getIdToken();
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.suvforms.suvojeetsengupta.in";
+      
+      await fetch(`${API_BASE_URL}/v1/me`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      }).catch(err => console.error("Backend sync failed", err));
+      
     } catch (error) {
       console.error("Login failed", error);
     }
