@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SuvForm — 3 UI Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-font-smoothing:antialiased; }
+  body {
+    font-family:'Inter',sans-serif;
+    background:#0e0e12;
+    color:#e7e7ee;
+    padding:40px 24px 80px;
+  }
+  .page-head { max-width:1200px; margin:0 auto 40px; text-align:center; }
+  .page-head h1 { font-size:30px; font-weight:800; letter-spacing:-.5px; }
+  .page-head p { color:#9a9aa8; margin-top:8px; font-size:15px; }
+  .gallery {
+    display:flex; gap:40px; justify-content:center; flex-wrap:wrap; max-width:1300px; margin:0 auto;
+  }
+  .option { width:380px; }
+  .option > .meta { margin-bottom:16px; }
+  .badge { display:inline-block; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:5px 11px; border-radius:100px; }
+  .option h2 { font-size:21px; font-weight:800; margin:10px 0 6px; letter-spacing:-.3px; }
+  .option .desc { font-size:13.5px; color:#9a9aa8; line-height:1.55; }
+  .option .anim { font-size:12px; color:#7a7a88; margin-top:8px; line-height:1.5; }
+  .option .anim b { color:#b6b6c4; font-weight:600; }
+
+  /* phone frame */
+  .phone {
+    width:380px; height:760px; border-radius:46px; padding:11px;
+    background:#000; box-shadow:0 30px 70px rgba(0,0,0,.55); position:relative; overflow:hidden;
+  }
+  .screen { width:100%; height:100%; border-radius:36px; overflow:hidden; position:relative; }
+  .notch { position:absolute; top:14px; left:50%; transform:translateX(-50%); width:120px; height:26px; background:#000; border-radius:0 0 18px 18px; z-index:50; }
+
+  /* generic phone content scroller */
+  .content { height:100%; overflow:hidden; display:flex; flex-direction:column; }
+  .statusbar { height:44px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; font-size:13px; font-weight:600; }
+
+  @keyframes fadeUp { from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);} }
+  @keyframes floaty { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);} }
+  @keyframes shimmer { 0%{background-position:-200px 0;} 100%{background-position:200px 0;} }
+  @keyframes pulse { 0%,100%{box-shadow:0 8px 24px rgba(0,0,0,.25);} 50%{box-shadow:0 8px 34px rgba(0,0,0,.45);} }
+  .fu { animation:fadeUp .6s both; }
+  .fu:nth-child(2){animation-delay:.06s} .fu:nth-child(3){animation-delay:.12s} .fu:nth-child(4){animation-delay:.18s} .fu:nth-child(5){animation-delay:.24s}
+
+  /* ============ OPTION A — AURORA GLASS ============ */
+  .a-screen { background:linear-gradient(160deg,#1b1340 0%, #3a1a6b 40%, #6a2db0 75%, #b13a8e 100%); color:#fff; font-family:'Plus Jakarta Sans',sans-serif; }
+  .a-blob { position:absolute; border-radius:50%; filter:blur(60px); opacity:.55; }
+  .a-blob.one{ width:240px;height:240px; background:#ff5fa2; top:-60px; right:-40px; animation:floaty 7s ease-in-out infinite;}
+  .a-blob.two{ width:200px;height:200px; background:#3ec6ff; bottom:120px; left:-60px; animation:floaty 9s ease-in-out infinite;}
+  .a-body { position:relative; z-index:2; padding:6px 22px 0; flex:1; overflow:hidden; }
+  .a-title { font-size:30px; font-weight:800; letter-spacing:-.6px; margin-top:6px; }
+  .a-sub { font-size:13px; color:rgba(255,255,255,.7); margin-top:2px; }
+  .glass-card {
+    margin-top:14px; padding:16px; border-radius:24px;
+    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22);
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    box-shadow:0 8px 30px rgba(0,0,0,.18); display:flex; align-items:center; gap:14px;
+    transition:transform .25s, background .25s;
+  }
+  .glass-card:hover{ transform:translateY(-4px) scale(1.01); background:rgba(255,255,255,.18); }
+  .a-ico { width:46px;height:46px; border-radius:14px; display:grid; place-items:center; font-size:20px;
+           background:linear-gradient(135deg,#ff8fc4,#a06bff); box-shadow:0 6px 16px rgba(160,107,255,.5); }
+  .a-cardtitle{ font-weight:700; font-size:15.5px; }
+  .a-cardmeta{ font-size:12px; color:rgba(255,255,255,.65); margin-top:3px; }
+  .a-live { font-size:9.5px; font-weight:800; letter-spacing:.5px; padding:3px 8px; border-radius:100px;
+            background:rgba(80,255,170,.25); color:#7dffc0; border:1px solid rgba(125,255,192,.4); }
+  .a-fab { position:absolute; right:22px; bottom:96px; z-index:5; padding:15px 22px; border-radius:20px;
+           font-weight:800; font-size:15px; color:#3a1a6b;
+           background:linear-gradient(135deg,#ffffff,#e7d6ff); display:flex; gap:8px; align-items:center;
+           box-shadow:0 12px 30px rgba(0,0,0,.35); animation:pulse 3s infinite; }
+  .a-nav { position:relative; z-index:5; height:74px; margin-top:auto;
+           background:rgba(20,12,45,.6); backdrop-filter:blur(16px); border-top:1px solid rgba(255,255,255,.12);
+           display:flex; align-items:center; justify-content:space-around; padding-bottom:8px; }
+  .a-nav span{ font-size:22px; opacity:.55; } .a-nav span.on{ opacity:1; filter:drop-shadow(0 0 8px #ff8fc4); }
+
+  /* ============ OPTION B — MINIMAL MONO ============ */
+  .b-screen { background:#fbfbfa; color:#16161a; font-family:'Inter',sans-serif; }
+  .b-top { padding:8px 24px 0; display:flex; align-items:center; justify-content:space-between; }
+  .b-logo { font-weight:800; font-size:17px; letter-spacing:-.3px; }
+  .b-logo .dot{ color:#ff5436; }
+  .b-avatar{ width:30px;height:30px;border-radius:50%; background:#e9e9e6; }
+  .b-body { padding:18px 24px 0; flex:1; overflow:hidden; }
+  .b-h1{ font-size:26px; font-weight:800; letter-spacing:-.7px; }
+  .b-count{ font-size:13px; color:#8a8a86; margin-top:2px; }
+  .b-seg{ display:flex; gap:6px; margin:16px 0 6px; }
+  .b-chip{ font-size:12.5px; font-weight:600; padding:7px 13px; border-radius:9px; background:#f0f0ee; color:#6a6a66;}
+  .b-chip.on{ background:#16161a; color:#fff; }
+  .b-card{ padding:16px 4px; border-bottom:1px solid #ececea; display:flex; align-items:center; gap:14px; cursor:pointer; transition:padding-left .2s; }
+  .b-card:hover{ padding-left:8px; }
+  .b-sq{ width:42px;height:42px;border-radius:11px; border:1px solid #e6e6e3; display:grid;place-items:center; font-size:17px; color:#16161a;}
+  .b-ct{ font-weight:600; font-size:15px; }
+  .b-cm{ font-size:12px; color:#9a9a96; margin-top:3px; }
+  .b-livedot{ width:7px;height:7px;border-radius:50%; background:#16c172; box-shadow:0 0 0 3px rgba(22,193,114,.18); }
+  .b-arrow{ color:#c4c4c0; font-size:18px; margin-left:auto; }
+  .b-fab{ position:absolute; right:24px; bottom:96px; z-index:5; width:56px;height:56px;border-radius:18px;
+          background:#16161a; color:#fff; display:grid;place-items:center; font-size:26px; font-weight:300;
+          box-shadow:0 10px 26px rgba(0,0,0,.22); transition:transform .2s;}
+  .b-fab:hover{ transform:rotate(90deg); }
+  .b-nav{ height:72px; margin-top:auto; border-top:1px solid #ececea; background:#fff; display:flex; justify-content:space-around; align-items:center; padding-bottom:8px;}
+  .b-nav span{ font-size:20px; color:#c0c0bc; } .b-nav span.on{ color:#16161a; }
+
+  /* ============ OPTION C — SOFT PLAYFUL ============ */
+  .c-screen { background:#f4f1ff; color:#2c2350; font-family:'Space Grotesk',sans-serif; }
+  .c-top{ padding:10px 22px 0; display:flex; align-items:center; justify-content:space-between;}
+  .c-hi{ font-size:13px; color:#8b81b8;} .c-name{ font-size:20px; font-weight:700; letter-spacing:-.3px;}
+  .c-bell{ width:42px;height:42px;border-radius:16px; background:#fff; display:grid;place-items:center; font-size:18px; box-shadow:0 6px 14px rgba(120,90,220,.12);}
+  .c-body{ padding:16px 22px 0; flex:1; overflow:hidden;}
+  .c-hero{ border-radius:26px; padding:20px; color:#fff; background:linear-gradient(135deg,#7c5cff,#b14bff); box-shadow:0 16px 30px rgba(124,92,255,.4); position:relative; overflow:hidden;}
+  .c-hero::after{ content:'✨'; position:absolute; right:16px; top:14px; font-size:34px; opacity:.5;}
+  .c-hero h3{ font-size:18px; font-weight:700;} .c-hero p{ font-size:12.5px; opacity:.85; margin-top:4px; max-width:75%;}
+  .c-herobtn{ margin-top:14px; display:inline-block; background:#fff; color:#7c5cff; font-weight:700; font-size:12.5px; padding:9px 16px; border-radius:100px;}
+  .c-sec{ font-size:15px; font-weight:700; margin:18px 0 4px;}
+  .c-card{ margin-top:12px; padding:16px; border-radius:22px; background:#fff; display:flex; align-items:center; gap:14px;
+           box-shadow:0 8px 20px rgba(120,90,220,.1); transition:transform .25s;}
+  .c-card:hover{ transform:scale(1.02);}
+  .c-ico{ width:50px;height:50px;border-radius:18px; display:grid;place-items:center; font-size:22px;}
+  .c-ico.p1{ background:#ffe3f1;} .c-ico.p2{ background:#dcf3ff;} .c-ico.p3{ background:#e6e0ff;}
+  .c-ct{ font-weight:700; font-size:15px;} .c-cm{ font-size:12px; color:#9b92c2; margin-top:3px;}
+  .c-pill{ font-size:9px; font-weight:700; padding:4px 9px; border-radius:100px; background:#d9ffe9; color:#1c9c5e;}
+  .c-fab{ position:absolute; right:22px; bottom:98px; z-index:5; padding:16px 22px; border-radius:22px; font-weight:700; font-size:15px;
+          color:#fff; background:linear-gradient(135deg,#ff7eb6,#7c5cff); display:flex; gap:8px; align-items:center;
+          box-shadow:0 14px 28px rgba(180,75,255,.45); animation:floaty 4s ease-in-out infinite;}
+  .c-nav{ height:74px; margin-top:auto; background:#fff; border-radius:28px 28px 0 0; box-shadow:0 -6px 20px rgba(120,90,220,.1);
+          display:flex; justify-content:space-around; align-items:center; padding-bottom:8px;}
+  .c-nav span{ font-size:22px; color:#c3bbe6;} .c-nav span.on{ color:#7c5cff;}
+  .c-navc{ width:52px;height:52px;border-radius:50%; background:linear-gradient(135deg,#ff7eb6,#7c5cff); color:#fff; display:grid;place-items:center; font-size:26px; margin-top:-22px; box-shadow:0 8px 18px rgba(180,75,255,.5);}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>SuvForm — 3 UI Directions</h1>
+    <p>Hover over cards/FABs to see motion. Pick A, B, or C and tell Claude which to build.</p>
+  </div>
+
+  <div class="gallery">
+
+    <!-- ============ OPTION A ============ -->
+    <div class="option">
+      <div class="meta">
+        <span class="badge" style="background:rgba(177,58,142,.2);color:#ff7ec8;">Option A</span>
+        <h2>Aurora Glass</h2>
+        <p class="desc">Vibrant gradient backdrop with frosted glassmorphism cards. Bold, premium, "wow" first impression. Stands out from typical Material apps.</p>
+        <p class="anim"><b>Motion:</b> floating color blobs, cards lift + frost on press, pulsing FAB, gradient nav bar with glow on active tab.</p>
+      </div>
+      <div class="phone"><div class="notch"></div>
+        <div class="screen a-screen">
+          <div class="a-blob one"></div><div class="a-blob two"></div>
+          <div class="content">
+            <div class="statusbar" style="color:#fff;"><span>9:41</span><span>● ● ●</span></div>
+            <div class="a-body">
+              <div class="a-title fu">Your forms</div>
+              <div class="a-sub fu">4 forms · 218 responses</div>
+
+              <div class="glass-card fu">
+                <div class="a-ico">📋</div>
+                <div style="flex:1">
+                  <div class="a-cardtitle">Customer Feedback</div>
+                  <div class="a-cardmeta">Updated 18 May · 92 responses</div>
+                </div>
+                <span class="a-live">● LIVE</span>
+              </div>
+
+              <div class="glass-card fu">
+                <div class="a-ico">🎟️</div>
+                <div style="flex:1">
+                  <div class="a-cardtitle">Event Registration</div>
+                  <div class="a-cardmeta">Updated 14 May · 64 responses</div>
+                </div>
+              </div>
+
+              <div class="glass-card fu">
+                <div class="a-ico">📊</div>
+                <div style="flex:1">
+                  <div class="a-cardtitle">Product Survey</div>
+                  <div class="a-cardmeta">Updated 09 May · 62 responses</div>
+                </div>
+                <span class="a-live">● LIVE</span>
+              </div>
+            </div>
+            <div class="a-fab">＋ New form</div>
+            <div class="a-nav"><span class="on">🏠</span><span>＋</span><span>📥</span><span>⚙️</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ OPTION B ============ -->
+    <div class="option">
+      <div class="meta">
+        <span class="badge" style="background:rgba(255,84,54,.15);color:#ff5436;">Option B</span>
+        <h2>Minimal Mono</h2>
+        <p class="desc">Clean, editorial, lots of whitespace. Single warm accent, sharp type, hairline dividers instead of heavy cards. Feels professional &amp; fast (Linear / Notion vibe).</p>
+        <p class="anim"><b>Motion:</b> subtle slide-in rows, list items nudge right on hover, FAB rotates the "+" on tap, crisp instant transitions.</p>
+      </div>
+      <div class="phone"><div class="notch"></div>
+        <div class="screen b-screen">
+          <div class="content">
+            <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+            <div class="b-top">
+              <div class="b-logo">Suv<span class="dot">Form</span></div>
+              <div class="b-avatar"></div>
+            </div>
+            <div class="b-body">
+              <div class="b-h1 fu">Your forms</div>
+              <div class="b-count fu">4 forms</div>
+              <div class="b-seg fu">
+                <span class="b-chip on">All</span><span class="b-chip">Live</span><span class="b-chip">Drafts</span>
+              </div>
+
+              <div class="b-card fu">
+                <div class="b-sq">▤</div>
+                <div style="flex:1"><div class="b-ct">Customer Feedback</div><div class="b-cm">Updated 18 May · 92 responses</div></div>
+                <div class="b-livedot"></div><div class="b-arrow">›</div>
+              </div>
+              <div class="b-card fu">
+                <div class="b-sq">▤</div>
+                <div style="flex:1"><div class="b-ct">Event Registration</div><div class="b-cm">Updated 14 May · 64 responses</div></div>
+                <div class="b-arrow">›</div>
+              </div>
+              <div class="b-card fu">
+                <div class="b-sq">▤</div>
+                <div style="flex:1"><div class="b-ct">Product Survey</div><div class="b-cm">Updated 09 May · 62 responses</div></div>
+                <div class="b-livedot"></div><div class="b-arrow">›</div>
+              </div>
+              <div class="b-card fu">
+                <div class="b-sq">▤</div>
+                <div style="flex:1"><div class="b-ct">Job Application</div><div class="b-cm">Updated 02 May · 0 responses</div></div>
+                <div class="b-arrow">›</div>
+              </div>
+            </div>
+            <div class="b-fab">+</div>
+            <div class="b-nav"><span class="on">⌂</span><span>＋</span><span>▦</span><span>○</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ OPTION C ============ -->
+    <div class="option">
+      <div class="meta">
+        <span class="badge" style="background:rgba(124,92,255,.2);color:#a98bff;">Option C</span>
+        <h2>Soft Playful</h2>
+        <p class="desc">Friendly pastel world with chunky rounded cards, soft shadows and an AI hero banner. Approachable &amp; consumer-friendly, great for non-technical users.</p>
+        <p class="anim"><b>Motion:</b> gentle floating FAB, cards spring-scale on tap, AI banner shimmer, curved nav bar with raised center button.</p>
+      </div>
+      <div class="phone"><div class="notch"></div>
+        <div class="screen c-screen">
+          <div class="content">
+            <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+            <div class="c-top">
+              <div><div class="c-hi">Welcome back 👋</div><div class="c-name">Suvojeet</div></div>
+              <div class="c-bell">🔔</div>
+            </div>
+            <div class="c-body">
+              <div class="c-hero fu">
+                <h3>Build with AI</h3>
+                <p>Describe your form and let AI draft it in seconds.</p>
+                <span class="c-herobtn">✨ Generate form</span>
+              </div>
+              <div class="c-sec fu">Your forms</div>
+
+              <div class="c-card fu">
+                <div class="c-ico p1">📋</div>
+                <div style="flex:1"><div class="c-ct">Customer Feedback</div><div class="c-cm">92 responses</div></div>
+                <span class="c-pill">LIVE</span>
+              </div>
+              <div class="c-card fu">
+                <div class="c-ico p2">🎟️</div>
+                <div style="flex:1"><div class="c-ct">Event Registration</div><div class="c-cm">64 responses</div></div>
+              </div>
+              <div class="c-card fu">
+                <div class="c-ico p3">📊</div>
+                <div style="flex:1"><div class="c-ct">Product Survey</div><div class="c-cm">62 responses</div></div>
+                <span class="c-pill">LIVE</span>
+              </div>
+            </div>
+            <div class="c-fab">＋ New</div>
+            <div class="c-nav"><span class="on">🏠</span><span>📥</span><div class="c-navc">＋</div><span>📊</span><span>⚙️</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

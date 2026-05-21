@@ -3,15 +3,14 @@ package com.suvojeetsengupta.suvform.ui.responses
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.TableChart
@@ -25,12 +24,39 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemContentType
+import androidx.paging.compose.itemKey
+import com.suvojeetsengupta.suvform.data.remote.FieldDto
+import com.suvojeetsengupta.suvform.data.remote.FormSummaryDto
 import com.suvojeetsengupta.suvform.data.remote.ResponseItemDto
+import com.suvojeetsengupta.suvform.ui.components.GlyphIcon
+import com.suvojeetsengupta.suvform.ui.components.MonoMeta
+import com.suvojeetsengupta.suvform.ui.components.SectionLabel
+import com.suvojeetsengupta.suvform.ui.components.SuvCard
+import com.suvojeetsengupta.suvform.ui.theme.Accent
+import com.suvojeetsengupta.suvform.ui.theme.AccentDeep
+import com.suvojeetsengupta.suvform.ui.theme.AccentSoft
+import com.suvojeetsengupta.suvform.ui.theme.CardWhite
+import com.suvojeetsengupta.suvform.ui.theme.Fraunces
+import com.suvojeetsengupta.suvform.ui.theme.Ink
+import com.suvojeetsengupta.suvform.ui.theme.Line
+import com.suvojeetsengupta.suvform.ui.theme.Mono
+import com.suvojeetsengupta.suvform.ui.theme.Muted
+import com.suvojeetsengupta.suvform.ui.theme.Ok
+import com.suvojeetsengupta.suvform.ui.theme.OkSoft
+import com.suvojeetsengupta.suvform.ui.theme.Paper2
+import com.suvojeetsengupta.suvform.ui.theme.Warn
+import com.suvojeetsengupta.suvform.ui.theme.WarnSoft
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -39,11 +65,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-import androidx.paging.LoadState
-import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.itemContentType
-import androidx.paging.compose.itemKey
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,89 +77,56 @@ fun ResponsesScreen(
     val context = LocalContext.current
     val lazyPagingItems = viewModel.responsesPagingData.collectAsLazyPagingItems()
 
-    LaunchedEffect(Unit) {
-        viewModel.refresh()
-    }
+    LaunchedEffect(Unit) { viewModel.refresh() }
 
     BackHandler(enabled = true) {
-        if (state.selectedFormId != null) {
-            viewModel.clearSelection()
-        } else {
-            onBack()
-        }
+        if (state.selectedFormId != null) viewModel.clearSelection() else onBack()
     }
 
-    val showInsights = state.insightsSummary != null || state.loadingInsights || state.insightsError != null
-    var insightsOpen by remember { mutableStateOf(false) }
-    if (showInsights && !insightsOpen) insightsOpen = true
     var exportMenuOpen by remember { mutableStateOf(false) }
     val refreshState = rememberPullToRefreshState()
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text(state.formTitle.ifBlank { "Responses" }, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                        if (state.totalCount > 0) {
-                            Text(
-                                "${state.totalCount} responses",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        Text(
+                            state.formTitle.ifBlank { "Responses" },
+                            fontFamily = MaterialTheme.typography.titleMedium.fontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (state.selectedFormId != null) {
+                            MonoMeta("${state.totalCount} ${if (state.totalCount == 1) "response" else "responses"}", color = Muted)
                         }
                     }
                 },
                 navigationIcon = {
                     if (state.selectedFormId != null) {
-                        IconButton(onClick = {
-                            viewModel.clearSelection()
-                        }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        IconButton(onClick = { viewModel.clearSelection() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Ink)
                         }
                     }
                 },
                 actions = {
-                    Box {
-                        IconButton(
-                            onClick = { exportMenuOpen = true },
-                            enabled = lazyPagingItems.itemCount > 0 && !state.exporting,
-                        ) {
-                            if (state.exporting) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                            } else {
-                                Icon(Icons.Filled.IosShare, "Export")
+                    if (state.selectedFormId != null) {
+                        Box {
+                            IconButton(onClick = { exportMenuOpen = true }, enabled = lazyPagingItems.itemCount > 0 && !state.exporting) {
+                                if (state.exporting) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Ink)
+                                else Icon(Icons.Filled.IosShare, "Export", tint = Ink)
                             }
-                        }
-                        DropdownMenu(
-                            expanded = exportMenuOpen,
-                            onDismissRequest = { exportMenuOpen = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Export as CSV") },
-                                leadingIcon = { Icon(Icons.Filled.TableChart, null) },
-                                onClick = {
-                                    exportMenuOpen = false
-                                    viewModel.exportCsv(context)
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Export as PDF") },
-                                leadingIcon = { Icon(Icons.Filled.PictureAsPdf, null) },
-                                onClick = {
-                                    exportMenuOpen = false
-                                    viewModel.exportPdf(context)
-                                },
-                            )
+                            DropdownMenu(expanded = exportMenuOpen, onDismissRequest = { exportMenuOpen = false }) {
+                                DropdownMenuItem(text = { Text("Export as CSV") }, leadingIcon = { Icon(Icons.Filled.TableChart, null) }, onClick = { exportMenuOpen = false; viewModel.exportCsv(context) })
+                                DropdownMenuItem(text = { Text("Export as PDF") }, leadingIcon = { Icon(Icons.Filled.PictureAsPdf, null) }, onClick = { exportMenuOpen = false; viewModel.exportPdf(context) })
+                            }
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
     ) { padding ->
@@ -146,443 +134,249 @@ fun ResponsesScreen(
             isRefreshing = lazyPagingItems.loadState.refresh is LoadState.Loading && lazyPagingItems.itemCount > 0,
             onRefresh = { lazyPagingItems.refresh() },
             state = refreshState,
-            modifier = Modifier.fillMaxSize().padding(padding)
+            modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             when {
-                // No form selected: show the form picker, never the paging loader.
-                // The paging flow filters out a null formId and never emits, so its
-                // refresh state stays Loading forever — we must not branch on it here.
+                // No form selected: form picker (never the paging loader — its flow never emits for null id).
                 state.selectedFormId == null -> {
                     if (state.loading && state.formsToSelect.isEmpty()) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Ink) }
                     } else {
-                        FormSelectionList(
-                            forms = state.formsToSelect,
-                            onSelect = { viewModel.selectForm(it.id, it.title) }
-                        )
+                        FormSelectionList(state.formsToSelect) { viewModel.selectForm(it.id, it.title) }
                     }
                 }
                 lazyPagingItems.loadState.refresh is LoadState.Loading && lazyPagingItems.itemCount == 0 -> {
-                    Column(Modifier.fillMaxSize()) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        ResponsesShimmer()
-                    }
+                    ResponsesShimmer()
                 }
                 lazyPagingItems.itemCount == 0 && lazyPagingItems.loadState.refresh is LoadState.NotLoading -> {
-                    EmptyResponses(modifier = Modifier.fillMaxSize())
+                    EmptyResponses(Modifier.fillMaxSize())
                 }
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        item { InsightsCallout(onClick = { viewModel.loadInsights() }) }
-                        
+                        item {
+                            StatRow(total = state.totalCount, fields = state.fields.size, live = state.formTitle.isNotBlank())
+                            Spacer(Modifier.height(14.dp))
+                        }
+                        item {
+                            InsightCard(
+                                loading = state.loadingInsights,
+                                summary = state.insightsSummary,
+                                error = state.insightsError,
+                                onGenerate = { viewModel.loadInsights() },
+                            )
+                            Spacer(Modifier.height(14.dp))
+                        }
+                        item {
+                            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
+                                SectionLabel("Responses", modifier = Modifier.weight(1f))
+                            }
+                            Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                            Spacer(Modifier.height(8.dp))
+                        }
+
                         items(
                             count = lazyPagingItems.itemCount,
                             key = lazyPagingItems.itemKey { it.id },
-                            contentType = lazyPagingItems.itemContentType { "response" }
+                            contentType = lazyPagingItems.itemContentType { "response" },
                         ) { index ->
-                            val resp = lazyPagingItems[index]
-                            if (resp != null) {
-                                ResponseCard(
-                                    resp = resp,
-                                    fields = state.fields,
-                                    onClick = {
-                                        viewModel.selectResponse(resp)
-                                        onViewDetail()
-                                    }
-                                )
+                            lazyPagingItems[index]?.let { resp ->
+                                ResponseRow(resp = resp, index = index, fields = state.fields, onClick = {
+                                    viewModel.selectResponse(resp); onViewDetail()
+                                })
                             }
                         }
 
                         if (lazyPagingItems.loadState.append is LoadState.Loading) {
-                            item {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                                }
-                            }
+                            item { Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = Ink) } }
                         }
-
                         if (lazyPagingItems.loadState.refresh is LoadState.Error) {
-                            val e = lazyPagingItems.loadState.refresh as LoadState.Error
-                            item {
-                                ErrorItem(
-                                    msg = e.error.message ?: "Failed to load",
-                                    onRetry = { lazyPagingItems.retry() }
-                                )
-                            }
+                            item { ErrorItem((lazyPagingItems.loadState.refresh as LoadState.Error).error.message ?: "Failed to load") { lazyPagingItems.retry() } }
                         }
-
                         if (lazyPagingItems.loadState.append is LoadState.Error) {
-                            val e = lazyPagingItems.loadState.append as LoadState.Error
-                            item {
-                                ErrorItem(
-                                    msg = e.error.message ?: "Failed to load more",
-                                    onRetry = { lazyPagingItems.retry() }
-                                )
-                            }
+                            item { ErrorItem((lazyPagingItems.loadState.append as LoadState.Error).error.message ?: "Failed to load more") { lazyPagingItems.retry() } }
                         }
                     }
                 }
             }
 
             state.error?.let { msg ->
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp),
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    Text(
-                        msg,
-                        modifier = Modifier.padding(12.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                Box(Modifier.align(Alignment.BottomCenter).padding(16.dp).clip(RoundedCornerShape(14.dp)).background(AccentSoft).padding(12.dp)) {
+                    Text(msg, color = AccentDeep, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
     }
+}
 
-    if (insightsOpen) {
-        InsightsDialog(
-            loading = state.loadingInsights,
-            summary = state.insightsSummary,
-            error = state.insightsError,
-            onDismiss = {
-                insightsOpen = false
-                viewModel.dismissInsights()
-            },
-        )
+@Composable
+private fun StatRow(total: Int, fields: Int, live: Boolean) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        StatTile(total.toString(), "Responses", Modifier.weight(1f))
+        StatTile(fields.toString(), "Fields", Modifier.weight(1f))
+        StatTile(if (live) "Live" else "Draft", "Status", Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun StatTile(num: String, label: String, modifier: Modifier = Modifier) {
+    SuvCard(radius = 14, container = CardWhite, contentPadding = PaddingValues(12.dp), modifier = modifier) {
+        Column {
+            Text(num, fontFamily = Fraunces, fontSize = 26.sp, letterSpacing = (-0.8).sp, color = Ink, maxLines = 1)
+            Spacer(Modifier.height(6.dp))
+            Text(label.uppercase(), fontFamily = Mono, fontSize = 9.5.sp, letterSpacing = 0.8.sp, fontWeight = FontWeight.Medium, color = Muted)
+        }
+    }
+}
+
+@Composable
+private fun InsightCard(loading: Boolean, summary: String?, error: String?, onGenerate: () -> Unit) {
+    SuvCard(radius = 18, border = false, container = Ink, contentPadding = PaddingValues(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.clickable(enabled = summary == null && !loading, onClick = onGenerate)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(6.dp).clip(RoundedCornerShape(100.dp)).background(Accent))
+                Spacer(Modifier.width(8.dp))
+                Text("AI SUMMARY", fontFamily = Mono, fontSize = 9.5.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Medium, color = CardWhite.copy(alpha = 0.55f))
+            }
+            Spacer(Modifier.height(10.dp))
+            when {
+                loading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = CardWhite)
+                    Spacer(Modifier.width(12.dp))
+                    Text("Analyzing responses…", color = CardWhite.copy(alpha = 0.85f), style = MaterialTheme.typography.bodyMedium)
+                }
+                error != null -> Text(error, color = Accent, style = MaterialTheme.typography.bodyMedium)
+                summary != null -> Text(
+                    summary,
+                    fontFamily = Fraunces,
+                    fontStyle = FontStyle.Italic,
+                    fontSize = 16.sp,
+                    lineHeight = 22.sp,
+                    color = CardWhite,
+                )
+                else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.AutoAwesome, null, tint = Accent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text("Generate a quick overview of all responses", color = CardWhite.copy(alpha = 0.85f), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResponseRow(resp: ResponseItemDto, index: Int, fields: List<FieldDto>, onClick: () -> Unit) {
+    val fmt = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
+    val firstAnswer = remember(resp, fields) {
+        val f = fields.firstOrNull()
+        val raw = if (f != null) resp.answers[f.id] else resp.answers.values.firstOrNull()
+        raw?.let { renderValue(it) }.orEmpty()
+    }
+    val avatarLetter = firstAnswer.firstOrNull()?.uppercase()?.takeIf { it.first().isLetter() } ?: "R"
+    val (avBg, avFg) = when (index % 3) {
+        0 -> AccentSoft to AccentDeep
+        1 -> OkSoft to Ok
+        else -> WarnSoft to Warn
+    }
+
+    Box(Modifier.clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick)) {
+        SuvCard(radius = 14, container = CardWhite, contentPadding = PaddingValues(12.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(30.dp).clip(RoundedCornerShape(100.dp)).background(avBg), contentAlignment = Alignment.Center) {
+                    Text(avatarLetter, fontFamily = Fraunces, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = avFg)
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        firstAnswer.ifBlank { "Response #${index + 1}" },
+                        fontFamily = MaterialTheme.typography.titleMedium.fontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        color = Ink,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    val preview = if (resp.calculated.isNotEmpty())
+                        resp.calculated.entries.take(2).joinToString(" · ") { "${it.key} ${it.value}" }
+                    else resp.answers.size.let { "$it ${if (it == 1) "answer" else "answers"}" }
+                    Text(preview, style = MaterialTheme.typography.bodySmall, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Spacer(Modifier.width(8.dp))
+                MonoMeta(fmt.format(Date(resp.submittedAt)), color = Muted, size = 10)
+            }
+        }
     }
 }
 
 @Composable
 private fun ErrorItem(msg: String, onRetry: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                msg,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
-            TextButton(onClick = onRetry) {
-                Text("Retry", fontWeight = FontWeight.Bold)
-            }
+    SuvCard(radius = 14, border = false, container = AccentSoft, modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(msg, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = AccentDeep)
+            TextButton(onClick = onRetry) { Text("Retry", color = Accent, fontWeight = FontWeight.Bold) }
         }
     }
 }
 
 @Composable
 private fun ResponsesShimmer() {
-    val shimmerColors = listOf(
-        MaterialTheme.colorScheme.surfaceContainerLow,
-        MaterialTheme.colorScheme.surfaceContainerHigh,
-        MaterialTheme.colorScheme.surfaceContainerLow,
-    )
-
     val transition = rememberInfiniteTransition(label = "shimmer")
-    val translateAnim by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmer"
-    )
-
-    val brush = Brush.linearGradient(
-        colors = shimmerColors,
-        start = androidx.compose.ui.geometry.Offset.Zero,
-        end = androidx.compose.ui.geometry.Offset(x = translateAnim, y = translateAnim)
-    )
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(brush)
-            )
-        }
-        
-        items(5) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(brush)
-            )
-        }
+    val x by transition.animateFloat(0f, 1000f, infiniteRepeatable(tween(1200, easing = FastOutSlowInEasing), RepeatMode.Restart), label = "shimmer")
+    val brush = Brush.linearGradient(listOf(CardWhite, Paper2, CardWhite), start = androidx.compose.ui.geometry.Offset.Zero, end = androidx.compose.ui.geometry.Offset(x, x))
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item { Box(Modifier.fillMaxWidth().height(72.dp).clip(RoundedCornerShape(14.dp)).background(brush)) }
+        items(5) { Box(Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(14.dp)).background(brush)) }
     }
-}
-
-@Composable
-private fun InsightsCallout(onClick: () -> Unit) {
-    androidx.compose.material3.OutlinedCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        onClick = onClick,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                Icons.Filled.AutoAwesome,
-                null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "Summary",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    "Get a quick overview of all responses",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ResponseCard(
-    resp: ResponseItemDto,
-    fields: List<com.suvojeetsengupta.suvform.data.remote.FieldDto>,
-    onClick: () -> Unit
-) {
-    val fmt = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        onClick = onClick
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(
-                fmt.format(Date(resp.submittedAt)),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(10.dp))
-            
-            val previewFields = fields.take(3)
-            if (previewFields.isEmpty()) {
-                resp.answers.entries.take(3).forEach { (key, value) ->
-                    AnswerRow(key, value)
-                }
-            } else {
-                previewFields.forEach { field ->
-                    val answer = resp.answers[field.id]
-                    val label = field.label.ifBlank { field.id }
-                    AnswerRow(label, answer ?: JsonPrimitive(""))
-                }
-            }
-            
-            if (fields.size > 3) {
-                Text(
-                    "+ ${fields.size - 3} more fields",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-
-            if (resp.calculated.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Calculations",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                resp.calculated.forEach { (k, v) ->
-                    AnswerRow(k, JsonPrimitive(v), isCalc = true)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AnswerRow(key: String, value: JsonElement, isCalc: Boolean = false) {
-    val displayValue = remember(value) {
-        when (value) {
-            is JsonPrimitive -> value.contentOrNull() ?: value.toString()
-            is JsonArray -> value.jsonArray.joinToString(", ") {
-                runCatching { it.jsonPrimitive.content }.getOrDefault(it.toString())
-            }
-            else -> value.toString()
-        }
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Text(
-            text = key,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(110.dp),
-        )
-        Text(
-            text = if (displayValue.isBlank()) "—" else displayValue,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (isCalc) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isCalc) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-private fun JsonPrimitive.contentOrNull(): String? =
-    runCatching { content }.getOrNull()
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun InsightsDialog(
-    loading: Boolean,
-    summary: String?,
-    error: String?,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Filled.AutoAwesome,
-                    null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("AI insights", fontWeight = FontWeight.Bold)
-            }
-        },
-        text = {
-            when {
-                loading -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(12.dp))
-                    Text("Analyzing responses…")
-                }
-                error != null -> Text(error, color = MaterialTheme.colorScheme.error)
-                summary != null -> Text(summary, style = MaterialTheme.typography.bodyMedium)
-                else -> Text("Tap to generate insights.")
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
-        },
-    )
 }
 
 @Composable
 private fun EmptyResponses(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Icon(
-            Icons.Filled.Inbox,
-            null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(56.dp),
-        )
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        GlyphIcon("R", size = 48, radius = 14)
         Spacer(Modifier.height(16.dp))
-        Text(
-            "No responses yet",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            "Share your form's link to start collecting responses.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
+        Text("No responses yet", fontFamily = Fraunces, fontSize = 22.sp, color = Ink)
+        Spacer(Modifier.height(6.dp))
+        Text("Share your form's link to start collecting responses.", style = MaterialTheme.typography.bodySmall, color = Muted, textAlign = TextAlign.Center)
     }
 }
 
 @Composable
-private fun FormSelectionList(
-    forms: List<com.suvojeetsengupta.suvform.data.remote.FormSummaryDto>,
-    onSelect: (com.suvojeetsengupta.suvform.data.remote.FormSummaryDto) -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+private fun FormSelectionList(forms: List<FormSummaryDto>, onSelect: (FormSummaryDto) -> Unit) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
-            Text(
-                "Select a form to view responses",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Column {
+                Text("Responses", fontFamily = Fraunces, fontSize = 30.sp, letterSpacing = (-0.7).sp, color = Ink)
+                Spacer(Modifier.height(4.dp))
+                Text("Select a form to view its responses.", style = MaterialTheme.typography.bodyMedium, color = Muted)
+                Spacer(Modifier.height(10.dp))
+            }
         }
         items(forms, key = { it.id }) { form ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                onClick = { onSelect(form) }
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Filled.Inbox,
-                        null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Text(
-                        form.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
+            Box(Modifier.clip(RoundedCornerShape(18.dp)).clickable { onSelect(form) }) {
+                SuvCard(radius = 18, container = CardWhite, contentPadding = PaddingValues(14.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        GlyphIcon(form.title.firstOrNull()?.uppercase() ?: "F")
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(form.title, fontFamily = MaterialTheme.typography.titleMedium.fontFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (form.published == 1) {
+                                Spacer(Modifier.height(4.dp))
+                                MonoMeta("Published", color = Ok)
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+private fun renderValue(value: JsonElement): String = when (value) {
+    is JsonPrimitive -> runCatching { value.content }.getOrElse { value.toString() }
+    is JsonArray -> value.jsonArray.joinToString(", ") { runCatching { it.jsonPrimitive.content }.getOrDefault(it.toString()) }
+    else -> value.toString()
 }

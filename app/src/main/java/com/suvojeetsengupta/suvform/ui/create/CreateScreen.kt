@@ -1,55 +1,62 @@
 package com.suvojeetsengupta.suvform.ui.create
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedButton
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suvojeetsengupta.suvform.ui.components.ChipVariant
+import com.suvojeetsengupta.suvform.ui.components.SectionLabel
+import com.suvojeetsengupta.suvform.ui.components.SuvButton
+import com.suvojeetsengupta.suvform.ui.components.ButtonVariant
+import com.suvojeetsengupta.suvform.ui.components.SuvCard
+import com.suvojeetsengupta.suvform.ui.components.SuvChip
+import com.suvojeetsengupta.suvform.ui.theme.Accent
+import com.suvojeetsengupta.suvform.ui.theme.AccentDeep
+import com.suvojeetsengupta.suvform.ui.theme.AccentSoft
+import com.suvojeetsengupta.suvform.ui.theme.CardWhite
+import com.suvojeetsengupta.suvform.ui.theme.Fraunces
+import com.suvojeetsengupta.suvform.ui.theme.Ink
+import com.suvojeetsengupta.suvform.ui.theme.Line
+import com.suvojeetsengupta.suvform.ui.theme.Mono
+import com.suvojeetsengupta.suvform.ui.theme.Muted
+import com.suvojeetsengupta.suvform.ui.theme.Muted2
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val examples = listOf(
+    "Quotation form for interior design with item, quantity, unit price and an auto-calculated total.",
+    "Customer feedback survey with a 1–5 satisfaction rating and an open comment field.",
+    "Event registration with name, email, ticket type and number of guests.",
+)
+
 @Composable
 fun CreateScreen(
     onBack: () -> Unit,
@@ -65,200 +72,136 @@ fun CreateScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Create a form") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 96.dp),
+            ) {
+                // Top row
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Ink) }
+                    Spacer(Modifier.width(4.dp))
+                    Text("Back", style = MaterialTheme.typography.bodyMedium, color = Ink)
+                }
+
+                // AI hero (ink)
+                SuvCard(radius = 24, border = false, container = Ink, contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 40.dp)) {
+                    Column {
+                        SectionLabel("AI Builder", color = CardWhite.copy(alpha = 0.6f), tick = true)
+                        Spacer(Modifier.height(14.dp))
+                        Text(
+                            buildAnnotatedString {
+                                append("Describe your ")
+                                withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append("form") }
+                                withStyle(SpanStyle(color = Accent)) { append(",") }
+                                append("\nwe'll draft it.")
+                            },
+                            fontFamily = Fraunces,
+                            fontSize = 30.sp,
+                            lineHeight = 32.sp,
+                            letterSpacing = (-0.6).sp,
+                            color = CardWhite,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text("AI turns a sentence into fields and calculations you can refine.", style = MaterialTheme.typography.bodyMedium, color = CardWhite.copy(alpha = 0.7f))
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Spacer(Modifier.height(8.dp))
+                }
 
-            // ----- Hero AI card -----
-            AiPromptCard(
-                prompt = state.prompt,
-                locale = state.locale,
-                loading = state.loading,
-                onPromptChange = viewModel::updatePrompt,
-                onLocaleChange = viewModel::setLocale,
-                onGenerate = viewModel::generate,
-            )
+                // Prompt card overlapping the hero
+                Box(Modifier.offset(y = (-28).dp)) {
+                    SuvCard(radius = 20, container = CardWhite, contentPadding = PaddingValues(16.dp)) {
+                        Column {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                SectionLabel("Your prompt")
+                                Text("${state.prompt.length}/3000", fontFamily = Mono, fontSize = 10.sp, color = Muted2)
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            BasicTextField(
+                                value = state.prompt,
+                                onValueChange = viewModel::updatePrompt,
+                                enabled = !state.loading,
+                                textStyle = TextStyle(fontFamily = MaterialTheme.typography.bodyLarge.fontFamily, fontSize = 14.sp, lineHeight = 21.sp, color = Ink),
+                                cursorBrush = SolidColor(Accent),
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp),
+                                decorationBox = { inner ->
+                                    if (state.prompt.isEmpty()) {
+                                        Text("e.g. Quotation form for interior design with item, qty, price and total", fontSize = 14.sp, lineHeight = 21.sp, color = Muted2)
+                                    }
+                                    inner()
+                                },
+                            )
+                            Spacer(Modifier.height(14.dp))
+                            Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+                            Spacer(Modifier.height(14.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Language", style = MaterialTheme.typography.bodySmall, color = Muted)
+                                Spacer(Modifier.width(10.dp))
+                                Box(Modifier.clip(RoundedCornerShape(100.dp)).clickable { viewModel.setLocale("en") }) {
+                                    SuvChip("English", if (state.locale == "en") ChipVariant.SolidInk else ChipVariant.Outline)
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Box(Modifier.clip(RoundedCornerShape(100.dp)).clickable { viewModel.setLocale("hi") }) {
+                                    SuvChip("हिन्दी", if (state.locale == "hi") ChipVariant.SolidInk else ChipVariant.Outline)
+                                }
+                            }
+                        }
+                    }
+                }
 
-            // ----- Error -----
-            state.error?.let { msg ->
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = RoundedCornerShape(14.dp),
-                ) {
+                // Error
+                state.error?.let { msg ->
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(AccentSoft).padding(14.dp)) {
+                        Text(msg, style = MaterialTheme.typography.bodyMedium, color = AccentDeep)
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                // Examples
+                SectionLabel("Try an example")
+                Spacer(Modifier.height(12.dp))
+                examples.forEachIndexed { i, ex ->
+                    Box(Modifier.clip(RoundedCornerShape(14.dp)).clickable(enabled = !state.loading) { viewModel.updatePrompt(ex) }) {
+                        SuvCard(radius = 14, container = CardWhite, contentPadding = PaddingValues(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            Row {
+                                Text("0${i + 1}", fontFamily = Mono, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Accent, modifier = Modifier.width(22.dp).padding(top = 2.dp))
+                                Text(ex, style = MaterialTheme.typography.bodyMedium, color = Ink, lineHeight = 18.sp)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                Spacer(Modifier.height(8.dp))
+                // Manual fallback
+                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable { viewModel.startBlank() }.padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
                     Text(
-                        text = msg,
-                        modifier = Modifier.padding(14.dp).fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        buildAnnotatedString {
+                            append("or ")
+                            withStyle(SpanStyle(color = Ink, fontWeight = FontWeight.SemiBold)) { append("start from scratch") }
+                        },
                         style = MaterialTheme.typography.bodyMedium,
+                        color = Muted,
                     )
                 }
             }
 
-            // ----- Divider with text -----
-            DividerWithText("or build manually")
-
-            // ----- Manual mode card -----
-            ManualCard(onStartBlank = { viewModel.startBlank() })
-
-            Spacer(Modifier.height(24.dp))
-        }
-    }
-}
-
-// --------------------------------------------------
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AiPromptCard(
-    prompt: String,
-    locale: String,
-    loading: Boolean,
-    onPromptChange: (String) -> Unit,
-    onLocaleChange: (String) -> Unit,
-    onGenerate: () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Section title — neutral, no gradient
-            Column {
-                Text(
-                    "Describe your form",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    "We'll draft the fields for you to refine.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            OutlinedTextField(
-                value = prompt,
-                onValueChange = onPromptChange,
-                modifier = Modifier.fillMaxWidth().height(120.dp),
-                placeholder = { Text("e.g. Quotation form for interior design with item, qty, price and total") },
-                enabled = !loading,
-                shape = RoundedCornerShape(14.dp),
+            // Generate button pinned
+            SuvButton(
+                text = if (state.loading) "Generating…" else "Generate draft",
+                onClick = viewModel::generate,
+                enabled = !state.loading && state.prompt.isNotBlank(),
+                variant = ButtonVariant.Accent,
+                leading = if (state.loading) null else Icons.Filled.AutoAwesome,
+                height = 54,
+                radius = 16,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
             )
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Language:", style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.width(10.dp))
-                FilterChip(
-                    selected = locale == "en",
-                    onClick = { onLocaleChange("en") },
-                    label = { Text("English") },
-                )
-                Spacer(Modifier.width(8.dp))
-                FilterChip(
-                    selected = locale == "hi",
-                    onClick = { onLocaleChange("hi") },
-                    label = { Text("हिन्दी") },
-                )
-            }
-
-            ElevatedButton(
-                onClick = onGenerate,
-                enabled = !loading && prompt.isNotBlank(),
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-            ) {
-                if (loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text("Generating…", fontWeight = FontWeight.SemiBold)
-                } else {
-                    Text("Generate draft", fontWeight = FontWeight.SemiBold)
-                }
-            }
         }
     }
 }
-
-@Composable
-private fun DividerWithText(text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Surface(
-            modifier = Modifier.weight(1f).height(1.dp),
-            color = MaterialTheme.colorScheme.outlineVariant,
-        ) {}
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 12.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Surface(
-            modifier = Modifier.weight(1f).height(1.dp),
-            color = MaterialTheme.colorScheme.outlineVariant,
-        ) {}
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ManualCard(onStartBlank: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        onClick = onStartBlank,
-    ) {
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            FilledIconButton(
-                onClick = onStartBlank,
-                modifier = Modifier.size(44.dp),
-            ) {
-                Icon(Icons.Filled.Edit, null)
-            }
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "Start from scratch",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    "Build it yourself, field by field.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-

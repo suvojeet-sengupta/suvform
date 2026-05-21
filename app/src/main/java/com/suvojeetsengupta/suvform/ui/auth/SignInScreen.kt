@@ -3,23 +3,22 @@ package com.suvojeetsengupta.suvform.ui.auth
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
@@ -27,6 +26,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suvojeetsengupta.suvform.ui.theme.Accent
+import com.suvojeetsengupta.suvform.ui.theme.CardWhite
+import com.suvojeetsengupta.suvform.ui.theme.Fraunces
+import com.suvojeetsengupta.suvform.ui.theme.Ink
+import com.suvojeetsengupta.suvform.ui.theme.Line
+import com.suvojeetsengupta.suvform.ui.theme.Mono
+import com.suvojeetsengupta.suvform.ui.theme.Muted
+import com.suvojeetsengupta.suvform.ui.theme.Muted2
+
+private data class Feature(val num: String, val title: String, val sub: String)
+
+private val features = listOf(
+    Feature("01", "Generate from a sentence", "Describe the form in plain language — AI drafts the fields."),
+    Feature("02", "Calculations built in", "Totals, taxes and scores compute themselves on every response."),
+    Feature("03", "Private by default", "Forms are yours. Share a link only when you choose to publish."),
+)
 
 @Composable
 fun SignInScreen(
@@ -35,7 +50,6 @@ fun SignInScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val isDark = isSystemInDarkTheme()
 
     LaunchedEffect(state.success) {
         if (state.success) {
@@ -44,206 +58,128 @@ fun SignInScreen(
         }
     }
 
-    val backgroundColor = MaterialTheme.colorScheme.background
-    val brandPurple = Color(0xFF7C5CFF)
-    val brandCyan = Color(0xFF22D3EE)
-    val aiGradient = Brush.linearGradient(listOf(brandPurple, brandCyan))
-    
-    val textColorPrimary = MaterialTheme.colorScheme.onBackground
-    val textColorSecondary = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-
     Box(
-        modifier = Modifier
+        Modifier
             .fillMaxSize()
-            .background(backgroundColor)
+            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 28.dp),
     ) {
-        // AI Decorative Blobs - Reduced alpha for dark mode to keep it subtle
-        val blobAlpha = if (isDark) 0.08f else 0.12f
-        Box(
-            modifier = Modifier
-                .size(300.dp)
-                .offset(x = (-100).dp, y = (-50).dp)
-                .background(
-                    Brush.radialGradient(listOf(brandPurple.copy(alpha = blobAlpha), Color.Transparent)),
-                    shape = CircleShape
-                )
-        )
-        Box(
-            modifier = Modifier
-                .size(350.dp)
-                .align(Alignment.BottomEnd)
-                .offset(x = 120.dp, y = 80.dp)
-                .background(
-                    Brush.radialGradient(listOf(brandCyan.copy(alpha = blobAlpha + 0.03f), Color.Transparent)),
-                    shape = CircleShape
-                )
-        )
+        Column(Modifier.fillMaxSize()) {
+            Spacer(Modifier.height(34.dp))
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding() // Ensures content doesn't overlap with transparent status bar
-                .navigationBarsPadding() // Ensures content doesn't overlap with navigation bar
-                .padding(horizontal = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(60.dp))
-
-            // Logo + Branding (Professional Layout with AI Gradient)
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            // Logo block
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier
-                        .size(92.dp)
-                        .shadow(
-                            elevation = 12.dp, 
-                            shape = RoundedCornerShape(24.dp), 
-                            ambientColor = brandPurple, 
-                            spotColor = brandPurple
-                        )
-                        .background(aiGradient, shape = RoundedCornerShape(24.dp)),
-                    contentAlignment = Alignment.Center
+                    Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(Accent),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = "S",
-                        color = Color.White,
-                        fontSize = 42.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("S", color = CardWhite, fontFamily = Fraunces, fontStyle = FontStyle.Italic, fontWeight = FontWeight.Medium, fontSize = 22.sp)
                 }
-
-                Spacer(modifier = Modifier.height(28.dp))
-
-                val wordmark = buildAnnotatedString {
-                    withStyle(SpanStyle(brush = aiGradient, fontWeight = FontWeight.Bold)) {
-                        append("SuvForm")
-                    }
-                }
-                Text(
-                    text = wordmark,
-                    fontSize = 36.sp,
-                    letterSpacing = (-1).sp
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Create. Share. Understand.",
-                    fontSize = 17.sp,
-                    color = textColorSecondary,
-                    fontWeight = FontWeight.Medium
-                )
+                Spacer(Modifier.width(12.dp))
+                Text("SuvForm", fontFamily = Fraunces, fontSize = 22.sp, letterSpacing = (-0.4).sp, color = Ink)
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(Modifier.height(56.dp))
 
-            // Main Content
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(bottom = 40.dp)
-            ) {
-                Text(
-                    text = "Sign in to start building\nintelligent forms",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = textColorPrimary,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 28.sp
-                )
+            // Super headline
+            Text(
+                buildAnnotatedString {
+                    append("Forms, ")
+                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append("drafted") }
+                    append(" by AI")
+                    withStyle(SpanStyle(color = Accent)) { append(".") }
+                    append("\nOwned by ")
+                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append("you") }
+                    withStyle(SpanStyle(color = Accent)) { append(".") }
+                },
+                fontFamily = Fraunces,
+                fontWeight = FontWeight.Light,
+                fontSize = 40.sp,
+                lineHeight = 41.sp,
+                letterSpacing = (-1).sp,
+                color = Ink,
+            )
 
-                Spacer(modifier = Modifier.height(32.dp))
+            Spacer(Modifier.height(36.dp))
 
-                // Professional Sign In Button with AI Gradient
-                Surface(
-                    onClick = { viewModel.signIn(context) },
-                    enabled = !state.loading && !state.success,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp)
-                        .shadow(
-                            elevation = 8.dp, 
-                            shape = RoundedCornerShape(18.dp),
-                            ambientColor = if (isDark) Color.Black else brandPurple.copy(alpha = 0.5f)
-                        ),
-                    shape = RoundedCornerShape(18.dp),
-                    color = Color.Transparent, // Using transparent to show gradient Box below
-                    border = null
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(aiGradient)
-                            .padding(horizontal = 24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (state.loading || state.success) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = Color.White,
-                                strokeWidth = 2.5.dp
-                            )
-                        } else {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                GoogleGlyph()
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Text(
-                                    text = "Continue with Google",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
+            // Numbered features
+            Column {
+                features.forEach { f ->
+                    HorizontalHair()
+                    Row(Modifier.padding(vertical = 14.dp)) {
+                        Text(f.num, fontFamily = Mono, fontSize = 11.sp, color = Muted, modifier = Modifier.width(28.dp))
+                        Column {
+                            Text(f.title, fontFamily = MaterialTheme.typography.bodyMedium.fontFamily, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = Ink, lineHeight = 18.sp)
+                            Text(f.sub, style = MaterialTheme.typography.bodySmall, color = Muted, modifier = Modifier.padding(top = 2.dp))
                         }
                     }
                 }
+                HorizontalHair()
+            }
 
-                // Error Message
-                AnimatedVisibility(
-                    visible = state.error != null,
-                    enter = fadeIn() + expandVertically(),
-                ) {
-                    state.error?.let {
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            text = it,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+            Spacer(Modifier.weight(1f))
+
+            // CTA
+            Surface(
+                onClick = { viewModel.signIn(context) },
+                enabled = !state.loading && !state.success,
+                shape = RoundedCornerShape(16.dp),
+                color = Ink,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (state.loading || state.success) {
+                        CircularProgressIndicator(Modifier.size(22.dp), color = CardWhite, strokeWidth = 2.dp)
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            GoogleGlyph()
+                            Spacer(Modifier.width(12.dp))
+                            Text("Continue with Google", color = CardWhite, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(28.dp))
-
-                Text(
-                    text = "By continuing, you agree to our Terms of Service\nand Privacy Policy.",
-                    fontSize = 12.sp,
-                    color = textColorSecondary.copy(alpha = 0.5f),
-                    textAlign = TextAlign.Center,
-                    lineHeight = 18.sp
-                )
             }
+
+            AnimatedVisibility(visible = state.error != null, enter = fadeIn() + expandVertically()) {
+                state.error?.let {
+                    Column {
+                        Spacer(Modifier.height(14.dp))
+                        Text(it, color = Accent, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "By continuing, you agree to our Terms of Service and Privacy Policy.",
+                fontSize = 10.sp,
+                lineHeight = 15.sp,
+                color = Muted2,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(28.dp))
         }
     }
 }
 
-@Composable
+@androidx.compose.runtime.Composable
+private fun HorizontalHair() {
+    Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
+}
+
+@androidx.compose.runtime.Composable
 private fun GoogleGlyph() {
-    Surface(
-        modifier = Modifier.size(24.dp),
-        shape = CircleShape,
-        color = Color.White
-    ) {
+    Surface(modifier = Modifier.size(22.dp), shape = CircleShape, color = CardWhite) {
         Box(contentAlignment = Alignment.Center) {
-            val g = buildAnnotatedString {
-                withStyle(SpanStyle(color = Color(0xFF4285F4), fontWeight = FontWeight.Black)) { append("G") }
-            }
-            Text(text = g, fontSize = 14.sp)
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(color = androidx.compose.ui.graphics.Color(0xFF4285F4), fontWeight = FontWeight.Black)) { append("G") }
+                },
+                fontSize = 13.sp,
+            )
         }
     }
 }

@@ -86,11 +86,16 @@ fun EditorScreen(
                         onClick = { viewModel.save() },
                         enabled = !saveState.saving && draft.fields.isNotEmpty(),
                     ) {
-                        Text(if (saveState.saving) "Saving…" else "Save", fontWeight = FontWeight.Bold)
+                        Text(
+                            if (saveState.saving) "SAVING…" else "SAVE",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary,
+                            letterSpacing = 0.4.sp,
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = MaterialTheme.colorScheme.background,
                 ),
             )
         },
