@@ -149,17 +149,26 @@ fun ResponsesScreen(
             modifier = Modifier.fillMaxSize().padding(padding)
         ) {
             when {
+                // No form selected: show the form picker, never the paging loader.
+                // The paging flow filters out a null formId and never emits, so its
+                // refresh state stays Loading forever — we must not branch on it here.
+                state.selectedFormId == null -> {
+                    if (state.loading && state.formsToSelect.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        FormSelectionList(
+                            forms = state.formsToSelect,
+                            onSelect = { viewModel.selectForm(it.id, it.title) }
+                        )
+                    }
+                }
                 lazyPagingItems.loadState.refresh is LoadState.Loading && lazyPagingItems.itemCount == 0 -> {
                     Column(Modifier.fillMaxSize()) {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         ResponsesShimmer()
                     }
-                }
-                state.formsToSelect.isNotEmpty() -> {
-                    FormSelectionList(
-                        forms = state.formsToSelect,
-                        onSelect = { viewModel.selectForm(it.id, it.title) }
-                    )
                 }
                 lazyPagingItems.itemCount == 0 && lazyPagingItems.loadState.refresh is LoadState.NotLoading -> {
                     EmptyResponses(modifier = Modifier.fillMaxSize())
