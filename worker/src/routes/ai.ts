@@ -18,9 +18,13 @@ app.post("/generate-form", async (c) => {
   const used = parseInt((await c.env.RATE_LIMIT.get(quotaKey)) ?? "0", 10);
   if (used >= 50) return c.json({ error: "quota_exceeded", limit: 50 }, 429);
 
+  // Prefer the user's own key (sent from the app) and fall back to the server secret.
+  const apiKey = (c.req.header("X-Gemini-Key") ?? "").trim() || c.env.GEMINI_API_KEY;
+  if (!apiKey) return c.json({ error: "no_gemini_key" }, 400);
+
   try {
     const locale = "locale" in body ? body.locale ?? "en" : "en";
-    const form = await generateFormWithGemini(c.env.GEMINI_API_KEY, prompt, locale);
+    const form = await generateFormWithGemini(apiKey, prompt, locale);
     await c.env.RATE_LIMIT.put(quotaKey, String(used + 1), { expirationTtl: 86400 });
     return c.json(form);
   } catch (e) {

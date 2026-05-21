@@ -30,12 +30,14 @@ object NetworkModule {
     @Provides @Singleton
     fun provideOkHttp(
         authInterceptor: AuthInterceptor,
+        geminiKeyInterceptor: com.suvojeetsengupta.suvform.data.remote.GeminiKeyInterceptor,
         tokenAuthenticator: TokenAuthenticator,
     ): OkHttpClient {
         val builder = OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)  // AI calls can take a few seconds
             .addInterceptor(authInterceptor)
+            .addInterceptor(geminiKeyInterceptor)  // optional bring-your-own Gemini key
             .authenticator(tokenAuthenticator)  // refresh + retry on 401
         // Never log bodies in release: they contain Firebase ID tokens and response PII.
         builder.addInterceptor(

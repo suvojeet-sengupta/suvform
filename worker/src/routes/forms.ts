@@ -265,9 +265,12 @@ app.post("/:id/insights", async (c) => {
   }
 
   const fields = safeParse(form.schema_json, []) as any[];
+  // Prefer the user's own key (sent from the app) and fall back to the server secret.
+  const apiKey = (c.req.header("X-Gemini-Key") ?? "").trim() || c.env.GEMINI_API_KEY;
+  if (!apiKey) return c.json({ error: "no_gemini_key" }, 400);
   try {
     const summary = await summarizeResponsesWithGemini(
-      c.env.GEMINI_API_KEY,
+      apiKey,
       form.title,
       fields,
       responses,

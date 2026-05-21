@@ -94,7 +94,7 @@ fun SettingsScreen(
             title = { Text("Gemini API Key") },
             text = {
                 Column {
-                    Text("Enter your Google AI Studio API key to enable AI form generation features.")
+                    Text("Optional. Use your own Google AI Studio key for AI generation and insights. Leave blank to use the built-in key.")
                     Spacer(Modifier.height(16.dp))
                     OutlinedTextField(
                         value = tempKey,

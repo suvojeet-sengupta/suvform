@@ -56,7 +56,7 @@ app.use("*", cors({
     return "https://suvforms.suvojeetsengupta.in";
   },
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "X-Gemini-Key"],
   exposeHeaders: ["Content-Length"],
   maxAge: 86400,
 }));
