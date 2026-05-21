@@ -78,34 +78,64 @@ export function publicFormHtml(opts: {
 </header>
 
 <main class="max-w-2xl mx-auto px-5 sm:px-6 py-8 sm:py-12">
-  <!-- Form header -->
-  <div class="mb-8">
-    <h1 id="form-title" class="text-2xl sm:text-3xl font-semibold tracking-tight leading-tight"></h1>
-    <p id="form-description" class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed"></p>
+  <div id="form-content">
+    <!-- Form header -->
+    <div class="mb-8">
+      <h1 id="form-title" class="text-2xl sm:text-3xl font-semibold tracking-tight leading-tight"></h1>
+      <p id="form-description" class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed"></p>
+    </div>
+
+    <!-- Required note -->
+    <p id="required-note" class="text-xs text-slate-500 mb-5 hidden">
+      <span class="text-rose-500">*</span> indicates a required field
+    </p>
+
+    <!-- Fields -->
+    <form id="form-root" class="space-y-5"></form>
+
+    <!-- Calculations summary -->
+    <section id="calc-section" class="mt-8 hidden">
+      <div class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Summary</div>
+      <div id="calc-list" class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 divide-y divide-slate-200 dark:divide-slate-800"></div>
+    </section>
+
+    <!-- Submit -->
+    <div class="mt-10">
+      <button id="submit-btn" type="button"
+        class="submit-btn w-full bg-brand-600 hover:bg-brand-700 active:bg-brand-700 text-white font-semibold py-3.5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        Submit
+      </button>
+      <p id="submit-msg" class="mt-3 text-center text-sm hidden"></p>
+      <p class="mt-4 text-xs text-slate-400 text-center">Your response is private and only visible to the form's owner.</p>
+    </div>
   </div>
 
-  <!-- Required note -->
-  <p id="required-note" class="text-xs text-slate-500 mb-5 hidden">
-    <span class="text-rose-500">*</span> indicates a required field
-  </p>
-
-  <!-- Fields -->
-  <form id="form-root" class="space-y-5"></form>
-
-  <!-- Calculations summary -->
-  <section id="calc-section" class="mt-8 hidden">
-    <div class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Summary</div>
-    <div id="calc-list" class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 divide-y divide-slate-200 dark:divide-slate-800"></div>
-  </section>
-
-  <!-- Submit -->
-  <div class="mt-10">
-    <button id="submit-btn" type="button"
-      class="submit-btn w-full bg-brand-600 hover:bg-brand-700 active:bg-brand-700 text-white font-semibold py-3.5 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-      Submit
+  <!-- Already responded -->
+  <div id="already-responded" class="hidden text-center py-16 sm:py-24 animate-in fade-in zoom-in duration-500">
+    <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/40 mb-6">
+      <svg class="h-8 w-8 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+    </div>
+    <h2 class="text-2xl font-semibold mb-2">You've already responded</h2>
+    <p class="text-slate-600 dark:text-slate-400 max-w-sm mx-auto leading-relaxed mb-8">
+      You have already submitted this form. You can submit another response if you need to provide new information.
+    </p>
+    <button id="refill-btn" class="inline-flex items-center justify-center px-8 py-3.5 border border-transparent text-base font-semibold rounded-xl text-white bg-brand-600 hover:bg-brand-700 transition-all shadow-lg shadow-brand-500/20 active:scale-95">
+      Submit another response
     </button>
-    <p id="submit-msg" class="mt-3 text-center text-sm hidden"></p>
-    <p class="mt-4 text-xs text-slate-400 text-center">Your response is private and only visible to the form's owner.</p>
+  </div>
+
+  <!-- Success -->
+  <div id="success-content" class="hidden text-center py-16 sm:py-24 animate-in fade-in zoom-in duration-500">
+    <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40 mb-6">
+      <svg class="h-8 w-8 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </div>
+    <h2 class="text-2xl font-semibold mb-2">Response submitted</h2>
+    <p class="text-slate-600 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">Thank you. Your response has been recorded and sent to the form owner.</p>
   </div>
 
   <!-- Footer -->
@@ -118,6 +148,30 @@ export function publicFormHtml(opts: {
 <script>
 (function() {
   const FORM = JSON.parse(document.getElementById('form-data').textContent);
+  const STORAGE_KEY = 'sub:' + FORM.slug;
+
+  const formContent = document.getElementById('form-content');
+  const alreadyResponded = document.getElementById('already-responded');
+  const successContent = document.getElementById('success-content');
+  const refillBtn = document.getElementById('refill-btn');
+
+  function init() {
+    if (localStorage.getItem(STORAGE_KEY)) {
+      formContent.classList.add('hidden');
+      alreadyResponded.classList.remove('hidden');
+    } else {
+      formContent.classList.remove('hidden');
+      alreadyResponded.classList.add('hidden');
+    }
+  }
+
+  refillBtn.addEventListener('click', () => {
+    localStorage.removeItem(STORAGE_KEY);
+    init();
+  });
+
+  init();
+
   document.getElementById('form-title').textContent = FORM.title || 'Untitled form';
   const descEl = document.getElementById('form-description');
   if (FORM.description && FORM.description.trim()) descEl.textContent = FORM.description;
@@ -406,6 +460,7 @@ export function publicFormHtml(opts: {
         throw new Error('HTTP ' + res.status + ': ' + t.slice(0, 200));
       }
       // Success
+      localStorage.setItem(STORAGE_KEY, '1');
       showSuccess();
     } catch (e) {
       submitBtn.disabled = false;
@@ -417,17 +472,8 @@ export function publicFormHtml(opts: {
   });
 
   function showSuccess() {
-    const main = document.querySelector('main');
-    main.innerHTML =
-      '<div class="text-center py-16 sm:py-24">' +
-        '<div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40 mb-6">' +
-          '<svg class="h-8 w-8 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
-            '<polyline points="20 6 9 17 4 12"></polyline>' +
-          '</svg>' +
-        '</div>' +
-        '<h2 class="text-2xl font-semibold mb-2">Response submitted</h2>' +
-        '<p class="text-slate-600 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">Thank you. Your response has been recorded and sent to the form owner.</p>' +
-      '</div>';
+    formContent.classList.add('hidden');
+    successContent.classList.remove('hidden');
   }
 })();
 </script>
