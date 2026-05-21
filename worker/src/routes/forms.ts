@@ -3,6 +3,7 @@ import { Bindings, Variables } from "../types";
 import { ensureUserExists } from "../db";
 import { safeParse, makeSlug } from "../utils/helpers";
 import { summarizeResponsesWithGemini } from "../gemini";
+import { CONFIG } from "../config";
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -13,9 +14,9 @@ app.get("/", async (c) => {
   // created on sign-in (POST /v1/me) and on form creation. Saves a write per list.
   const { results } = await c.env.DB.prepare(
     `SELECT id, title, description, published, public_slug, created_at, updated_at
-       FROM forms WHERE owner_uid = ? ORDER BY updated_at DESC LIMIT 100`,
+       FROM forms WHERE owner_uid = ? ORDER BY updated_at DESC LIMIT ?`,
   )
-    .bind(u.uid)
+    .bind(u.uid, CONFIG.FORMS_LIST_LIMIT)
     .all();
   return c.json({ forms: results });
 });
@@ -29,13 +30,13 @@ type FormBody = {
 
 function validateFormBody(b: FormBody): { ok: true; data: Required<FormBody> } | { ok: false; err: string } {
   const title = (b.title ?? "").toString().trim() || "Untitled form";
-  if (title.length > 200) return { ok: false, err: "title_too_long" };
+  if (title.length > CONFIG.TITLE_MAX_LEN) return { ok: false, err: "title_too_long" };
   const description = (b.description ?? "").toString();
-  if (description.length > 2000) return { ok: false, err: "description_too_long" };
+  if (description.length > CONFIG.DESCRIPTION_MAX_LEN) return { ok: false, err: "description_too_long" };
   const fields = Array.isArray(b.fields) ? b.fields : [];
-  if (fields.length > 200) return { ok: false, err: "too_many_fields" };
+  if (fields.length > CONFIG.MAX_FIELDS) return { ok: false, err: "too_many_fields" };
   const calculations = Array.isArray(b.calculations) ? b.calculations : [];
-  if (calculations.length > 50) return { ok: false, err: "too_many_calculations" };
+  if (calculations.length > CONFIG.MAX_CALCULATIONS) return { ok: false, err: "too_many_calculations" };
   return { ok: true, data: { title, description, fields, calculations } };
 }
 
@@ -171,7 +172,7 @@ app.post("/:id/publish", async (c) => {
 
   let slug = row.public_slug;
   if (!slug) {
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < CONFIG.SLUG_MAX_ATTEMPTS; attempt++) {
       const candidate = makeSlug();
       const exists = await c.env.DB.prepare(`SELECT 1 FROM forms WHERE public_slug = ? LIMIT 1`).bind(candidate).first();
       if (!exists) { slug = candidate; break; }
@@ -213,7 +214,10 @@ app.get("/:id/responses", async (c) => {
   if (!owner) return c.json({ error: "not_found" }, 404);
   if (owner.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
 
-  const limit = Math.min(Math.max(parseInt(c.req.query("limit") || "50") || 50, 1), 200);
+  const limit = Math.min(
+    Math.max(parseInt(c.req.query("limit") || String(CONFIG.RESPONSES_PAGE_DEFAULT)) || CONFIG.RESPONSES_PAGE_DEFAULT, 1),
+    CONFIG.RESPONSES_PAGE_MAX,
+  );
   const offset = Math.max(parseInt(c.req.query("offset") || "0") || 0, 0);
 
   const { results } = await c.env.DB.prepare(
@@ -253,9 +257,9 @@ app.post("/:id/insights", async (c) => {
 
   const { results } = await c.env.DB.prepare(
     `SELECT answers_json, calculated_json FROM responses
-       WHERE form_id = ? ORDER BY submitted_at DESC LIMIT 50`,
+       WHERE form_id = ? ORDER BY submitted_at DESC LIMIT ?`,
   )
-    .bind(id)
+    .bind(id, CONFIG.INSIGHTS_SAMPLE_SIZE)
     .all();
   const responses = (results as any[]).map((r) => ({
     ...safeParse(r.answers_json, {}),

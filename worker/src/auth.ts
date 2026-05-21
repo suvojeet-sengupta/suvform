@@ -1,11 +1,15 @@
 // Firebase ID-token verification via Google's secure-token JWKS.
 // No Admin SDK needed — we verify the JWT signature + claims manually.
 
+import { CONFIG } from "./config";
+
 export type FirebaseUser = {
   uid: string;
   email?: string;
   name?: string;
   picture?: string;
+  /** Seconds since epoch when the user last authenticated (for revocation checks). */
+  authTime?: number;
 };
 
 const JWKS_URL =
@@ -20,7 +24,7 @@ async function getJwks(): Promise<Record<string, string>> {
   if (!res.ok) throw new Error(`jwks_fetch_failed_${res.status}`);
   const keys = (await res.json()) as Record<string, string>;
   // The endpoint sets Cache-Control max-age; cache for 1h in-memory.
-  jwksCache = { keys, expiresAt: Date.now() + 60 * 60 * 1000 };
+  jwksCache = { keys, expiresAt: Date.now() + CONFIG.JWKS_CACHE_MS };
   return keys;
 }
 
@@ -111,6 +115,7 @@ export async function verifyFirebaseIdToken(token: string, projectId: string): P
     sub: string;
     exp: number;
     iat: number;
+    auth_time?: number;
     email?: string;
     name?: string;
     picture?: string;
@@ -118,7 +123,7 @@ export async function verifyFirebaseIdToken(token: string, projectId: string): P
 
   const now = Math.floor(Date.now() / 1000);
   if (payload.exp < now) throw new Error("token_expired");
-  if (payload.iat > now + 60) throw new Error("token_iat_in_future");
+  if (payload.iat > now + CONFIG.CLOCK_SKEW_SECONDS) throw new Error("token_iat_in_future");
   if (payload.aud !== expectedProjectId) {
     throw new Error(`wrong_audience: got=${payload.aud} expected=${expectedProjectId}`);
   }
@@ -140,5 +145,6 @@ export async function verifyFirebaseIdToken(token: string, projectId: string): P
     email: payload.email,
     name: payload.name,
     picture: payload.picture,
+    authTime: payload.auth_time ?? payload.iat,
   };
 }

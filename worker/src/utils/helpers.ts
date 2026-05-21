@@ -12,7 +12,9 @@ export async function sha256Short(input: string): Promise<string> {
   return arr.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export function makeSlug(len = 8): string {
+import { CONFIG } from "../config";
+
+export function makeSlug(len = CONFIG.SLUG_LEN): string {
   const alphabet = "23456789abcdefghjkmnpqrstuvwxyz"; // omit confusing chars (0/o, 1/l, i)
   let s = "";
   const bytes = new Uint8Array(len);

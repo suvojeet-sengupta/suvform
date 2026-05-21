@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { Bindings, Variables } from "../types";
 import { publicFormHtml } from "../publicForm";
 import { safeParse, sha256Short } from "../utils/helpers";
+import { CONFIG } from "../config";
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -35,12 +36,11 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
   const ipHash = await sha256Short(ip);
   const rlKey = `rl:${slug}:${ipHash}:${Math.floor(Date.now() / 3_600_000)}`;
   const used = parseInt((await c.env.RATE_LIMIT.get(rlKey)) ?? "0", 10);
-  if (used >= 10) return c.json({ error: "rate_limited" }, 429);
+  if (used >= CONFIG.PUBLIC_SUBMIT_PER_HOUR) return c.json({ error: "rate_limited" }, 429);
 
   // Reject oversized payloads early to prevent storage abuse / DoS.
-  const MAX_BODY_BYTES = 64 * 1024;
   const rawBody = await c.req.text();
-  if (rawBody.length > MAX_BODY_BYTES) return c.json({ error: "payload_too_large" }, 413);
+  if (rawBody.length > CONFIG.MAX_BODY_BYTES) return c.json({ error: "payload_too_large" }, 413);
 
   const body = safeParse<{ answers?: Record<string, unknown>; calculated?: Record<string, number> }>(rawBody, {});
   const rawAnswers = (body && typeof body === "object" && body.answers && typeof body.answers === "object")
@@ -51,7 +51,7 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
     : {};
 
   const fields = safeParse(form.schema_json, []) as any[];
-  const MAX_TEXT_LEN = 5000;
+  const MAX_TEXT_LEN = CONFIG.MAX_TEXT_LEN;
 
   // Build answers only from known fields, validating each by type. Unknown keys are dropped.
   const answers: Record<string, unknown> = {};
@@ -116,7 +116,7 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
     .bind(id, form.id, JSON.stringify(answers), JSON.stringify(calculated), ipHash, now)
     .run();
 
-  await c.env.RATE_LIMIT.put(rlKey, String(used + 1), { expirationTtl: 3600 });
+  await c.env.RATE_LIMIT.put(rlKey, String(used + 1), { expirationTtl: CONFIG.RATE_LIMIT_TTL_SECONDS });
   return c.json({ ok: true, id });
 });
 
@@ -140,7 +140,7 @@ app.get("/f/:slug", async (c) => {
     calculations: safeParse(row.calculations_json || "[]", []),
     submitUrl: `${url.origin}/v1/public/forms/${slug}/responses`,
   });
-  return c.html(html, { headers: { "Cache-Control": "public, max-age=60" } });
+  return c.html(html, { headers: { "Cache-Control": `public, max-age=${CONFIG.PUBLIC_FORM_CACHE_SECONDS}` } });
 });
 
 export default app;

@@ -83,6 +83,18 @@ app.use("/v1/*", async (c, next) => {
   const token = authHeader.slice(7);
   try {
     const user = await verifyFirebaseIdToken(token, c.env.FIREBASE_PROJECT_ID);
+
+    // Honor "sign out everywhere" / account deletion: a revocation cutoff is
+    // stored in KV when the user invalidates sessions. Any token whose
+    // auth_time predates the cutoff is rejected even though it hasn't expired.
+    const cutoffRaw = await c.env.RATE_LIMIT.get(`revoke:${user.uid}`);
+    if (cutoffRaw) {
+      const cutoff = parseInt(cutoffRaw, 10);
+      if (Number.isFinite(cutoff) && (user.authTime ?? 0) < cutoff) {
+        return c.json({ error: "token_revoked" }, 401);
+      }
+    }
+
     c.set("user", user);
     return next();
   } catch (e) {
