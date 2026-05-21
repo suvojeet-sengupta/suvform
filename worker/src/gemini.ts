@@ -2,13 +2,84 @@
  * Gemini integration for AI form generation and response summarization.
  */
 
-// Current GA model. gemini-1.5-* was retired by Google, so the old name 404'd.
-const GEMINI_MODEL = "gemini-2.0-flash";
+// Model chain: try the newest first, fall back to older/lighter models if a
+// model is unavailable (404/not found/503) or rate-limited. These three are the
+// models available on the project's API key (matches the Advisor-Desk setup).
+const GEMINI_MODELS = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
-export async function generateFormWithGemini(apiKey: string, prompt: string, locale: string) {
-  const url = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+// True for errors that mean "this model won't work" — so we should try the next
+// model in the chain rather than failing outright.
+function isModelUnavailable(status: number, body: string): boolean {
+  if (status === 404) return true;
+  const b = body.toLowerCase();
+  return (
+    b.includes("not found") ||
+    b.includes("not supported") ||
+    b.includes("unavailable") ||
+    b.includes("is not found for api version")
+  );
+}
 
+/**
+ * Calls Gemini generateContent, walking the model chain.
+ * - On model-unavailable errors (404/not found): immediately try the next model.
+ * - On 429/5xx: retry the same model once with backoff, then move to the next.
+ * - On other 4xx (e.g. bad key): throw immediately.
+ */
+async function callGemini(apiKey: string, payload: unknown, timeoutMs: number): Promise<string> {
+  let lastErr = "";
+
+  for (const model of GEMINI_MODELS) {
+    const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
+    let attempt = 0;
+    const maxAttempts = 2;
+
+    while (attempt < maxAttempts) {
+      try {
+        const res = await fetchWithTimeout(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }, timeoutMs);
+
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => "");
+          lastErr = `gemini_api_error_${res.status}: ${errBody.slice(0, 300)}`;
+
+          // Model won't work at all — skip to the next model in the chain.
+          if (isModelUnavailable(res.status, errBody)) break;
+
+          // Transient — retry same model, then fall through to next model.
+          if (res.status === 429 || res.status >= 500) {
+            attempt++;
+            if (attempt >= maxAttempts) break;
+            await new Promise((r) => setTimeout(r, 1000 * attempt));
+            continue;
+          }
+
+          // Other 4xx (bad key, bad request): no point trying other models.
+          throw new Error(lastErr);
+        }
+
+        const data = (await res.json()) as any;
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) {
+          lastErr = "gemini_empty_response";
+          break; // try next model
+        }
+        return text as string;
+      } catch (e) {
+        if ((e as Error).name === "AbortError") throw new Error("gemini_timeout");
+        throw e;
+      }
+    }
+  }
+
+  throw new Error(lastErr || "gemini_all_models_failed");
+}
+
+export async function generateFormWithGemini(apiKey: string, prompt: string, locale: string) {
   const systemInstructions =
     locale === "hi"
       ? "Tum ek expert form builder ho. User ke prompt ke basis pe ek JSON form structure generate karo. Hindi language use karo labels aur options ke liye. Output sirf valid JSON hona chahiye."
@@ -38,42 +109,11 @@ export async function generateFormWithGemini(apiKey: string, prompt: string, loc
     },
   };
 
-  let attempt = 0;
-  const maxAttempts = 2;
+  const text = await callGemini(apiKey, payload, 25000); // 25s timeout for AI generation
 
-  while (attempt < maxAttempts) {
-    try {
-      const res = await fetchWithTimeout(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }, 25000); // 25s timeout for AI generation
-
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => "");
-        if (res.status === 429 || res.status >= 500) {
-          attempt++;
-          if (attempt >= maxAttempts) throw new Error(`gemini_api_error_${res.status}: ${errBody.slice(0, 300)}`);
-          await new Promise((r) => setTimeout(r, 1000 * attempt)); // simple backoff
-          continue;
-        }
-        throw new Error(`gemini_api_error_${res.status}: ${errBody.slice(0, 300)}`);
-      }
-
-      const data = await res.json() as any;
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error("gemini_empty_response");
-
-      // Gemini sometimes wraps JSON in markdown blocks even with responseMimeType
-      const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      return JSON.parse(cleaned);
-    } catch (e) {
-      if ((e as Error).name === "AbortError") {
-        throw new Error("gemini_timeout");
-      }
-      throw e;
-    }
-  }
+  // Gemini sometimes wraps JSON in markdown blocks even with responseMimeType
+  const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
+  return JSON.parse(cleaned);
 }
 
 export async function summarizeResponsesWithGemini(
@@ -82,8 +122,6 @@ export async function summarizeResponsesWithGemini(
   fields: Array<{ id: string; label: string; type: string }>,
   responses: any[],
 ) {
-  const url = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-
   const context = `Form: ${formTitle}\nFields: ${JSON.stringify(fields)}\nResponses: ${JSON.stringify(responses)}`;
 
   const payload = {
@@ -102,29 +140,8 @@ export async function summarizeResponsesWithGemini(
     },
   };
 
-  try {
-    const res = await fetchWithTimeout(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }, 15000); // 15s for summarization
-
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      throw new Error(`gemini_api_error_${res.status}: ${errBody.slice(0, 300)}`);
-    }
-
-    const data = await res.json() as any;
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error("gemini_empty_response");
-
-    return text.trim();
-  } catch (e) {
-    if ((e as Error).name === "AbortError") {
-      throw new Error("gemini_timeout");
-    }
-    throw e;
-  }
+  const text = await callGemini(apiKey, payload, 15000); // 15s for summarization
+  return text.trim();
 }
 
 /**
