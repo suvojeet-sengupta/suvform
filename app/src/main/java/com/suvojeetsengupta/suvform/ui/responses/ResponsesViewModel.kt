@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import com.suvojeetsengupta.suvform.data.draft.SelectedFormStore
+import com.suvojeetsengupta.suvform.data.remote.CalculationDto
 import com.suvojeetsengupta.suvform.data.remote.FieldDto
 import com.suvojeetsengupta.suvform.data.remote.ResponseItemDto
 import com.suvojeetsengupta.suvform.data.repository.FormRepository
@@ -30,6 +31,7 @@ import javax.inject.Inject
 data class ResponsesUiState(
     val formTitle: String = "Responses",
     val fields: List<FieldDto> = emptyList(),
+    val calculations: List<CalculationDto> = emptyList(),
     val loading: Boolean = false,
     val exporting: Boolean = false,
     val formsToSelect: List<com.suvojeetsengupta.suvform.data.remote.FormSummaryDto> = emptyList(),
@@ -132,7 +134,12 @@ class ResponsesViewModel @Inject constructor(
             runCatching { formRepository.getForm(id) }
                 .onSuccess { form ->
                     _state.update {
-                        it.copy(loading = false, fields = form.fields, formTitle = form.title)
+                        it.copy(
+                            loading = false,
+                            fields = form.fields,
+                            calculations = form.calculations,
+                            formTitle = form.title,
+                        )
                     }
                 }
                 .onFailure { e ->
@@ -175,7 +182,13 @@ class ResponsesViewModel @Inject constructor(
             runCatching {
                 val all = responseRepository.fetchAllResponses(id)
                 withContext(Dispatchers.IO) {
-                    ResponseExport.writeCsv(context, _state.value.formTitle, _state.value.fields, all)
+                    ResponseExport.writeCsv(
+                        context,
+                        _state.value.formTitle,
+                        _state.value.fields,
+                        _state.value.calculations,
+                        all,
+                    )
                 }
             }
                 .onSuccess { file ->
@@ -194,7 +207,13 @@ class ResponsesViewModel @Inject constructor(
             runCatching {
                 val all = responseRepository.fetchAllResponses(id)
                 withContext(Dispatchers.IO) {
-                    ResponseExport.writePdf(context, _state.value.formTitle, _state.value.fields, all)
+                    ResponseExport.writePdf(
+                        context,
+                        _state.value.formTitle,
+                        _state.value.fields,
+                        _state.value.calculations,
+                        all,
+                    )
                 }
             }
                 .onSuccess { file ->
