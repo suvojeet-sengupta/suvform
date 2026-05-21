@@ -61,8 +61,6 @@ export default function Dashboard() {
 
   const fetchForms = async () => {
     try {
-      // Ensure user exists in backend DB
-      await api.post("/v1/me");
       const data = await api.get("/v1/forms");
       setForms(data.forms);
     } catch (error) {
