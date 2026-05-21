@@ -69,6 +69,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+...
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResponsesScreen(
@@ -98,12 +106,14 @@ fun ResponsesScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(state.formTitle, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                        Text(
-                            "${state.responses.size} responses",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Text(state.formTitle.ifBlank { "Responses" }, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        if (state.responses.isNotEmpty()) {
+                            Text(
+                                "${state.responses.size} responses",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -161,13 +171,17 @@ fun ResponsesScreen(
             )
         },
     ) { padding ->
+        // PullToRefreshBox is still useful for manual refresh, but we'll use shimmer for initial load
         PullToRefreshBox(
-            isRefreshing = state.loading,
+            isRefreshing = false, // We'll handle refreshing state differently
             onRefresh = { viewModel.refresh() },
             state = refreshState,
             modifier = Modifier.fillMaxSize().padding(padding)
         ) {
             when {
+                state.loading && state.responses.isEmpty() -> {
+                    ResponsesShimmer()
+                }
                 state.formsToSelect.isNotEmpty() -> {
                     FormSelectionList(
                         forms = state.formsToSelect,
@@ -227,6 +241,60 @@ fun ResponsesScreen(
                 viewModel.dismissInsights()
             },
         )
+    }
+}
+
+@Composable
+private fun ResponsesShimmer() {
+    val shimmerColors = listOf(
+        MaterialTheme.colorScheme.surfaceContainerLow,
+        MaterialTheme.colorScheme.surfaceContainerHigh,
+        MaterialTheme.colorScheme.surfaceContainerLow,
+    )
+
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer"
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = androidx.compose.ui.geometry.Offset.Zero,
+        end = androidx.compose.ui.geometry.Offset(x = translateAnim, y = translateAnim)
+    )
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // Insights callout shimmer
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(brush)
+            )
+        }
+        
+        // Response cards shimmer
+        items(5) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(brush)
+            )
+        }
     }
 }
 
