@@ -93,13 +93,12 @@ export default function ResponsesPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchData = async (refresh = false) => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      // Disable cache for responses so user sees new data immediately
       const [formData, responsesData] = await Promise.all([
-        api.get(`/v1/forms/${id}`, !refresh),
-        api.get(`/v1/forms/${id}/responses`, false) // Always fresh for responses
+        api.get(`/v1/forms/${id}`),
+        api.get(`/v1/forms/${id}/responses`),
       ]);
       setForm(formData);
       setResponses(responsesData.responses);
@@ -233,7 +232,7 @@ export default function ResponsesPage() {
 
         <div className="flex items-center gap-2">
           <button 
-            onClick={() => fetchData(true)}
+            onClick={() => fetchData()}
             className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
             title="Refresh Data"
           >

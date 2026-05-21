@@ -3,16 +3,15 @@
 export const runtime = "edge";
 
 import { useAuth } from "@/context/AuthContext";
-import { useApi } from "@/lib/api";
+import { useForms, useDeleteForm } from "@/lib/queries";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { 
-  Layout, 
-  Plus, 
-  FileText, 
-  Settings, 
-  LogOut, 
-  BarChart2, 
+import {
+  Plus,
+  FileText,
+  Settings,
+  LogOut,
+  BarChart2,
   Globe,
   MoreVertical,
   Search,
@@ -22,7 +21,7 @@ import {
   Check,
   MessageSquare,
   Menu,
-  X
+  X,
 } from "lucide-react";
 
 interface FormSummary {
@@ -37,10 +36,11 @@ interface FormSummary {
 
 export default function Dashboard() {
   const { user, loading: authLoading, logout } = useAuth();
-  const api = useApi();
   const router = useRouter();
-  const [forms, setForms] = useState<FormSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = useForms(!!user);
+  const deleteForm = useDeleteForm();
+  const forms: FormSummary[] = data?.forms ?? [];
+
   const [activeFilter, setActiveFilter] = useState<"all" | "public" | "responses">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -48,40 +48,16 @@ export default function Dashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login");
-    }
+    if (!authLoading && !user) router.push("/login");
   }, [user, authLoading, router]);
 
-  useEffect(() => {
-    if (user) {
-      fetchForms();
-    }
-  }, [user]);
-
-  const fetchForms = async () => {
-    try {
-      const data = await api.get("/v1/forms");
-      setForms(data.forms);
-    } catch (error) {
-      console.error("Failed to fetch forms", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("Are you sure you want to delete this form? This action cannot be undone.")) return;
-    
-    try {
-      await api.delete(`/v1/forms/${id}`);
-      setForms(forms.filter(f => f.id !== id));
-      setOpenMenuId(null);
-    } catch (error) {
-      console.error("Failed to delete form", error);
-      alert("Failed to delete form.");
-    }
+    deleteForm.mutate(id, {
+      onSettled: () => setOpenMenuId(null),
+      onError: () => alert("Failed to delete form."),
+    });
   };
 
   const handleCopyLink = (form: FormSummary, e: React.MouseEvent) => {
@@ -94,33 +70,39 @@ export default function Dashboard() {
     setOpenMenuId(null);
   };
 
-  const filteredForms = forms.filter(f => {
-    const matchesSearch = f.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         (f.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
-    
+  const filteredForms = forms.filter((f) => {
+    const matchesSearch =
+      f.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (f.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
-    
     if (activeFilter === "public") return f.published === 1;
-    // For now, "responses" tab also shows all forms but leads to response page on click
     return true;
   });
 
   if (authLoading || !user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center min-h-screen bg-paper">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-line border-t-accent"></div>
       </div>
     );
   }
 
-  const NavItem = ({ filter, icon: Icon, label }: { filter: typeof activeFilter, icon: any, label: string }) => (
-    <button 
+  const NavItem = ({
+    filter,
+    icon: Icon,
+    label,
+  }: {
+    filter: typeof activeFilter;
+    icon: React.ElementType;
+    label: string;
+  }) => (
+    <button
       onClick={() => {
         setActiveFilter(filter);
         setIsMobileMenuOpen(false);
       }}
       className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-colors ${
-        activeFilter === filter ? "text-blue-600 bg-blue-50" : "text-gray-600 hover:bg-gray-50"
+        activeFilter === filter ? "text-accent bg-accent-soft" : "text-muted hover:bg-paper2"
       }`}
     >
       <Icon className="h-5 w-5" />
@@ -128,52 +110,56 @@ export default function Dashboard() {
     </button>
   );
 
+  const BrandMark = () => (
+    <div className="flex items-center gap-3">
+      <div className="bg-accent h-9 w-9 rounded-xl flex items-center justify-center">
+        <span className="font-serif italic text-white text-lg leading-none">S</span>
+      </div>
+      <span className="text-xl font-serif text-ink tracking-tight">SuvForm</span>
+    </div>
+  );
+
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-paper">
       {/* Sidebar - Desktop */}
-      <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg shadow-lg shadow-blue-200">
-              <Layout className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900 tracking-tight">SuvForm</span>
-          </div>
+      <aside className="w-64 bg-card border-r border-line hidden md:flex flex-col">
+        <div className="p-6 border-b border-line">
+          <BrandMark />
         </div>
-        
+
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-3">Main</div>
-          <NavItem filter="all" icon={Layout} label="My Forms" />
+          <div className="mono-label text-muted2 mb-2 px-3">Main</div>
+          <NavItem filter="all" icon={FileText} label="My Forms" />
           <NavItem filter="responses" icon={MessageSquare} label="Responses" />
           <NavItem filter="public" icon={Globe} label="Public Forms" />
 
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-8 mb-2 px-3">System</div>
-          <button 
+          <div className="mono-label text-muted2 mt-8 mb-2 px-3">System</div>
+          <button
             onClick={() => router.push("/settings")}
-            className="w-full flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2 text-muted hover:bg-paper2 rounded-lg transition-colors"
           >
             <Settings className="h-5 w-5" />
             Settings
           </button>
-          <button 
+          <button
             onClick={logout}
-            className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-auto"
+            className="w-full flex items-center gap-3 px-3 py-2 text-accent hover:bg-accent-soft rounded-lg transition-colors"
           >
             <LogOut className="h-5 w-5" />
             Sign Out
           </button>
         </nav>
 
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-4 border-t border-line">
           <div className="flex items-center gap-3 p-2">
-            <img 
-              src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`} 
-              alt="Avatar" 
-              className="h-8 w-8 rounded-full border border-gray-200"
+            <img
+              src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`}
+              alt="Avatar"
+              className="h-8 w-8 rounded-full border border-line"
             />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{user.displayName}</p>
-              <p className="text-xs text-gray-500 truncate">{user.email}</p>
+              <p className="text-sm font-medium text-ink truncate">{user.displayName}</p>
+              <p className="text-xs text-muted truncate">{user.email}</p>
             </div>
           </div>
         </div>
@@ -182,29 +168,29 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-8">
+        <header className="h-16 bg-card border-b border-line flex items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-4 flex-1 max-w-xl">
-            <button 
+            <button
               onClick={() => setIsMobileMenuOpen(true)}
-              className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
+              className="md:hidden p-2 hover:bg-paper2 rounded-lg"
             >
-              <Menu className="h-6 w-6 text-gray-600" />
+              <Menu className="h-6 w-6 text-muted" />
             </button>
             <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input 
-                type="text" 
-                placeholder="Search forms..." 
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted2" />
+              <input
+                type="text"
+                placeholder="Search forms..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-full bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                className="w-full pl-10 pr-4 py-2 border border-line rounded-full bg-paper text-sm text-ink placeholder:text-muted2 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
               />
             </div>
           </div>
           <div className="flex items-center gap-4 ml-4">
-            <button 
+            <button
               onClick={() => router.push("/form/create")}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 md:px-5 py-2 rounded-full font-medium shadow-md shadow-blue-500/20 transition-all active:scale-95 text-sm"
+              className="flex items-center gap-2 bg-accent hover:bg-accent-deep text-white px-4 md:px-5 py-2 rounded-full font-medium transition-all active:scale-95 text-sm"
             >
               <Plus className="h-5 w-5" />
               <span className="hidden sm:inline">Create Form</span>
@@ -218,45 +204,52 @@ export default function Dashboard() {
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {activeFilter === "public" ? "Publicly Shared Forms" : 
-                   activeFilter === "responses" ? "Form Submissions" : "Your Forms"}
+                <h2 className="text-3xl font-serif text-ink tracking-tight">
+                  {activeFilter === "public"
+                    ? "Publicly shared forms"
+                    : activeFilter === "responses"
+                      ? "Form submissions"
+                      : "Your forms"}
                 </h2>
-                <p className="text-gray-500 text-sm">
-                  {activeFilter === "public" ? "These forms are currently live and accepting responses." : 
-                   activeFilter === "responses" ? "Select a form to view its submitted data and insights." : 
-                   "Manage and analyze your active collection forms"}
+                <p className="text-muted text-sm mt-1">
+                  {activeFilter === "public"
+                    ? "These forms are currently live and accepting responses."
+                    : activeFilter === "responses"
+                      ? "Select a form to view its submitted data and insights."
+                      : "Manage and analyze your active collection forms."}
                 </p>
               </div>
-              <div className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-100 self-start sm:self-auto">
-                Total: <span className="font-semibold text-gray-900">{filteredForms.length}</span>
+              <div className="mono-label text-muted bg-card px-3 py-1.5 rounded-full border border-line self-start sm:self-auto">
+                Total: <span className="text-ink">{filteredForms.length}</span>
               </div>
             </div>
 
-            {loading ? (
+            {isLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="bg-white border border-gray-200 rounded-2xl h-48 animate-pulse"></div>
+                  <div key={i} className="bg-card border border-line rounded-2xl h-48 animate-pulse"></div>
                 ))}
               </div>
             ) : filteredForms.length === 0 ? (
-              <div className="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-3xl">
-                <div className="bg-blue-50 h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-8 w-8 text-blue-500" />
+              <div className="text-center py-20 bg-card border border-dashed border-line rounded-3xl">
+                <div className="bg-accent-soft h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="h-8 w-8 text-accent" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">No forms found</h3>
-                <p className="text-gray-500 max-w-xs mx-auto mt-2 text-sm px-4">
-                  {searchQuery ? "No results match your search." : 
-                   activeFilter === "public" ? "You haven't published any forms yet." : 
-                   "Create your first form using Gemini AI to start collecting data."}
+                <h3 className="text-lg font-serif text-ink">No forms found</h3>
+                <p className="text-muted max-w-xs mx-auto mt-2 text-sm px-4">
+                  {searchQuery
+                    ? "No results match your search."
+                    : activeFilter === "public"
+                      ? "You haven't published any forms yet."
+                      : "Create your first form using Gemini AI to start collecting data."}
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredForms.map((form) => (
-                  <div 
-                    key={form.id} 
-                    className="group bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl hover:border-blue-200 transition-all duration-300 flex flex-col cursor-pointer relative"
+                  <div
+                    key={form.id}
+                    className="group bg-card border border-line rounded-2xl p-6 hover:shadow-lg hover:border-accent/40 transition-all duration-300 flex flex-col cursor-pointer relative"
                     onClick={() => {
                       if (activeFilter === "responses") {
                         router.push(`/form/${form.id}/responses`);
@@ -266,46 +259,57 @@ export default function Dashboard() {
                     }}
                   >
                     <div className="flex justify-between items-start mb-4">
-                      <div className={`p-2 rounded-lg ${form.published ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-                        {activeFilter === "responses" ? <BarChart2 className="h-6 w-6" /> : <FileText className="h-6 w-6" />}
+                      <div
+                        className={`p-2 rounded-lg ${
+                          form.published ? "bg-ok-soft text-ok" : "bg-paper2 text-muted2"
+                        }`}
+                      >
+                        {activeFilter === "responses" ? (
+                          <BarChart2 className="h-6 w-6" />
+                        ) : (
+                          <FileText className="h-6 w-6" />
+                        )}
                       </div>
                       <div className="relative">
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setOpenMenuId(openMenuId === form.id ? null : form.id);
                           }}
-                          className="p-1 hover:bg-gray-100 rounded-md text-gray-400 hover:text-gray-600"
+                          className="p-1 hover:bg-paper2 rounded-md text-muted2 hover:text-ink"
                         >
                           <MoreVertical className="h-5 w-5" />
                         </button>
-                        
-                        {/* Dropdown Menu */}
+
                         {openMenuId === form.id && (
-                          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in zoom-in duration-200">
+                          <div className="absolute right-0 mt-2 w-48 bg-card border border-line rounded-xl shadow-xl z-20 overflow-hidden">
                             {form.published === 1 && (
-                              <button 
+                              <button
                                 onClick={(e) => handleCopyLink(form, e)}
-                                className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                className="w-full flex items-center gap-2 px-4 py-3 text-sm text-ink hover:bg-paper2 transition-colors"
                               >
-                                {copyingId === form.id ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                                {copyingId === form.id ? (
+                                  <Check className="h-4 w-4 text-ok" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
                                 {copyingId === form.id ? "Copied!" : "Copy Link"}
                               </button>
                             )}
-                            <button 
+                            <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 router.push(`/form/${form.id}/responses`);
                               }}
-                              className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                              className="w-full flex items-center gap-2 px-4 py-3 text-sm text-ink hover:bg-paper2 transition-colors"
                             >
                               <BarChart2 className="h-4 w-4" />
                               View Responses
                             </button>
-                            <div className="border-t border-gray-100"></div>
-                            <button 
+                            <div className="border-t border-line"></div>
+                            <button
                               onClick={(e) => handleDelete(form.id, e)}
-                              className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                              className="w-full flex items-center gap-2 px-4 py-3 text-sm text-accent hover:bg-accent-soft transition-colors"
                             >
                               <Trash2 className="h-4 w-4" />
                               Delete Form
@@ -314,28 +318,28 @@ export default function Dashboard() {
                         )}
                       </div>
                     </div>
-                    
-                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+
+                    <h3 className="text-lg font-serif text-ink group-hover:text-accent transition-colors truncate">
                       {form.title}
                     </h3>
-                    <p className="text-sm text-gray-500 line-clamp-2 mt-1 flex-1">
+                    <p className="text-sm text-muted line-clamp-2 mt-1 flex-1">
                       {form.description || "No description provided."}
                     </p>
 
-                    <div className="mt-6 pt-4 border-t border-gray-50 flex items-center justify-between">
+                    <div className="mt-6 pt-4 border-t border-line2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {form.published ? (
-                          <span className="flex items-center gap-1.5 px-2 py-1 bg-green-50 text-green-700 text-[10px] font-bold uppercase tracking-wider rounded-md border border-green-100">
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                          <span className="flex items-center gap-1.5 px-2 py-1 bg-ok-soft text-ok mono-label rounded-md">
+                            <span className="h-1.5 w-1.5 rounded-full bg-ok animate-pulse"></span>
                             Live
                           </span>
                         ) : (
-                          <span className="px-2 py-1 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-wider rounded-md border border-gray-100">
+                          <span className="px-2 py-1 bg-paper2 text-muted mono-label rounded-md">
                             Draft
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-400 font-medium flex items-center gap-1">
+                      <div className="text-xs text-muted2 font-medium flex items-center gap-1">
                         Edited {new Date(form.updated_at).toLocaleDateString()}
                         <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
                       </div>
@@ -351,37 +355,35 @@ export default function Dashboard() {
       {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setIsMobileMenuOpen(false)}></div>
-          <aside className="relative w-80 max-w-[80%] bg-white h-full flex flex-col shadow-2xl animate-in slide-in-from-left duration-300">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-600 p-2 rounded-lg">
-                  <Layout className="h-6 w-6 text-white" />
-                </div>
-                <span className="text-xl font-bold text-gray-900">SuvForm</span>
-              </div>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
-                <X className="h-6 w-6 text-gray-400" />
+          <div className="fixed inset-0 bg-ink/50" onClick={() => setIsMobileMenuOpen(false)}></div>
+          <aside className="relative w-80 max-w-[80%] bg-card h-full flex flex-col shadow-2xl">
+            <div className="p-6 border-b border-line flex items-center justify-between">
+              <BrandMark />
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-2 hover:bg-paper2 rounded-full"
+              >
+                <X className="h-6 w-6 text-muted2" />
               </button>
             </div>
-            
+
             <nav className="flex-1 p-4 space-y-2">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-3">Main</div>
-              <NavItem filter="all" icon={Layout} label="My Forms" />
+              <div className="mono-label text-muted2 mb-2 px-3">Main</div>
+              <NavItem filter="all" icon={FileText} label="My Forms" />
               <NavItem filter="responses" icon={MessageSquare} label="Responses" />
               <NavItem filter="public" icon={Globe} label="Public Forms" />
 
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-8 mb-2 px-3">System</div>
-              <button 
+              <div className="mono-label text-muted2 mt-8 mb-2 px-3">System</div>
+              <button
                 onClick={() => router.push("/settings")}
-                className="w-full flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2 text-muted hover:bg-paper2 rounded-lg transition-colors"
               >
                 <Settings className="h-5 w-5" />
                 Settings
               </button>
-              <button 
+              <button
                 onClick={logout}
-                className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-auto"
+                className="w-full flex items-center gap-3 px-3 py-2 text-accent hover:bg-accent-soft rounded-lg transition-colors"
               >
                 <LogOut className="h-5 w-5" />
                 Sign Out

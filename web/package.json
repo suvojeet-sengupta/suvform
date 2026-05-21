@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.100.11",
     "firebase": "^12.13.0",
     "json2csv": "^6.0.0-alpha.2",
     "jspdf": "^4.2.1",

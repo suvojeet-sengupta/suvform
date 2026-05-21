@@ -1,26 +1,40 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Editorial "paper" theme — matches the Android app and the public form page.
+ * Light only. Tokens become Tailwind utilities (bg-paper, text-ink, etc.).
+ */
+@theme {
+  --color-paper: #f4f1ea;
+  --color-paper2: #ebe7dd;
+  --color-card: #ffffff;
+  --color-ink: #0f0f10;
+  --color-muted: #6e6b62;
+  --color-muted2: #a8a49a;
+  --color-line: #ddd6c7;
+  --color-line2: #e8e2d2;
+  --color-accent: #e94221;
+  --color-accent-soft: #fbe3dc;
+  --color-accent-deep: #7a1c0a;
+  --color-ok: #1f7a4d;
+  --color-ok-soft: #daeede;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-serif: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Editorial mono label helper: small, uppercase, tracked-out. */
+.mono-label {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.6875rem;
 }
