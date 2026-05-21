@@ -37,7 +37,11 @@ interface SuvFormApi {
     suspend fun unpublishForm(@Path("id") id: String): JsonObject
 
     @GET("v1/forms/{id}/responses")
-    suspend fun listResponses(@Path("id") id: String): ResponsesListDto
+    suspend fun listResponses(
+        @Path("id") id: String,
+        @retrofit2.http.Query("limit") limit: Int = 50,
+        @retrofit2.http.Query("offset") offset: Int = 0,
+    ): ResponsesListDto
 
     @POST("v1/forms/{id}/insights")
     suspend fun getInsights(@Path("id") id: String): InsightsDto

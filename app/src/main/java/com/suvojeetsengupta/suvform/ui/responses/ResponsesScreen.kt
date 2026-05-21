@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -48,9 +49,25 @@ fun ResponsesScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val listState = rememberLazyListState()
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
+    }
+
+    // Load more when reaching end
+    val shouldLoadMore = remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val totalItemsNumber = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+            lastVisibleItemIndex > (totalItemsNumber - 5)
+        }
+    }
+    LaunchedEffect(shouldLoadMore.value) {
+        if (shouldLoadMore.value && state.hasMore && !state.loadingMore && !state.loading) {
+            viewModel.loadMore()
+        }
     }
 
     BackHandler(enabled = true) {
@@ -73,9 +90,9 @@ fun ResponsesScreen(
                 title = {
                     Column {
                         Text(state.formTitle.ifBlank { "Responses" }, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                        if (state.responses.isNotEmpty()) {
+                        if (state.totalCount > 0) {
                             Text(
-                                "${state.responses.size} responses",
+                                "${state.totalCount} responses",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -143,7 +160,10 @@ fun ResponsesScreen(
         ) {
             when {
                 state.loading && state.responses.isEmpty() -> {
-                    ResponsesShimmer()
+                    Column(Modifier.fillMaxSize()) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        ResponsesShimmer()
+                    }
                 }
                 state.formsToSelect.isNotEmpty() -> {
                     FormSelectionList(
@@ -156,6 +176,7 @@ fun ResponsesScreen(
                 }
                 else -> {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(20.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -170,6 +191,16 @@ fun ResponsesScreen(
                                     onViewDetail()
                                 }
                             )
+                        }
+                        if (state.loadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                }
+                            }
                         }
                     }
                 }

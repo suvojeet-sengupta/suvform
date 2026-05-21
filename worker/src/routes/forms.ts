@@ -211,12 +211,20 @@ app.get("/:id/responses", async (c) => {
   if (!owner) return c.json({ error: "not_found" }, 404);
   if (owner.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
 
+  const limit = Math.min(parseInt(c.req.query("limit") || "50"), 200);
+  const offset = parseInt(c.req.query("offset") || "0");
+
   const { results } = await c.env.DB.prepare(
     `SELECT id, answers_json, calculated_json, submitted_at
-       FROM responses WHERE form_id = ? ORDER BY submitted_at DESC LIMIT 500`,
+       FROM responses WHERE form_id = ? ORDER BY submitted_at DESC LIMIT ? OFFSET ?`,
   )
-    .bind(id)
+    .bind(id, limit, offset)
     .all();
+    
+  const countRow = await c.env.DB.prepare(
+    `SELECT COUNT(*) as count FROM responses WHERE form_id = ?`
+  ).bind(id).first<{ count: number }>();
+
   return c.json({
     responses: (results as any[]).map((r) => ({
       id: r.id,
@@ -224,6 +232,8 @@ app.get("/:id/responses", async (c) => {
       answers: safeParse(r.answers_json, {}),
       calculated: safeParse(r.calculated_json ?? "{}", {}),
     })),
+    total_count: countRow?.count ?? 0,
+    has_more: (offset + results.length) < (countRow?.count ?? 0)
   });
 });
 

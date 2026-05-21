@@ -25,6 +25,24 @@ import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import javax.inject.Inject
 
+data class ResponsesUiState(
+    val formTitle: String = "Responses",
+    val fields: List<FieldDto> = emptyList(),
+    val loading: Boolean = false,
+    val loadingMore: Boolean = false,
+    val exporting: Boolean = false,
+    val responses: List<ResponseItemDto> = emptyList(),
+    val formsToSelect: List<com.suvojeetsengupta.suvform.data.remote.FormSummaryDto> = emptyList(),
+    val error: String? = null,
+    val loadingInsights: Boolean = false,
+    val insightsSummary: String? = null,
+    val insightsError: String? = null,
+    val selectedResponse: ResponseItemDto? = null,
+    val selectedFormId: String? = null,
+    val hasMore: Boolean = false,
+    val totalCount: Int = 0,
+)
+
 @HiltViewModel
 class ResponsesViewModel @Inject constructor(
     private val api: SuvFormApi,
@@ -64,7 +82,9 @@ class ResponsesViewModel @Inject constructor(
                 responses = emptyList(),
                 error = null,
                 selectedFormId = formId,
-                formsToSelect = emptyList()
+                formsToSelect = emptyList(),
+                hasMore = false,
+                totalCount = 0
             )
         }
         startObservation(formId)
@@ -81,7 +101,9 @@ class ResponsesViewModel @Inject constructor(
                 responses = emptyList(),
                 formsToSelect = emptyList(),
                 selectedResponse = null,
-                selectedFormId = null
+                selectedFormId = null,
+                hasMore = false,
+                totalCount = 0
             )
         }
         refresh()
@@ -111,10 +133,10 @@ class ResponsesViewModel @Inject constructor(
         _state.update { it.copy(loading = true, error = null, formsToSelect = emptyList()) }
         viewModelScope.launch {
             val formResult = runCatching { api.getForm(id) }
-            val respResult = runCatching { api.listResponses(id) }
+            val respResult = runCatching { api.listResponses(id, limit = 50, offset = 0) }
             respResult
                 .onSuccess { resp ->
-                    // Update cache
+                    // Update cache (full refresh of first page replaces local data for now to stay synced)
                     responseDao.replaceForForm(id, resp.responses.map { ResponseEntity.fromDto(id, it) })
                     
                     _state.update {
@@ -122,12 +144,41 @@ class ResponsesViewModel @Inject constructor(
                             loading = false,
                             fields = formResult.getOrNull()?.fields ?: it.fields,
                             formTitle = formResult.getOrNull()?.title ?: it.formTitle,
+                            hasMore = resp.hasMore,
+                            totalCount = resp.totalCount
                         )
                     }
                 }
                 .onFailure { e ->
                     val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
                     _state.update { it.copy(loading = false, error = msg ?: "Failed to load") }
+                }
+        }
+    }
+
+    fun loadMore() {
+        val id = selectedForm.formId ?: return
+        val s = _state.value
+        if (s.loading || s.loadingMore || !s.hasMore) return
+
+        _state.update { it.copy(loadingMore = true) }
+        viewModelScope.launch {
+            val offset = s.responses.size
+            runCatching { api.listResponses(id, limit = 50, offset = offset) }
+                .onSuccess { resp ->
+                    // Add to cache
+                    responseDao.upsertAll(resp.responses.map { ResponseEntity.fromDto(id, it) })
+                    
+                    _state.update {
+                        it.copy(
+                            loadingMore = false,
+                            hasMore = resp.hasMore,
+                            totalCount = resp.totalCount
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(loadingMore = false) }
                 }
         }
     }
@@ -216,18 +267,3 @@ class ResponsesViewModel @Inject constructor(
         _state.update { it.copy(selectedResponse = response) }
     }
 }
-
-data class ResponsesUiState(
-    val formTitle: String = "Responses",
-    val fields: List<FieldDto> = emptyList(),
-    val loading: Boolean = false,
-    val exporting: Boolean = false,
-    val responses: List<ResponseItemDto> = emptyList(),
-    val formsToSelect: List<com.suvojeetsengupta.suvform.data.remote.FormSummaryDto> = emptyList(),
-    val error: String? = null,
-    val loadingInsights: Boolean = false,
-    val insightsSummary: String? = null,
-    val insightsError: String? = null,
-    val selectedResponse: ResponseItemDto? = null,
-    val selectedFormId: String? = null,
-)

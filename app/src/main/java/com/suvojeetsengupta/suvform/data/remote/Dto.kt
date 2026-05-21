@@ -106,7 +106,11 @@ data class ResponseItemDto(
 )
 
 @Serializable
-data class ResponsesListDto(val responses: List<ResponseItemDto> = emptyList())
+data class ResponsesListDto(
+    val responses: List<ResponseItemDto> = emptyList(),
+    @SerialName("total_count") val totalCount: Int = 0,
+    @SerialName("has_more") val hasMore: Boolean = false,
+)
 
 @Serializable
 data class InsightsDto(
