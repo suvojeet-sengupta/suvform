@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- SuvForm brand mark: a serif "S" in paper white, centered inside the
-     adaptive-icon safe zone. Single-color silhouette so it doubles as the
-     themed (monochrome) layer. -->
+<!-- Legacy (pre-API 26) launcher icon: non-adaptive vector fallback so the
+     editorial brand mark shows on older devices too. API 26+ uses the
+     adaptive icon in mipmap-anydpi-v26/. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <path
+        android:fillColor="#E94221"
+        android:pathData="M22,0 L86,0 Q108,0 108,22 L108,86 Q108,108 86,108 L22,108 Q0,108 0,86 L0,22 Q0,0 22,0 Z" />
     <path
         android:fillColor="#00000000"
         android:strokeColor="#F4F1EA"
