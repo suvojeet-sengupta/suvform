@@ -2,11 +2,13 @@ package com.suvojeetsengupta.suvform.data.remote
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
-import javax.inject.Inject
 
-class ResponsesPagingSource @Inject constructor(
+class ResponsesPagingSource(
     private val api: SuvFormApi,
-    private val formId: String
+    private val formId: String,
+    // Reports total_count from the first page so the screen header doesn't need
+    // a separate listResponses(limit=1) call just to show the count.
+    private val onTotalCount: (Int) -> Unit = {},
 ) : PagingSource<Int, ResponseItemDto>() {
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, ResponseItemDto> {
@@ -19,6 +21,8 @@ class ResponsesPagingSource @Inject constructor(
                 limit = limit,
                 offset = offset
             )
+
+            if (offset == 0) onTotalCount(response.totalCount)
 
             LoadResult.Page(
                 data = response.responses,

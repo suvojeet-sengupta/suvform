@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -47,6 +48,9 @@ data class ResponsesUiState(
 class ResponsesViewModel @Inject constructor(
     private val api: SuvFormApi,
     private val selectedForm: SelectedFormStore,
+    private val formRepository: com.suvojeetsengupta.suvform.data.repository.FormRepository,
+    private val formDao: com.suvojeetsengupta.suvform.data.local.FormDao,
+    private val auth: com.google.firebase.auth.FirebaseAuth,
 ) : ViewModel() {
 
     private val _selectedFormId = MutableStateFlow(selectedForm.formId)
@@ -73,14 +77,16 @@ class ResponsesViewModel @Inject constructor(
                         initialLoadSize = 50
                     ),
                     pagingSourceFactory = {
-                        ResponsesPagingSource(api, formId)
+                        ResponsesPagingSource(api, formId) { total ->
+                            _state.update { it.copy(totalCount = total) }
+                        }
                     }
                 ).flow.cachedIn(viewModelScope)
             }
 
-    init {
-        refresh()
-    }
+    // No init refresh: the screen drives loading via LaunchedEffect, and the
+    // paging flow above auto-loads from the restored selectedFormId. Avoids the
+    // duplicate refresh that used to fire on both VM init and screen entry.
 
     fun selectForm(formId: String, title: String) {
         selectedForm.formId = formId
@@ -135,22 +141,20 @@ class ResponsesViewModel @Inject constructor(
         if (_state.value.loading) return
         _state.update { it.copy(loading = true, error = null, formsToSelect = emptyList()) }
         viewModelScope.launch {
-            val formResult = runCatching { api.getForm(id) }
-            val respResult = runCatching { api.listResponses(id, limit = 1, offset = 0) }
-            
-            _state.update {
-                it.copy(
-                    loading = false,
-                    fields = formResult.getOrNull()?.fields ?: it.fields,
-                    formTitle = formResult.getOrNull()?.title ?: it.formTitle,
-                    totalCount = respResult.getOrNull()?.totalCount ?: it.totalCount
-                )
-            }
-            
-            respResult.onFailure { e ->
-                val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
-                _state.update { it.copy(error = msg ?: "Failed to load") }
-            }
+            // Only fetch the schema (needed for column headers / export). It comes
+            // from the shared cache, so re-entering this screen is usually free.
+            // The response count is reported by the paging source's first page —
+            // no separate listResponses(limit=1) round-trip anymore.
+            runCatching { formRepository.getForm(id) }
+                .onSuccess { form ->
+                    _state.update {
+                        it.copy(loading = false, fields = form.fields, formTitle = form.title)
+                    }
+                }
+                .onFailure { e ->
+                    val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
+                    _state.update { it.copy(loading = false, error = msg ?: "Failed to load") }
+                }
         }
     }
 
@@ -158,6 +162,20 @@ class ResponsesViewModel @Inject constructor(
         if (_state.value.loading) return
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
+            // Prefer Home's already-synced Room cache so switching to the Responses
+            // tab doesn't fire a duplicate listForms() network call.
+            val uid = auth.currentUser?.uid
+            val cached = if (uid != null) {
+                runCatching {
+                    formDao.observeForOwner(uid).first()
+                }.getOrNull()
+            } else null
+
+            if (!cached.isNullOrEmpty()) {
+                _state.update { it.copy(loading = false, formsToSelect = cached.map { e -> e.toDto() }) }
+                return@launch
+            }
+
             runCatching { api.listForms() }
                 .onSuccess { resp ->
                     _state.update { it.copy(loading = false, formsToSelect = resp.forms) }

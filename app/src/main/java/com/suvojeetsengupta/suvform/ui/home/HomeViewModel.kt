@@ -30,6 +30,7 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val api: SuvFormApi,
+    private val formRepository: com.suvojeetsengupta.suvform.data.repository.FormRepository,
     private val draftStore: FormDraftStore,
     private val selectedForm: SelectedFormStore,
     private val formDao: FormDao,
@@ -94,7 +95,7 @@ class HomeViewModel @Inject constructor(
     fun openForm(formId: String, onReady: () -> Unit) {
         _meta.update { it.copy(openingFormId = formId) }
         viewModelScope.launch {
-            runCatching { api.getForm(formId) }
+            runCatching { formRepository.getForm(formId) }
                 .onSuccess { detail ->
                     val shareUrl = detail.publicSlug?.let { slug ->
                         com.suvojeetsengupta.suvform.BuildConfig.PUBLIC_FORM_BASE_URL.trimEnd('/') + "/f/" + slug
@@ -133,7 +134,7 @@ class HomeViewModel @Inject constructor(
 
         // Fetch URL from server if not cached
         viewModelScope.launch {
-            runCatching { api.getForm(form.id) }
+            runCatching { formRepository.getForm(form.id) }
                 .onSuccess { detail ->
                     val shareUrl = detail.publicSlug?.let { slug ->
                         com.suvojeetsengupta.suvform.BuildConfig.PUBLIC_FORM_BASE_URL.trimEnd('/') + "/f/" + slug
@@ -164,6 +165,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             // Optimistic: remove from cache immediately.
             formDao.deleteById(formId)
+            formRepository.invalidate(formId)
             runCatching { api.deleteForm(formId) }
                 .onFailure { e ->
                     _meta.update { it.copy(error = "Delete failed: ${e.message}") }

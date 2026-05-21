@@ -9,7 +9,8 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 // GET /v1/forms — list current user's forms
 app.get("/", async (c) => {
   const u = c.get("user");
-  await ensureUserExists(c.env.DB, u);
+  // No ensureUserExists here: a SELECT needs no FK row, and the user is already
+  // created on sign-in (POST /v1/me) and on form creation. Saves a write per list.
   const { results } = await c.env.DB.prepare(
     `SELECT id, title, description, published, public_slug, created_at, updated_at
        FROM forms WHERE owner_uid = ? ORDER BY updated_at DESC LIMIT 100`,

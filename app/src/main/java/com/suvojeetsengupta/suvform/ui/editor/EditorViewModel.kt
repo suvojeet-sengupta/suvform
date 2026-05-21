@@ -20,6 +20,7 @@ import javax.inject.Inject
 class EditorViewModel @Inject constructor(
     private val store: FormDraftStore,
     private val api: SuvFormApi,
+    private val formRepository: com.suvojeetsengupta.suvform.data.repository.FormRepository,
 ) : ViewModel() {
 
     val draft = store.draft
@@ -111,6 +112,8 @@ class EditorViewModel @Inject constructor(
             }
                 .onSuccess { detail ->
                     if (detail != null) store.update { it.copy(remoteId = detail.id) }
+                    // Drop the cached detail so Home/Responses re-fetch the edit.
+                    d.remoteId?.let { formRepository.invalidate(it) }
                     _save.value = SaveUiState(saved = true)
                     onSuccess?.invoke()
                 }
@@ -151,6 +154,7 @@ class EditorViewModel @Inject constructor(
             runCatching { api.publishForm(id) }
                 .onSuccess { r ->
                     store.update { it.copy(published = true, publicSlug = r.slug, shareUrl = r.url) }
+                    formRepository.invalidate(id)
                     _save.value = SaveUiState(published = true)
                 }
                 .onFailure { e ->
@@ -167,6 +171,7 @@ class EditorViewModel @Inject constructor(
             runCatching { api.unpublishForm(id) }
                 .onSuccess {
                     store.update { it.copy(published = false) }
+                    formRepository.invalidate(id)
                     _save.value = SaveUiState(unpublished = true)
                 }
                 .onFailure { e ->
