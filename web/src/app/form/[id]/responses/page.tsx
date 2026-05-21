@@ -1,5 +1,7 @@
 "use client";
 
+export const runtime = "edge";
+
 import { useAuth } from "@/context/AuthContext";
 import { useApi } from "@/lib/api";
 import { useRouter, useParams } from "next/navigation";
