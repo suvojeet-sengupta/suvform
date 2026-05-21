@@ -15,8 +15,12 @@ import {
   Calendar,
   Table as TableIcon,
   Sparkles,
-  Info
+  FileText,
+  ChevronDown
 } from "lucide-react";
+import { Parser } from 'json2csv';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface ResponseItem {
   id: string;
@@ -53,6 +57,7 @@ export default function ResponsesPage() {
   const [loading, setLoading] = useState(true);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [insights, setInsights] = useState<{ summary: string; response_count: number } | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -78,6 +83,72 @@ export default function ResponsesPage() {
       console.error("Failed to fetch data", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const exportCSV = () => {
+    if (!form || responses.length === 0) return;
+    setIsExporting(true);
+    try {
+      const fields = [
+        { label: 'Submission Date', value: 'date' },
+        ...form.fields.map(f => ({ label: f.label, value: `answers.${f.id}` })),
+        ...form.calculations.map(c => ({ label: c.label, value: `calculated.${c.id}` }))
+      ];
+
+      const data = responses.map(r => ({
+        date: new Date(r.submitted_at).toLocaleString(),
+        answers: r.answers,
+        calculated: r.calculated
+      }));
+
+      const parser = new Parser({ fields });
+      const csv = parser.parse(data);
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute('download', `${form.title.replace(/\s+/g, '_')}_responses.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const exportPDF = () => {
+    if (!form || responses.length === 0) return;
+    setIsExporting(true);
+    try {
+      const doc = new jsPDF('landscape');
+      doc.text(`${form.title} - Responses`, 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Total Submissions: ${responses.length}`, 14, 22);
+
+      const tableColumn = ["Date", ...form.fields.map(f => f.label), ...form.calculations.map(c => c.label)];
+      const tableRows = responses.map(r => [
+        new Date(r.submitted_at).toLocaleString(),
+        ...form.fields.map(f => r.answers[f.id] || "-"),
+        ...form.calculations.map(c => r.calculated[c.id]?.toFixed(2) || "-")
+      ]);
+
+      (doc as any).autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 30,
+        theme: 'grid',
+        headStyles: { fillColor: [37, 99, 235] },
+        styles: { fontSize: 8 }
+      });
+
+      doc.save(`${form.title.replace(/\s+/g, '_')}_responses.pdf`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -117,10 +188,32 @@ export default function ResponsesPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-all">
-            <Download className="h-4 w-4" />
-            Export CSV
-          </button>
+          <div className="relative group">
+            <button 
+              disabled={isExporting || responses.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" />
+              Export
+              <ChevronDown className="h-4 w-4" />
+            </button>
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all">
+              <button 
+                onClick={exportCSV}
+                className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <TableIcon className="h-4 w-4 text-green-600" />
+                Export as CSV (Sheets)
+              </button>
+              <button 
+                onClick={exportPDF}
+                className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <FileText className="h-4 w-4 text-red-600" />
+                Export as PDF
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
