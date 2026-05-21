@@ -87,7 +87,7 @@ fun HomeScreen(
         },
     ) { padding ->
         PullToRefreshBox(
-            isRefreshing = false, // Shimmer for initial, spinner for manual pull
+            isRefreshing = state.loading,
             onRefresh = { viewModel.refresh(force = true) },
             state = refreshState,
             modifier = Modifier.padding(padding)

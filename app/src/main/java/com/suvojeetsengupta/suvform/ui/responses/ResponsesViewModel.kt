@@ -40,19 +40,19 @@ class ResponsesViewModel @Inject constructor(
     )
     val state: StateFlow<ResponsesUiState> = _state.asStateFlow()
 
+    private var observationJob: kotlinx.coroutines.Job? = null
+
     init {
-        val initialId = selectedForm.formId
-        if (initialId != null) {
-            viewModelScope.launch {
-                responseDao.observeForForm(initialId).collectLatest { entities ->
-                    _state.update { it.copy(responses = entities.map { e -> e.toDto() }) }
-                }
-            }
-        }
         refresh()
     }
 
-    private fun observeResponses() {
+    private fun startObservation(formId: String) {
+        observationJob?.cancel()
+        observationJob = viewModelScope.launch {
+            responseDao.observeForForm(formId).collectLatest { entities ->
+                _state.update { it.copy(responses = entities.map { e -> e.toDto() }) }
+            }
+        }
     }
 
     fun selectForm(formId: String, title: String) {
@@ -63,23 +63,18 @@ class ResponsesViewModel @Inject constructor(
                 formTitle = title,
                 responses = emptyList(),
                 error = null,
-                selectedFormId = formId
+                selectedFormId = formId,
+                formsToSelect = emptyList()
             )
         }
-        
-        // Start observing this form's responses from cache
-        viewModelScope.launch {
-            responseDao.observeForForm(formId).collectLatest { entities ->
-                _state.update { it.copy(responses = entities.map { e -> e.toDto() }) }
-            }
-        }
-        
+        startObservation(formId)
         refresh()
     }
 
     fun clearSelection() {
         selectedForm.formId = null
         selectedForm.formTitle = null
+        observationJob?.cancel()
         _state.update {
             it.copy(
                 formTitle = "Responses",
@@ -94,6 +89,19 @@ class ResponsesViewModel @Inject constructor(
 
     fun refresh() {
         val id = selectedForm.formId
+        
+        // Synchronize state with store in case it changed elsewhere
+        if (id != _state.value.selectedFormId) {
+            _state.update { 
+                it.copy(
+                    selectedFormId = id, 
+                    formTitle = selectedForm.formTitle ?: "Responses",
+                    responses = emptyList() 
+                ) 
+            }
+            if (id != null) startObservation(id) else observationJob?.cancel()
+        }
+
         if (id == null) {
             loadFormList()
             return
@@ -102,13 +110,6 @@ class ResponsesViewModel @Inject constructor(
         if (_state.value.loading) return
         _state.update { it.copy(loading = true, error = null, formsToSelect = emptyList()) }
         viewModelScope.launch {
-            // Initial load from cache if not already observing
-            val cached = withContext(Dispatchers.IO) {
-                responseDao.observeForForm(id)
-            }
-            // Actually, the selectForm handles the observation. 
-            // If we just opened the app, we might need to start observing.
-            
             val formResult = runCatching { api.getForm(id) }
             val respResult = runCatching { api.listResponses(id) }
             respResult

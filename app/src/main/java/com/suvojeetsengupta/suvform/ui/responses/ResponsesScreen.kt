@@ -49,6 +49,10 @@ fun ResponsesScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+    }
+
     BackHandler(enabled = true) {
         if (state.selectedFormId != null) {
             viewModel.clearSelection()
@@ -79,14 +83,12 @@ fun ResponsesScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        if (state.selectedFormId != null) {
+                    if (state.selectedFormId != null) {
+                        IconButton(onClick = {
                             viewModel.clearSelection()
-                        } else {
-                            onBack()
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                         }
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
                 actions = {
@@ -134,7 +136,7 @@ fun ResponsesScreen(
         },
     ) { padding ->
         PullToRefreshBox(
-            isRefreshing = false,
+            isRefreshing = state.loading,
             onRefresh = { viewModel.refresh() },
             state = refreshState,
             modifier = Modifier.fillMaxSize().padding(padding)
