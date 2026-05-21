@@ -39,17 +39,17 @@ app.use("/v1/*", async (c, next) => {
   return next();
 });
 
-// POST /v1/me — upsert user profile after sign-in
+// POST /v1/me — sync user profile after sign-in
 app.post("/v1/me", async (c) => {
   const u = c.get("user");
-  await upsertUser(c.env.DB, u);
+  await upsertUserProfile(c.env.DB, u);
   return c.json({ uid: u.uid, email: u.email, display_name: u.name, photo_url: u.picture });
 });
 
 // GET /v1/forms — list current user's forms
 app.get("/v1/forms", async (c) => {
   const u = c.get("user");
-  await upsertUser(c.env.DB, u);
+  await ensureUserExists(c.env.DB, u);
   const { results } = await c.env.DB.prepare(
     `SELECT id, title, description, published, public_slug, created_at, updated_at
        FROM forms WHERE owner_uid = ? ORDER BY updated_at DESC LIMIT 100`,
@@ -83,7 +83,7 @@ app.post("/v1/forms", async (c) => {
   const u = c.get("user");
   
   // Ensure user exists in D1 before creating form (FK constraint)
-  await upsertUser(c.env.DB, u);
+  await ensureUserExists(c.env.DB, u);
 
   const body = await c.req.json<FormBody>().catch(() => ({} as FormBody));
   const v = validateFormBody(body);
@@ -466,7 +466,26 @@ app.get("/f/:slug", async (c) => {
 
 // ---------- helpers ----------
 
-async function upsertUser(db: D1Database, u: FirebaseUser) {
+/**
+ * Ensures the user exists in the database for FK constraints.
+ * Does NOT overwrite existing profile details.
+ */
+async function ensureUserExists(db: D1Database, u: FirebaseUser) {
+  const now = Date.now();
+  await db
+    .prepare(
+      `INSERT INTO users (uid, email, created_at, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(uid) DO NOTHING`,
+    )
+    .bind(u.uid, u.email ?? null, now, now)
+    .run();
+}
+
+/**
+ * Full profile sync. Usually called once after sign-in.
+ */
+async function upsertUserProfile(db: D1Database, u: FirebaseUser) {
   const now = Date.now();
   await db
     .prepare(

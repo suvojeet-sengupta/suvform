@@ -64,7 +64,14 @@ class AuthRepository @Inject constructor(
         val firebaseCred = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
         auth.signInWithCredential(firebaseCred).await()
 
-        // Upsert the user row on our backend (also primes the connection).
+        syncUserWithBackend().getOrThrow()
+    }
+
+    /**
+     * Syncs the current Firebase user profile with our backend.
+     * Should be called after sign-in or when profile details change.
+     */
+    suspend fun syncUserWithBackend(): Result<UserDto> = runCatching {
         api.upsertMe()
     }
 
