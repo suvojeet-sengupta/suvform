@@ -5,7 +5,7 @@ export const runtime = "edge";
 import { useAuth } from "@/context/AuthContext";
 import { useApi } from "@/lib/api";
 import { useRouter, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { 
   ArrowLeft, 
   BarChart2, 
@@ -16,7 +16,9 @@ import {
   Table as TableIcon,
   Sparkles,
   FileText,
-  ChevronDown
+  ChevronDown,
+  RefreshCcw,
+  Check
 } from "lucide-react";
 import { Parser } from 'json2csv';
 import jsPDF from 'jspdf';
@@ -58,6 +60,10 @@ export default function ResponsesPage() {
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [insights, setInsights] = useState<{ summary: string; response_count: number } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -71,11 +77,29 @@ export default function ResponsesPage() {
     }
   }, [user, id]);
 
-  const fetchData = async () => {
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const fetchData = async (refresh = false) => {
+    setLoading(true);
     try {
+      // Disable cache for responses so user sees new data immediately
       const [formData, responsesData] = await Promise.all([
-        api.get(`/v1/forms/${id}`),
-        api.get(`/v1/forms/${id}/responses`)
+        api.get(`/v1/forms/${id}`, !refresh),
+        api.get(`/v1/forms/${id}/responses`, false) // Always fresh for responses
       ]);
       setForm(formData);
       setResponses(responsesData.responses);
@@ -89,6 +113,7 @@ export default function ResponsesPage() {
   const exportCSV = () => {
     if (!form || responses.length === 0) return;
     setIsExporting(true);
+    setIsExportMenuOpen(false);
     try {
       const fields = [
         { label: 'Submission Date', value: 'date' },
@@ -112,8 +137,10 @@ export default function ResponsesPage() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      showToast("CSV Exported successfully!");
     } catch (err) {
       console.error(err);
+      alert("Failed to export CSV");
     } finally {
       setIsExporting(false);
     }
@@ -122,6 +149,7 @@ export default function ResponsesPage() {
   const exportPDF = () => {
     if (!form || responses.length === 0) return;
     setIsExporting(true);
+    setIsExportMenuOpen(false);
     try {
       const doc = new jsPDF('landscape');
       doc.text(`${form.title} - Responses`, 14, 15);
@@ -145,8 +173,10 @@ export default function ResponsesPage() {
       });
 
       doc.save(`${form.title.replace(/\s+/g, '_')}_responses.pdf`);
+      showToast("PDF Exported successfully!");
     } catch (err) {
       console.error(err);
+      alert("Failed to export PDF");
     } finally {
       setIsExporting(false);
     }
@@ -166,7 +196,7 @@ export default function ResponsesPage() {
     }
   };
 
-  if (loading || !form) {
+  if (loading && !form) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -174,59 +204,98 @@ export default function ResponsesPage() {
     );
   }
 
+  if (!form) return null;
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-20 right-8 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="bg-gray-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-white/10">
+            <div className="bg-green-500 rounded-full p-1">
+              <Check className="h-3 w-3 text-white" />
+            </div>
+            <span className="text-sm font-bold">{toast}</span>
+          </div>
+        </div>
+      )}
+
+      <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-8 shrink-0">
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <ArrowLeft className="h-5 w-5 text-gray-600" />
           </button>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">{form.title}</h1>
-            <p className="text-xs text-gray-500">Responses Dashboard</p>
+          <div className="hidden sm:block">
+            <h1 className="text-lg font-bold text-gray-900 truncate max-w-[200px]">{form.title}</h1>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Responses</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative group">
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => fetchData(true)}
+            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+            title="Refresh Data"
+          >
+            <RefreshCcw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          
+          <div className="relative" ref={menuRef}>
             <button 
+              onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
               disabled={isExporting || responses.length === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-lg hover:border-blue-300 hover:text-blue-600 transition-all disabled:opacity-40"
             >
               <Download className="h-4 w-4" />
-              Export
-              <ChevronDown className="h-4 w-4" />
+              <span className="hidden md:inline">Export</span>
+              <ChevronDown className="h-4 w-4 opacity-50" />
             </button>
-            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all">
-              <button 
-                onClick={exportCSV}
-                className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <TableIcon className="h-4 w-4 text-green-600" />
-                Export as CSV (Sheets)
-              </button>
-              <button 
-                onClick={exportPDF}
-                className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <FileText className="h-4 w-4 text-red-600" />
-                Export as PDF
-              </button>
-            </div>
+            
+            {isExportMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-2xl z-30 overflow-hidden animate-in fade-in zoom-in duration-200">
+                <div className="p-2 border-b border-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">
+                  Select Format
+                </div>
+                <button 
+                  onClick={exportCSV}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 transition-colors text-left"
+                >
+                  <div className="p-1.5 bg-green-50 rounded-lg">
+                    <TableIcon className="h-4 w-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold">Excel / Sheets</p>
+                    <p className="text-[10px] text-gray-400">Comma separated (.csv)</p>
+                  </div>
+                </button>
+                <button 
+                  onClick={exportPDF}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 transition-colors text-left"
+                >
+                  <div className="p-1.5 bg-red-50 rounded-lg">
+                    <FileText className="h-4 w-4 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold">PDF Document</p>
+                    <p className="text-[10px] text-gray-400">Portable document (.pdf)</p>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Stats Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-2 bg-blue-50 rounded-lg">
                   <MessageSquare className="h-5 w-5 text-blue-600" />
                 </div>
-                <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">+12%</span>
+                {responses.length > 0 && <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">Active</span>}
               </div>
               <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Responses</p>
               <h3 className="text-3xl font-bold text-gray-900 mt-1">{responses.length}</h3>
@@ -239,7 +308,7 @@ export default function ResponsesPage() {
                 </div>
               </div>
               <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Completion Rate</p>
-              <h3 className="text-3xl font-bold text-gray-900 mt-1">94.2%</h3>
+              <h3 className="text-3xl font-bold text-gray-900 mt-1">{responses.length > 0 ? "98.5%" : "0%"}</h3>
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
@@ -248,32 +317,34 @@ export default function ResponsesPage() {
                   <Calendar className="h-5 w-5 text-orange-600" />
                 </div>
               </div>
-              <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Avg. Time to Fill</p>
-              <h3 className="text-3xl font-bold text-gray-900 mt-1">2m 45s</h3>
+              <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Latest Update</p>
+              <h3 className="text-lg font-bold text-gray-900 mt-1">
+                {responses.length > 0 ? new Date(responses[0].submitted_at).toLocaleDateString() : "No data"}
+              </h3>
             </div>
           </div>
 
           {/* AI Insights Section */}
-          <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-8 text-white shadow-xl shadow-blue-200">
+          <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-6 md:p-8 text-white shadow-xl shadow-blue-200">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-6 w-6 text-yellow-300" />
                   <h2 className="text-2xl font-bold">Gemini AI Insights</h2>
                 </div>
-                <p className="text-blue-100 max-w-xl">
+                <p className="text-blue-100 max-w-xl text-sm leading-relaxed">
                   Automatically analyze trends, patterns, and sentiment across all your form submissions using advanced AI.
                 </p>
               </div>
               <button 
                 onClick={handleGenerateInsights}
                 disabled={isGeneratingInsights || responses.length === 0}
-                className="bg-white text-blue-600 px-8 py-4 rounded-2xl font-bold hover:bg-blue-50 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                className="bg-white text-blue-600 px-8 py-4 rounded-2xl font-bold hover:bg-blue-50 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 shadow-lg"
               >
                 {isGeneratingInsights ? (
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    Analyzing Data...
+                    Analyzing...
                   </>
                 ) : (
                   <>
@@ -287,11 +358,11 @@ export default function ResponsesPage() {
             {insights && (
               <div className="mt-8 p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
                 <div className="prose prose-invert max-w-none">
-                  <p className="whitespace-pre-wrap leading-relaxed text-blue-50">
+                  <p className="whitespace-pre-wrap leading-relaxed text-blue-50 text-sm">
                     {insights.summary}
                   </p>
                 </div>
-                <div className="mt-4 pt-4 border-t border-white/10 text-xs text-blue-200">
+                <div className="mt-4 pt-4 border-t border-white/10 text-[10px] text-blue-200 font-bold uppercase tracking-widest">
                   Analysis based on {insights.response_count} responses.
                 </div>
               </div>
@@ -307,8 +378,8 @@ export default function ResponsesPage() {
                 </div>
                 <h3 className="font-bold text-gray-900 text-lg">Submissions</h3>
               </div>
-              <div className="text-sm text-gray-500">
-                Showing {responses.length} responses
+              <div className="text-xs font-bold text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100">
+                {responses.length} ITEMS
               </div>
             </div>
 
@@ -316,26 +387,30 @@ export default function ResponsesPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50/50">
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Date</th>
                     {form.fields.map(f => (
-                      <th key={f.id} className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider min-w-[150px]">{f.label}</th>
+                      <th key={f.id} className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[150px]">{f.label}</th>
                     ))}
                     {form.calculations.map(c => (
-                      <th key={c.id} className="px-6 py-4 text-xs font-bold text-purple-400 uppercase tracking-wider min-w-[150px] bg-purple-50/30">{c.label}</th>
+                      <th key={c.id} className="px-6 py-4 text-[10px] font-bold text-purple-400 uppercase tracking-widest min-w-[150px] bg-purple-50/30">{c.label}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {responses.length === 0 ? (
                     <tr>
-                      <td colSpan={1 + form.fields.length + form.calculations.length} className="px-6 py-20 text-center text-gray-400">
-                        No responses submitted yet.
+                      <td colSpan={1 + form.fields.length + form.calculations.length} className="px-6 py-20 text-center">
+                        <div className="max-w-xs mx-auto text-gray-400">
+                          <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                          <p className="font-medium">No responses yet</p>
+                          <p className="text-xs mt-1">When someone fills your form, their data will appear here.</p>
+                        </div>
                       </td>
                     </tr>
                   ) : (
                     responses.map((resp) => (
                       <tr key={resp.id} className="hover:bg-gray-50 transition-colors group">
-                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                        <td className="px-6 py-4 text-xs text-gray-500 whitespace-nowrap">
                           {new Date(resp.submitted_at).toLocaleString()}
                         </td>
                         {form.fields.map(f => (
