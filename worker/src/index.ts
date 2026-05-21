@@ -41,6 +41,7 @@ app.use("*", async (c, next) => {
 
 // 3. Strict CORS
 const ALLOWED_ORIGINS = [
+  "https://suvform.suvojeetsengupta.in",
   "https://suvforms.suvojeetsengupta.in",
   "https://suvojeetsengupta.in",
   "http://localhost:3000",
