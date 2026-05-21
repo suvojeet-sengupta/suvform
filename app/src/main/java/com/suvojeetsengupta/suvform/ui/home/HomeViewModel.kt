@@ -11,6 +11,7 @@ import com.suvojeetsengupta.suvform.data.draft.SelectedFormStore
 import com.suvojeetsengupta.suvform.data.remote.FormSummaryDto
 import com.suvojeetsengupta.suvform.data.repository.AuthRepository
 import com.suvojeetsengupta.suvform.data.repository.FormRepository
+import com.suvojeetsengupta.suvform.util.ErrorMapper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -59,7 +60,7 @@ class HomeViewModel @Inject constructor(
             runCatching { formRepository.syncForms(force) }
                 .onSuccess { _meta.update { it.copy(loading = false, offline = false) } }
                 .onFailure { e ->
-                    val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
+                    val msg = ErrorMapper.message(e)
                     // Don't blow away cached data — show offline banner.
                     _meta.update { it.copy(loading = false, error = msg, offline = true) }
                 }
@@ -93,7 +94,7 @@ class HomeViewModel @Inject constructor(
                     onReady()
                 }
                 .onFailure { e ->
-                    val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
+                    val msg = ErrorMapper.message(e)
                     _meta.update { it.copy(openingFormId = null, error = msg ?: "Failed to open") }
                 }
         }
@@ -121,7 +122,7 @@ class HomeViewModel @Inject constructor(
                     }
                 }
                 .onFailure { e ->
-                    _meta.update { it.copy(error = "Failed to get share link: ${e.message}") }
+                    _meta.update { it.copy(error = "Failed to get share link: ${ErrorMapper.message(e)}") }
                 }
         }
     }
@@ -140,7 +141,7 @@ class HomeViewModel @Inject constructor(
             // Optimistic delete is handled inside the repository (Room first).
             runCatching { formRepository.deleteForm(formId) }
                 .onFailure { e ->
-                    _meta.update { it.copy(error = "Delete failed: ${e.message}") }
+                    _meta.update { it.copy(error = "Delete failed: ${ErrorMapper.message(e)}") }
                     // Re-fetch to restore in case server still has it.
                     refresh()
                 }

@@ -1,5 +1,6 @@
 package com.suvojeetsengupta.suvform.ui.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,8 +15,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -37,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,10 +68,20 @@ fun SettingsScreen(
     val user by viewModel.user.collectAsStateWithLifecycle()
     val apiKey by viewModel.apiKey.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val account by viewModel.account.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showApiKeyDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    var showSignOutEverywhereDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(account.error) {
+        account.error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearAccountError()
+        }
+    }
 
     if (showSignOutDialog) {
         AlertDialog(
@@ -145,6 +160,49 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = { showAboutDialog = false }) { Text("Close") }
             }
+        )
+    }
+
+    if (showSignOutEverywhereDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignOutEverywhereDialog = false },
+            title = { Text("Sign out everywhere?") },
+            text = { Text("This signs you out on all devices, including this one. You'll need to sign in again.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSignOutEverywhereDialog = false
+                    viewModel.signOutEverywhere(context) { onSignedOut() }
+                }) {
+                    Text("Sign out everywhere", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutEverywhereDialog = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            title = { Text("Delete account?") },
+            text = {
+                Text(
+                    "This permanently deletes your account, all your forms, and all their " +
+                    "responses. This cannot be undone. Consider exporting your data first."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteAccountDialog = false
+                    viewModel.deleteAccount(context) { onSignedOut() }
+                }) {
+                    Text("Delete forever", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccountDialog = false }) { Text("Cancel") }
+            },
         )
     }
 
@@ -332,6 +390,69 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            Spacer(Modifier.height(24.dp))
+
+            Text(
+                "Account",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column {
+                    ListItem(
+                        headlineContent = { Text("Sign out everywhere") },
+                        supportingContent = { Text("End all active sessions on every device") },
+                        leadingContent = { Icon(Icons.Filled.Logout, null) },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                            .clickable(enabled = !account.working) { showSignOutEverywhereDialog = true },
+                        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    ListItem(
+                        headlineContent = { Text("Export my data") },
+                        supportingContent = { Text("Download all your forms and responses as JSON") },
+                        leadingContent = { Icon(Icons.Default.Download, null) },
+                        modifier = Modifier
+                            .clickable(enabled = !account.working) { viewModel.exportData(context) },
+                        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    ListItem(
+                        headlineContent = { Text("Delete account", color = MaterialTheme.colorScheme.error) },
+                        supportingContent = { Text("Permanently delete your account and all data") },
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.DeleteForever,
+                                null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                            .clickable(enabled = !account.working) { showDeleteAccountDialog = true },
+                        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
         }
     }
 }

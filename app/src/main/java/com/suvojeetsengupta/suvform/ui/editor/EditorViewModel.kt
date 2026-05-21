@@ -7,6 +7,7 @@ import com.suvojeetsengupta.suvform.data.draft.FieldType
 import com.suvojeetsengupta.suvform.data.draft.FormDraftStore
 import com.suvojeetsengupta.suvform.data.remote.SaveFormRequest
 import com.suvojeetsengupta.suvform.data.repository.FormRepository
+import com.suvojeetsengupta.suvform.util.ErrorMapper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -115,14 +116,7 @@ class EditorViewModel @Inject constructor(
                     onSuccess?.invoke()
                 }
                 .onFailure { e ->
-                    val msg = when (e) {
-                        is HttpException -> {
-                            val body = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
-                            "HTTP ${e.code()}${if (!body.isNullOrBlank()) ": $body" else ""}"
-                        }
-                        else -> e.message ?: "Save failed"
-                    }
-                    _save.value = SaveUiState(error = msg)
+                    _save.value = SaveUiState(error = ErrorMapper.message(e))
                 }
         }
     }
@@ -154,7 +148,7 @@ class EditorViewModel @Inject constructor(
                     _save.value = SaveUiState(published = true)
                 }
                 .onFailure { e ->
-                    _save.value = SaveUiState(error = e.message ?: "Publish failed")
+                    _save.value = SaveUiState(error = ErrorMapper.message(e))
                 }
         }
     }
@@ -170,7 +164,7 @@ class EditorViewModel @Inject constructor(
                     _save.value = SaveUiState(unpublished = true)
                 }
                 .onFailure { e ->
-                    _save.value = SaveUiState(error = e.message ?: "Unpublish failed")
+                    _save.value = SaveUiState(error = ErrorMapper.message(e))
                 }
         }
     }

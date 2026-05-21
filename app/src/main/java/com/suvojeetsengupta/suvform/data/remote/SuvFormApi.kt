@@ -12,6 +12,19 @@ interface SuvFormApi {
     @POST("v1/me")
     suspend fun upsertMe(): UserDto
 
+    /** Sign out everywhere — invalidates all existing sessions server-side. */
+    @POST("v1/me/revoke-sessions")
+    suspend fun revokeSessions(): JsonObject
+
+    /** Delete the account and all associated data (forms + responses). */
+    @DELETE("v1/me")
+    suspend fun deleteAccount(): JsonObject
+
+    /** Download all of the user's data as JSON (GDPR data portability). */
+    @retrofit2.http.Streaming
+    @GET("v1/me/export")
+    suspend fun exportData(): okhttp3.ResponseBody
+
     @GET("v1/forms")
     suspend fun listForms(): FormListDto
 

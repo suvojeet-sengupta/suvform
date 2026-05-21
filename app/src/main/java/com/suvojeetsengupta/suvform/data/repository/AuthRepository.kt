@@ -12,10 +12,12 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.suvojeetsengupta.suvform.BuildConfig
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
 import com.suvojeetsengupta.suvform.data.remote.UserDto
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -81,6 +83,22 @@ class AuthRepository @Inject constructor(
         }
         auth.signOut()
     }
+
+    /** "Sign out everywhere": revoke all server sessions, then sign out locally. */
+    suspend fun revokeAllSessions(context: Context) {
+        api.revokeSessions()
+        signOut(context)
+    }
+
+    /** Delete the account + all data server-side, then sign out locally. */
+    suspend fun deleteAccount(context: Context) {
+        api.deleteAccount()
+        signOut(context)
+    }
+
+    /** Fetch the full data export as a JSON string. */
+    suspend fun exportData(): String =
+        withContext(Dispatchers.IO) { api.exportData().string() }
 }
 
 sealed interface FirebaseAuthState {

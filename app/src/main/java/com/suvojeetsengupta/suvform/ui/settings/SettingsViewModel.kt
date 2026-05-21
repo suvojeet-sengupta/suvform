@@ -10,11 +10,17 @@ import com.suvojeetsengupta.suvform.data.prefs.GeminiKeyStore
 import com.suvojeetsengupta.suvform.data.prefs.ThemePreferenceStore
 import com.suvojeetsengupta.suvform.data.repository.AuthRepository
 import com.suvojeetsengupta.suvform.ui.theme.ThemeMode
+import com.suvojeetsengupta.suvform.util.ErrorMapper
+import com.suvojeetsengupta.suvform.util.ResponseExport
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -42,4 +48,56 @@ class SettingsViewModel @Inject constructor(
             onDone()
         }
     }
+
+    // ---- Account actions (sign out everywhere / export / delete) ----
+
+    private val _account = MutableStateFlow(AccountUiState())
+    val account: StateFlow<AccountUiState> = _account.asStateFlow()
+
+    fun clearAccountError() = _account.update { it.copy(error = null) }
+
+    fun signOutEverywhere(context: Context, onSignedOut: () -> Unit) {
+        if (_account.value.working) return
+        _account.update { it.copy(working = true, error = null) }
+        viewModelScope.launch {
+            runCatching { authRepository.revokeAllSessions(context) }
+                .onSuccess { _account.update { it.copy(working = false) }; onSignedOut() }
+                .onFailure { e -> _account.update { it.copy(working = false, error = ErrorMapper.message(e)) } }
+        }
+    }
+
+    fun deleteAccount(context: Context, onSignedOut: () -> Unit) {
+        if (_account.value.working) return
+        _account.update { it.copy(working = true, error = null) }
+        viewModelScope.launch {
+            runCatching { authRepository.deleteAccount(context) }
+                .onSuccess { _account.update { it.copy(working = false) }; onSignedOut() }
+                .onFailure { e -> _account.update { it.copy(working = false, error = ErrorMapper.message(e)) } }
+        }
+    }
+
+    fun exportData(context: Context) {
+        if (_account.value.working) return
+        _account.update { it.copy(working = true, error = null) }
+        viewModelScope.launch {
+            runCatching {
+                val json = authRepository.exportData()
+                withContext(Dispatchers.IO) {
+                    val file = File(context.cacheDir, "suvform-export-${System.currentTimeMillis()}.json")
+                    file.writeText(json)
+                    file
+                }
+            }
+                .onSuccess { file ->
+                    _account.update { it.copy(working = false) }
+                    ResponseExport.share(context, file, "application/json", "SuvForm data export")
+                }
+                .onFailure { e -> _account.update { it.copy(working = false, error = ErrorMapper.message(e)) } }
+        }
+    }
+
+    data class AccountUiState(
+        val working: Boolean = false,
+        val error: String? = null,
+    )
 }

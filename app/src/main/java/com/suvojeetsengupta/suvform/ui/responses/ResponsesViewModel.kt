@@ -9,6 +9,7 @@ import com.suvojeetsengupta.suvform.data.remote.FieldDto
 import com.suvojeetsengupta.suvform.data.remote.ResponseItemDto
 import com.suvojeetsengupta.suvform.data.repository.FormRepository
 import com.suvojeetsengupta.suvform.data.repository.ResponseRepository
+import com.suvojeetsengupta.suvform.util.ErrorMapper
 import com.suvojeetsengupta.suvform.util.ResponseExport
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -135,7 +136,7 @@ class ResponsesViewModel @Inject constructor(
                     }
                 }
                 .onFailure { e ->
-                    val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
+                    val msg = ErrorMapper.message(e)
                     _state.update { it.copy(loading = false, error = msg ?: "Failed to load") }
                 }
         }
@@ -160,7 +161,7 @@ class ResponsesViewModel @Inject constructor(
                     _state.update { it.copy(loading = false, formsToSelect = forms.map { e -> e.toDto() }) }
                 }
                 .onFailure { e ->
-                    val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
+                    val msg = ErrorMapper.message(e)
                     _state.update { it.copy(loading = false, error = msg ?: "Failed to load forms") }
                 }
         }
@@ -181,7 +182,7 @@ class ResponsesViewModel @Inject constructor(
                     ResponseExport.share(context, file, "text/csv", "${_state.value.formTitle} — responses")
                 }
                 .onFailure { e ->
-                    _state.update { it.copy(error = "CSV export failed: ${e.message}") }
+                    _state.update { it.copy(error = "CSV export failed: ${ErrorMapper.message(e)}") }
                 }
         }
     }
@@ -201,7 +202,7 @@ class ResponsesViewModel @Inject constructor(
                     ResponseExport.share(context, file, "application/pdf", "${_state.value.formTitle} — responses")
                 }
                 .onFailure { e ->
-                    _state.update { it.copy(exporting = false, error = "PDF export failed: ${e.message}") }
+                    _state.update { it.copy(exporting = false, error = "PDF export failed: ${ErrorMapper.message(e)}") }
                 }
         }
     }
@@ -221,7 +222,7 @@ class ResponsesViewModel @Inject constructor(
                     }
                 }
                 .onFailure { e ->
-                    val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
+                    val msg = ErrorMapper.message(e)
                     _state.update { it.copy(loadingInsights = false, insightsError = msg ?: "Failed") }
                 }
         }
