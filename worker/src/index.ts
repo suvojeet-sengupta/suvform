@@ -49,6 +49,7 @@ app.post("/v1/me", async (c) => {
 // GET /v1/forms — list current user's forms
 app.get("/v1/forms", async (c) => {
   const u = c.get("user");
+  await upsertUser(c.env.DB, u);
   const { results } = await c.env.DB.prepare(
     `SELECT id, title, description, published, public_slug, created_at, updated_at
        FROM forms WHERE owner_uid = ? ORDER BY updated_at DESC LIMIT 100`,
