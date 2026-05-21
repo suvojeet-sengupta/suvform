@@ -1,40 +1,107 @@
 package com.suvojeetsengupta.suvform.data.repository
 
+import com.google.firebase.auth.FirebaseAuth
+import com.suvojeetsengupta.suvform.data.local.FormDao
+import com.suvojeetsengupta.suvform.data.local.FormSummaryEntity
 import com.suvojeetsengupta.suvform.data.remote.FormDetailDto
+import com.suvojeetsengupta.suvform.data.remote.PublishResponse
+import com.suvojeetsengupta.suvform.data.remote.SaveFormRequest
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Caches full form details in-memory so multiple screens (Home → Editor,
- * Home → Share, Responses) don't each re-fetch the same form over the network.
- *
- * Detail is small and short-lived; a 60s TTL keeps it fresh while collapsing the
- * burst of repeated getForm() calls that happen while navigating between screens.
+ * Single source of truth for forms. Reads come from Room (offline-first); the
+ * network is used to sync the list and fetch/mutate individual forms. Full form
+ * details are cached in-memory (60s) so multiple screens (Home → Editor → Share
+ * → Responses) reuse the same fetch instead of each hitting the network.
  */
 @Singleton
 class FormRepository @Inject constructor(
     private val api: SuvFormApi,
+    private val formDao: FormDao,
+    private val auth: FirebaseAuth,
 ) {
     private data class Entry(val detail: FormDetailDto, val cachedAt: Long)
 
-    private val cache = ConcurrentHashMap<String, Entry>()
-    private val ttlMs = 60_000L
+    private val detailCache = ConcurrentHashMap<String, Entry>()
+    private val detailTtlMs = 60_000L
+
+    // Throttle list syncs so re-entering screens doesn't spam listForms().
+    private val syncThrottleMs = 5 * 60_000L
+    @Volatile private var lastSyncAt = 0L
+
+    // ---- List (Room-backed) ----
+
+    /** Observe the current user's cached form summaries. Emits offline too. */
+    fun observeForms(): Flow<List<FormSummaryEntity>> {
+        val uid = auth.currentUser?.uid ?: return flowOf(emptyList())
+        return formDao.observeForOwner(uid)
+    }
+
+    /**
+     * Sync the form list from the server into Room. Throttled to [syncThrottleMs]
+     * unless [force] is true. Returns true if a network call actually ran.
+     * Throws on network failure (caller decides how to surface it).
+     */
+    suspend fun syncForms(force: Boolean): Boolean {
+        val uid = auth.currentUser?.uid ?: return false
+        val now = System.currentTimeMillis()
+        if (!force && now - lastSyncAt < syncThrottleMs) return false
+        val resp = api.listForms()
+        formDao.replaceForOwner(uid, resp.forms.map { FormSummaryEntity.fromDto(uid, it) })
+        lastSyncAt = now
+        return true
+    }
+
+    // ---- Detail (in-memory cache) ----
 
     /** Returns a cached detail if fresh, otherwise fetches and caches it. */
     suspend fun getForm(id: String, forceRefresh: Boolean = false): FormDetailDto {
         val now = System.currentTimeMillis()
         if (!forceRefresh) {
-            cache[id]?.let { if (now - it.cachedAt < ttlMs) return it.detail }
+            detailCache[id]?.let { if (now - it.cachedAt < detailTtlMs) return it.detail }
         }
         val detail = api.getForm(id)
-        cache[id] = Entry(detail, now)
+        detailCache[id] = Entry(detail, now)
         return detail
     }
 
-    /** Drop a stale entry after an edit/publish/delete so the next read re-fetches. */
+    // ---- Mutations (keep Room + cache consistent) ----
+
+    suspend fun createForm(req: SaveFormRequest): FormDetailDto = api.createForm(req)
+
+    suspend fun updateForm(id: String, req: SaveFormRequest) {
+        api.updateForm(id, req)
+        invalidate(id)
+    }
+
+    /** Optimistically removes from cache, then deletes server-side. */
+    suspend fun deleteForm(id: String) {
+        formDao.deleteById(id)
+        invalidate(id)
+        api.deleteForm(id)
+    }
+
+    suspend fun publish(id: String): PublishResponse {
+        val r = api.publishForm(id)
+        invalidate(id)
+        formDao.updateShareUrl(id, r.url)
+        return r
+    }
+
+    suspend fun unpublish(id: String) {
+        api.unpublishForm(id)
+        invalidate(id)
+    }
+
+    suspend fun cacheShareUrl(id: String, url: String) = formDao.updateShareUrl(id, url)
+
+    /** Drop a stale detail entry so the next read re-fetches. */
     fun invalidate(id: String) {
-        cache.remove(id)
+        detailCache.remove(id)
     }
 }

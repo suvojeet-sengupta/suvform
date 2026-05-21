@@ -134,8 +134,9 @@ fun SettingsScreen(
                     Spacer(Modifier.height(12.dp))
                     Text(
                         "Whether you're conducting a quick poll, managing inventory, or gathering " +
-                        "feedback, SuvForm leverages Gemini AI to help you build forms instantly and " +
-                        "manages your data securely, even offline."
+                        "feedback, SuvForm leverages Gemini AI to help you build forms instantly. " +
+                        "Your forms stay cached on your device, so you can browse them even when " +
+                        "you're offline."
                     )
                     Spacer(Modifier.height(16.dp))
                     Text("Made with passion by Suvojeet Sengupta.", fontWeight = FontWeight.SemiBold)

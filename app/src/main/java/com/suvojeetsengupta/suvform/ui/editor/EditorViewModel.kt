@@ -6,7 +6,7 @@ import com.suvojeetsengupta.suvform.data.draft.FieldEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldType
 import com.suvojeetsengupta.suvform.data.draft.FormDraftStore
 import com.suvojeetsengupta.suvform.data.remote.SaveFormRequest
-import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
+import com.suvojeetsengupta.suvform.data.repository.FormRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,8 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class EditorViewModel @Inject constructor(
     private val store: FormDraftStore,
-    private val api: SuvFormApi,
-    private val formRepository: com.suvojeetsengupta.suvform.data.repository.FormRepository,
+    private val formRepository: FormRepository,
 ) : ViewModel() {
 
     val draft = store.draft
@@ -104,16 +103,14 @@ class EditorViewModel @Inject constructor(
                 calculations = d.calculations.map { it.toDto() },
             )
             runCatching {
-                if (d.remoteId == null) api.createForm(req)
+                if (d.remoteId == null) formRepository.createForm(req)
                 else {
-                    api.updateForm(d.remoteId, req)
+                    formRepository.updateForm(d.remoteId, req)  // invalidates cache internally
                     null  // detail not returned by PUT — we already have it
                 }
             }
                 .onSuccess { detail ->
                     if (detail != null) store.update { it.copy(remoteId = detail.id) }
-                    // Drop the cached detail so Home/Responses re-fetch the edit.
-                    d.remoteId?.let { formRepository.invalidate(it) }
                     _save.value = SaveUiState(saved = true)
                     onSuccess?.invoke()
                 }
@@ -151,10 +148,9 @@ class EditorViewModel @Inject constructor(
         }
         _save.value = SaveUiState(saving = true)
         viewModelScope.launch {
-            runCatching { api.publishForm(id) }
+            runCatching { formRepository.publish(id) }
                 .onSuccess { r ->
                     store.update { it.copy(published = true, publicSlug = r.slug, shareUrl = r.url) }
-                    formRepository.invalidate(id)
                     _save.value = SaveUiState(published = true)
                 }
                 .onFailure { e ->
@@ -168,10 +164,9 @@ class EditorViewModel @Inject constructor(
         val id = store.draft.value.remoteId ?: return
         _save.value = SaveUiState(saving = true)
         viewModelScope.launch {
-            runCatching { api.unpublishForm(id) }
+            runCatching { formRepository.unpublish(id) }
                 .onSuccess {
                     store.update { it.copy(published = false) }
-                    formRepository.invalidate(id)
                     _save.value = SaveUiState(unpublished = true)
                 }
                 .onFailure { e ->

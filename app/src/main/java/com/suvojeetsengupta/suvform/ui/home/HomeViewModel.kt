@@ -3,23 +3,19 @@ package com.suvojeetsengupta.suvform.ui.home
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
 import com.suvojeetsengupta.suvform.data.draft.CalculationEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldEdit
 import com.suvojeetsengupta.suvform.data.draft.FormDraft
 import com.suvojeetsengupta.suvform.data.draft.FormDraftStore
 import com.suvojeetsengupta.suvform.data.draft.SelectedFormStore
-import com.suvojeetsengupta.suvform.data.local.FormDao
-import com.suvojeetsengupta.suvform.data.local.FormSummaryEntity
 import com.suvojeetsengupta.suvform.data.remote.FormSummaryDto
-import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
 import com.suvojeetsengupta.suvform.data.repository.AuthRepository
+import com.suvojeetsengupta.suvform.data.repository.FormRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -29,12 +25,9 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val api: SuvFormApi,
-    private val formRepository: com.suvojeetsengupta.suvform.data.repository.FormRepository,
+    private val formRepository: FormRepository,
     private val draftStore: FormDraftStore,
     private val selectedForm: SelectedFormStore,
-    private val formDao: FormDao,
-    private val auth: FirebaseAuth,
 ) : ViewModel() {
 
     fun selectForResponses(form: FormSummaryDto) {
@@ -44,11 +37,9 @@ class HomeViewModel @Inject constructor(
 
     private val _meta = MutableStateFlow(HomeMeta())
 
-    /** Combine local-cached forms with loading/error meta state. */
-    val state: StateFlow<HomeUiState> = run {
-        val uid = auth.currentUser?.uid
-        val cached = if (uid != null) formDao.observeForOwner(uid) else flowOf(emptyList())
-        combine(cached, _meta) { entities, meta ->
+    /** Combine local-cached forms (offline-first) with loading/error meta state. */
+    val state: StateFlow<HomeUiState> =
+        combine(formRepository.observeForms(), _meta) { entities, meta ->
             HomeUiState(
                 loading = meta.loading,
                 forms = entities.map { it.toDto() },
@@ -58,32 +49,15 @@ class HomeViewModel @Inject constructor(
                 offline = meta.offline,
             )
         }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState(loading = true))
-    }
-
-    private var lastSyncTime = 0L
 
     init { refresh(force = false) }
 
     fun refresh(force: Boolean = true) {
         if (_meta.value.loading) return
-        
-        val now = System.currentTimeMillis()
-        if (!force && now - lastSyncTime < 5 * 60 * 1000) {
-            // Already synced recently.
-            return
-        }
-
         _meta.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
-            runCatching { api.listForms() }
-                .onSuccess { resp ->
-                    val uid = auth.currentUser?.uid
-                    if (uid != null) {
-                        formDao.replaceForOwner(uid, resp.forms.map { FormSummaryEntity.fromDto(uid, it) })
-                    }
-                    lastSyncTime = System.currentTimeMillis()
-                    _meta.update { it.copy(loading = false, offline = false) }
-                }
+            runCatching { formRepository.syncForms(force) }
+                .onSuccess { _meta.update { it.copy(loading = false, offline = false) } }
                 .onFailure { e ->
                     val msg = (e as? HttpException)?.let { "HTTP ${it.code()}" } ?: e.message
                     // Don't blow away cached data — show offline banner.
@@ -101,7 +75,7 @@ class HomeViewModel @Inject constructor(
                         com.suvojeetsengupta.suvform.BuildConfig.PUBLIC_FORM_BASE_URL.trimEnd('/') + "/f/" + slug
                     }
                     if (shareUrl != null) {
-                        formDao.updateShareUrl(detail.id, shareUrl)
+                        formRepository.cacheShareUrl(detail.id, shareUrl)
                     }
                     draftStore.set(
                         FormDraft(
@@ -140,7 +114,7 @@ class HomeViewModel @Inject constructor(
                         com.suvojeetsengupta.suvform.BuildConfig.PUBLIC_FORM_BASE_URL.trimEnd('/') + "/f/" + slug
                     }
                     if (shareUrl != null) {
-                        formDao.updateShareUrl(form.id, shareUrl)
+                        formRepository.cacheShareUrl(form.id, shareUrl)
                         doShare(context, form.title, shareUrl)
                     } else {
                         _meta.update { it.copy(error = "Form is not published.") }
@@ -163,10 +137,8 @@ class HomeViewModel @Inject constructor(
 
     fun delete(formId: String) {
         viewModelScope.launch {
-            // Optimistic: remove from cache immediately.
-            formDao.deleteById(formId)
-            formRepository.invalidate(formId)
-            runCatching { api.deleteForm(formId) }
+            // Optimistic delete is handled inside the repository (Room first).
+            runCatching { formRepository.deleteForm(formId) }
                 .onFailure { e ->
                     _meta.update { it.copy(error = "Delete failed: ${e.message}") }
                     // Re-fetch to restore in case server still has it.

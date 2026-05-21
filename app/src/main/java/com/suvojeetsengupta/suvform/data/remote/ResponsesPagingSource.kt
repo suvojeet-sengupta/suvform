@@ -2,14 +2,22 @@ package com.suvojeetsengupta.suvform.data.remote
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 
-class ResponsesPagingSource(
+class ResponsesPagingSource @AssistedInject constructor(
     private val api: SuvFormApi,
-    private val formId: String,
+    @Assisted private val formId: String,
     // Reports total_count from the first page so the screen header doesn't need
     // a separate listResponses(limit=1) call just to show the count.
-    private val onTotalCount: (Int) -> Unit = {},
+    @Assisted private val onTotalCount: (Int) -> Unit,
 ) : PagingSource<Int, ResponseItemDto>() {
+
+    @AssistedFactory
+    interface Factory {
+        fun create(formId: String, onTotalCount: (Int) -> Unit): ResponsesPagingSource
+    }
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, ResponseItemDto> {
         return try {
