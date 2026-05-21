@@ -1,200 +1,133 @@
-// Gemini structured-output proxy. Keeps the API key on the server (Worker)
-// so it never ships in the Android APK.
-
-// Cascade — same approach Advisor-Desk uses: try primary, fall back if quota exhausted.
-// 1.5/2.0 currently return quota=0 on this Google account; 2.5 series works.
-const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-1.5-flash"] as const;
-const endpointFor = (model: string) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-
 /**
- * The JSON schema Gemini must produce. Mirrors what the Android editor /
- * web filler expect. `response_schema` constrains the model so we get
- * valid JSON without parsing hallucinations.
+ * Gemini integration for AI form generation and response summarization.
  */
-const FORM_SCHEMA = {
-  type: "OBJECT",
-  properties: {
-    title: { type: "STRING", description: "Short form title" },
-    description: { type: "STRING", description: "1-2 line subtitle shown under the title" },
-    fields: {
-      type: "ARRAY",
-      items: {
-        type: "OBJECT",
-        properties: {
-          id: { type: "STRING", description: "snake_case stable id" },
-          type: {
-            type: "STRING",
-            enum: [
-              "short_text",
-              "long_text",
-              "number",
-              "email",
-              "phone",
-              "single_choice",
-              "multi_choice",
-              "date",
-              "rating",
-            ],
+
+export async function generateFormWithGemini(apiKey: string, prompt: string, locale: string) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+  const systemInstructions =
+    locale === "hi"
+      ? "Tum ek expert form builder ho. User ke prompt ke basis pe ek JSON form structure generate karo. Hindi language use karo labels aur options ke liye. Output sirf valid JSON hona chahiye."
+      : "You are an expert form builder. Generate a professional JSON form structure based on the user's prompt. Use English for labels and options. Output MUST be only valid JSON.";
+
+  const payload = {
+    contents: [
+      {
+        parts: [
+          {
+            text: `${systemInstructions}\n\nUser prompt: ${prompt}\n\nReturn a JSON object with:
+            - title: string
+            - description: string
+            - fields: Array of objects { id: string, label: string, type: "short_text" | "long_text" | "number" | "date" | "single_choice" | "multi_choice" | "rating", required: boolean, placeholder?: string, options?: string[] }
+            - calculations: Array of objects { id: string, label: string, expression: string, format: "number" | "currency" | "percent" }
+            
+            Expression rules: Use field IDs, numbers, and + - * / % (). Example: "(field_1 + field_2) * 0.1".`,
           },
-          label: { type: "STRING" },
-          required: { type: "BOOLEAN" },
-          options: { type: "ARRAY", items: { type: "STRING" } },
-          placeholder: { type: "STRING" },
-        },
-        required: ["id", "type", "label"],
+        ],
       },
+    ],
+    generationConfig: {
+      temperature: 0.2,
+      topP: 0.8,
+      topK: 40,
+      responseMimeType: "application/json",
     },
-    calculations: {
-      type: "ARRAY",
-      items: {
-        type: "OBJECT",
-        properties: {
-          id: { type: "STRING" },
-          label: { type: "STRING" },
-          expression: {
-            type: "STRING",
-            description: "Math expression using field ids, e.g. `quantity * price`",
-          },
-          format: { type: "STRING", enum: ["number", "currency", "percent"] },
-        },
-        required: ["id", "label", "expression"],
-      },
-    },
-  },
-  required: ["title", "fields"],
-} as const;
+  };
 
-const SYSTEM_PROMPT = `You design clean, mobile-friendly forms. Given a short user description,
-produce a JSON form definition matching the provided schema. Rules:
-- Choose the smallest set of fields that captures what the user asked for.
-- Use snake_case for field ids.
-- Mark obvious required fields (name, email, primary number) as required.
-- For pricing/quantity-style fields, also add a calculation (e.g. total = quantity * price).
-- For rating fields use type "rating" (1-5).
-- Localize labels to the requested locale (en or hi).
-- Return ONLY the JSON object, no commentary.`;
+  let attempt = 0;
+  const maxAttempts = 2;
 
-export type GeneratedForm = {
-  title: string;
-  description?: string;
-  fields: Array<{
-    id: string;
-    type: string;
-    label: string;
-    required?: boolean;
-    options?: string[];
-    placeholder?: string;
-  }>;
-  calculations?: Array<{
-    id: string;
-    label: string;
-    expression: string;
-    format?: string;
-  }>;
-};
+  while (attempt < maxAttempts) {
+    try {
+      const res = await fetchWithTimeout(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }, 25000); // 25s timeout for AI generation
 
-/** Calls Gemini using the model cascade and returns the raw text response. */
-async function callGemini(apiKey: string, body: unknown): Promise<string> {
-  let lastErr = "";
-  for (const model of MODELS) {
-    const res = await fetch(`${endpointFor(model)}?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) {
-      const data = (await res.json()) as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-      };
+      if (!res.ok) {
+        if (res.status === 429 || res.status >= 500) {
+          attempt++;
+          if (attempt >= maxAttempts) throw new Error(`gemini_api_error_${res.status}`);
+          await new Promise((r) => setTimeout(r, 1000 * attempt)); // simple backoff
+          continue;
+        }
+        throw new Error(`gemini_api_error_${res.status}`);
+      }
+
+      const data = await res.json() as any;
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) throw new Error("gemini_empty_response");
-      return text;
+
+      // Gemini sometimes wraps JSON in markdown blocks even with responseMimeType
+      const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
+      return JSON.parse(cleaned);
+    } catch (e) {
+      if ((e as Error).name === "AbortError") {
+        throw new Error("gemini_timeout");
+      }
+      throw e;
     }
-    lastErr = `${model}_${res.status}: ${(await res.text()).slice(0, 200)}`;
-    if (res.status !== 429 && res.status !== 503) break;
   }
-  throw new Error(`gemini_failed: ${lastErr}`);
 }
 
-/**
- * Asks Gemini for a short plain-language summary of a form's responses.
- * Returns markdown-ish text (already trimmed).
- */
 export async function summarizeResponsesWithGemini(
   apiKey: string,
   formTitle: string,
   fields: Array<{ id: string; label: string; type: string }>,
-  responses: Array<Record<string, unknown>>,
-): Promise<string> {
-  const fieldMap = fields.map((f) => `- ${f.label} (id: ${f.id}, type: ${f.type})`).join("\n");
-  const sample = responses.slice(0, 50);
-  const userPrompt =
-    `Form: "${formTitle}"\n\n` +
-    `Fields:\n${fieldMap}\n\n` +
-    `Total responses: ${responses.length}\n` +
-    `Sample (up to 50): ${JSON.stringify(sample)}\n\n` +
-    `Write a concise 4-6 sentence summary of what the responses show. ` +
-    `Mention common patterns, averages for numeric fields, top picks for choice fields, ` +
-    `and one surprising or actionable insight. Plain text, no preamble.`;
+  responses: any[],
+) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-  const body = {
-    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-    generationConfig: { temperature: 0.5, maxOutputTokens: 400 },
-  };
-  const text = await callGemini(apiKey, body);
-  return text.trim();
-}
+  const context = `Form: ${formTitle}\nFields: ${JSON.stringify(fields)}\nResponses: ${JSON.stringify(responses)}`;
 
-export async function generateFormWithGemini(
-  apiKey: string,
-  prompt: string,
-  locale: "en" | "hi" = "en",
-): Promise<GeneratedForm> {
-  const userText =
-    `Locale: ${locale}\n` +
-    `User description:\n${prompt}\n\n` +
-    `Respond with JSON matching the schema.`;
-
-  const body = {
-    contents: [{ role: "user", parts: [{ text: userText }] }],
-    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+  const payload = {
+    contents: [
+      {
+        parts: [
+          {
+            text: `Analyze these form responses and provide a concise, professional summary in 3-4 bullet points. Focus on trends, common answers, and interesting insights.\n\n${context}`,
+          },
+        ],
+      },
+    ],
     generationConfig: {
-      temperature: 0.4,
-      response_mime_type: "application/json",
-      response_schema: FORM_SCHEMA,
+      temperature: 0.3,
+      topP: 0.9,
     },
   };
 
-  // Try each model in order; fall through on 429 (quota) / 503 (overloaded).
-  let res: Response | null = null;
-  let lastErr = "";
-  for (const model of MODELS) {
-    res = await fetch(`${endpointFor(model)}?key=${apiKey}`, {
+  try {
+    const res = await fetchWithTimeout(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) break;
-    lastErr = `${model}_${res.status}: ${(await res.text()).slice(0, 200)}`;
-    if (res.status !== 429 && res.status !== 503) break; // hard error — don't cascade
-  }
-  if (!res || !res.ok) throw new Error(`gemini_failed: ${lastErr}`);
+      body: JSON.stringify(payload),
+    }, 15000); // 15s for summarization
 
-  const data = (await res.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("gemini_empty_response");
+    if (!res.ok) throw new Error(`gemini_api_error_${res.status}`);
 
-  let parsed: GeneratedForm;
-  try {
-    parsed = JSON.parse(text) as GeneratedForm;
+    const data = await res.json() as any;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("gemini_empty_response");
+
+    return text.trim();
   } catch (e) {
-    throw new Error(`gemini_parse_failed: ${(e as Error).message}`);
+    if ((e as Error).name === "AbortError") {
+      throw new Error("gemini_timeout");
+    }
+    throw e;
   }
-  if (!parsed.title || !Array.isArray(parsed.fields)) {
-    throw new Error("gemini_bad_shape");
+}
+
+/**
+ * Internal helper: fetch with abort timeout.
+ */
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
   }
-  return parsed;
 }
