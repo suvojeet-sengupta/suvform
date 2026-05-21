@@ -38,8 +38,8 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
   if (used >= 10) return c.json({ error: "rate_limited" }, 429);
 
   const body = await c.req.json<{ answers?: Record<string, unknown>; calculated?: Record<string, number> }>().catch(() => ({}));
-  const answers = body.answers ?? {};
-  const calculated = body.calculated ?? {};
+  const answers = ("answers" in body ? body.answers : null) ?? {};
+  const calculated = ("calculated" in body ? body.calculated : null) ?? {};
 
   const fields = safeParse(form.schema_json, []) as any[];
   const missing: string[] = [];

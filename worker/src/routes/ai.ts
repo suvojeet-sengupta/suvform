@@ -9,7 +9,7 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 app.post("/generate-form", async (c) => {
   const u = c.get("user");
   const body = await c.req.json<{ prompt?: string; locale?: "en" | "hi" }>().catch(() => ({}));
-  const prompt = (body.prompt ?? "").trim();
+  const prompt = ("prompt" in body ? body.prompt ?? "" : "").trim();
   
   if (prompt.length < 10) return c.json({ error: "prompt_too_short" }, 400);
   if (prompt.length > 3000) return c.json({ error: "prompt_too_long" }, 400);
@@ -20,7 +20,8 @@ app.post("/generate-form", async (c) => {
   if (used >= 50) return c.json({ error: "quota_exceeded", limit: 50 }, 429);
 
   try {
-    const form = await generateFormWithGemini(c.env.GEMINI_API_KEY, prompt, body.locale ?? "en");
+    const locale = "locale" in body ? body.locale ?? "en" : "en";
+    const form = await generateFormWithGemini(c.env.GEMINI_API_KEY, prompt, locale);
     await c.env.RATE_LIMIT.put(quotaKey, String(used + 1), { expirationTtl: 86400 });
     return c.json(form);
   } catch (e) {

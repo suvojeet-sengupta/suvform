@@ -1,4 +1,4 @@
-import { FirebaseUser } from "../auth";
+import { FirebaseUser } from "./auth";
 
 /**
  * Ensures the user exists in the database for FK constraints.
