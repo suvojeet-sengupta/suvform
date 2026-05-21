@@ -19,7 +19,10 @@ import {
   ChevronRight,
   Trash2,
   Copy,
-  Check
+  Check,
+  MessageSquare,
+  Menu,
+  X
 } from "lucide-react";
 
 interface FormSummary {
@@ -38,9 +41,11 @@ export default function Dashboard() {
   const router = useRouter();
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<"all" | "public">("all");
+  const [activeFilter, setActiveFilter] = useState<"all" | "public" | "responses">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [copyingId, setCopyingId] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -89,9 +94,16 @@ export default function Dashboard() {
     setOpenMenuId(null);
   };
 
-  const filteredForms = activeFilter === "public" 
-    ? forms.filter(f => f.published === 1)
-    : forms;
+  const filteredForms = forms.filter(f => {
+    const matchesSearch = f.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         (f.description?.toLowerCase() || "").includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    if (activeFilter === "public") return f.published === 1;
+    // For now, "responses" tab also shows all forms but leads to response page on click
+    return true;
+  });
 
   if (authLoading || !user) {
     return (
@@ -101,13 +113,28 @@ export default function Dashboard() {
     );
   }
 
+  const NavItem = ({ filter, icon: Icon, label }: { filter: typeof activeFilter, icon: any, label: string }) => (
+    <button 
+      onClick={() => {
+        setActiveFilter(filter);
+        setIsMobileMenuOpen(false);
+      }}
+      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-colors ${
+        activeFilter === filter ? "text-blue-600 bg-blue-50" : "text-gray-600 hover:bg-gray-50"
+      }`}
+    >
+      <Icon className="h-5 w-5" />
+      {label}
+    </button>
+  );
+
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
+      {/* Sidebar - Desktop */}
       <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
         <div className="p-6 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
+            <div className="bg-blue-600 p-2 rounded-lg shadow-lg shadow-blue-200">
               <Layout className="h-6 w-6 text-white" />
             </div>
             <span className="text-xl font-bold text-gray-900 tracking-tight">SuvForm</span>
@@ -116,24 +143,9 @@ export default function Dashboard() {
         
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-3">Main</div>
-          <button 
-            onClick={() => setActiveFilter("all")}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-colors ${
-              activeFilter === "all" ? "text-blue-600 bg-blue-50" : "text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            <Layout className="h-5 w-5" />
-            My Forms
-          </button>
-          <button 
-            onClick={() => setActiveFilter("public")}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg font-medium transition-colors ${
-              activeFilter === "public" ? "text-blue-600 bg-blue-50" : "text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            <Globe className="h-5 w-5" />
-            Public Forms
-          </button>
+          <NavItem filter="all" icon={Layout} label="My Forms" />
+          <NavItem filter="responses" icon={MessageSquare} label="Responses" />
+          <NavItem filter="public" icon={Globe} label="Public Forms" />
 
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-8 mb-2 px-3">System</div>
           <button 
@@ -170,43 +182,53 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8">
-          <div className="flex items-center gap-4 flex-1 max-xl">
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-8">
+          <div className="flex items-center gap-4 flex-1 max-w-xl">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
+            >
+              <Menu className="h-6 w-6 text-gray-600" />
+            </button>
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input 
                 type="text" 
                 placeholder="Search forms..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-full bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               />
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 ml-4">
             <button 
               onClick={() => router.push("/form/create")}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full font-medium shadow-md shadow-blue-500/20 transition-all active:scale-95"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 md:px-5 py-2 rounded-full font-medium shadow-md shadow-blue-500/20 transition-all active:scale-95 text-sm"
             >
               <Plus className="h-5 w-5" />
-              Create Form
+              <span className="hidden sm:inline">Create Form</span>
+              <span className="sm:hidden">Create</span>
             </button>
           </div>
         </header>
 
         {/* Dashboard Content */}
-        <div className="flex-1 overflow-y-auto p-8" onClick={() => setOpenMenuId(null)}>
+        <div className="flex-1 overflow-y-auto p-4 md:p-8" onClick={() => setOpenMenuId(null)}>
           <div className="max-w-6xl mx-auto">
-            <div className="flex items-end justify-between mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {activeFilter === "public" ? "Publicly Shared Forms" : "Your Forms"}
+                  {activeFilter === "public" ? "Publicly Shared Forms" : 
+                   activeFilter === "responses" ? "Form Submissions" : "Your Forms"}
                 </h2>
-                <p className="text-gray-500">
-                  {activeFilter === "public" 
-                    ? "These forms are currently live and accepting responses." 
-                    : "Manage and analyze your active collection forms"}
+                <p className="text-gray-500 text-sm">
+                  {activeFilter === "public" ? "These forms are currently live and accepting responses." : 
+                   activeFilter === "responses" ? "Select a form to view its submitted data and insights." : 
+                   "Manage and analyze your active collection forms"}
                 </p>
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-100 self-start sm:self-auto">
                 Total: <span className="font-semibold text-gray-900">{filteredForms.length}</span>
               </div>
             </div>
@@ -223,19 +245,11 @@ export default function Dashboard() {
                   <FileText className="h-8 w-8 text-blue-500" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900">No forms found</h3>
-                <p className="text-gray-500 max-w-xs mx-auto mt-2">
-                  {activeFilter === "public" 
-                    ? "You haven't published any forms yet." 
-                    : "Create your first form using Gemini AI to start collecting data."}
+                <p className="text-gray-500 max-w-xs mx-auto mt-2 text-sm px-4">
+                  {searchQuery ? "No results match your search." : 
+                   activeFilter === "public" ? "You haven't published any forms yet." : 
+                   "Create your first form using Gemini AI to start collecting data."}
                 </p>
-                {activeFilter !== "public" && (
-                  <button 
-                    onClick={() => router.push("/form/create")}
-                    className="mt-6 text-blue-600 font-semibold hover:underline"
-                  >
-                    Create my first form &rarr;
-                  </button>
-                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -243,11 +257,17 @@ export default function Dashboard() {
                   <div 
                     key={form.id} 
                     className="group bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl hover:border-blue-200 transition-all duration-300 flex flex-col cursor-pointer relative"
-                    onClick={() => router.push(`/form/${form.id}/edit`)}
+                    onClick={() => {
+                      if (activeFilter === "responses") {
+                        router.push(`/form/${form.id}/responses`);
+                      } else {
+                        router.push(`/form/${form.id}/edit`);
+                      }
+                    }}
                   >
                     <div className="flex justify-between items-start mb-4">
                       <div className={`p-2 rounded-lg ${form.published ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-                        <FileText className="h-6 w-6" />
+                        {activeFilter === "responses" ? <BarChart2 className="h-6 w-6" /> : <FileText className="h-6 w-6" />}
                       </div>
                       <div className="relative">
                         <button 
@@ -273,7 +293,10 @@ export default function Dashboard() {
                               </button>
                             )}
                             <button 
-                              onClick={() => router.push(`/form/${form.id}/responses`)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/form/${form.id}/responses`);
+                              }}
                               className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                             >
                               <BarChart2 className="h-4 w-4" />
@@ -324,6 +347,49 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      {/* Mobile Sidebar Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setIsMobileMenuOpen(false)}></div>
+          <aside className="relative w-80 max-w-[80%] bg-white h-full flex flex-col shadow-2xl animate-in slide-in-from-left duration-300">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-600 p-2 rounded-lg">
+                  <Layout className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-xl font-bold text-gray-900">SuvForm</span>
+              </div>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                <X className="h-6 w-6 text-gray-400" />
+              </button>
+            </div>
+            
+            <nav className="flex-1 p-4 space-y-2">
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-3">Main</div>
+              <NavItem filter="all" icon={Layout} label="My Forms" />
+              <NavItem filter="responses" icon={MessageSquare} label="Responses" />
+              <NavItem filter="public" icon={Globe} label="Public Forms" />
+
+              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-8 mb-2 px-3">System</div>
+              <button 
+                onClick={() => router.push("/settings")}
+                className="w-full flex items-center gap-3 px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                <Settings className="h-5 w-5" />
+                Settings
+              </button>
+              <button 
+                onClick={logout}
+                className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-auto"
+              >
+                <LogOut className="h-5 w-5" />
+                Sign Out
+              </button>
+            </nav>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }
