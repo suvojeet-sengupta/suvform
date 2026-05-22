@@ -33,7 +33,7 @@ export default function PrivacyPolicyPage() {
               and collect responses. This Privacy Policy explains what
               information we collect, how we use it, and the choices you have.
               It applies to the SuvForm Android app and the web dashboard at{" "}
-              <span className="font-medium">suvforms.suvojeetsengupta.in</span>.
+              <span className="font-medium">suvform.suvojeetsengupta.in</span>.
             </p>
           </section>
 

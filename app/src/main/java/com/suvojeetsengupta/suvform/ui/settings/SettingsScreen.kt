@@ -387,7 +387,7 @@ fun SettingsScreen(
                             context.startActivity(
                                 Intent(
                                     Intent.ACTION_VIEW,
-                                    Uri.parse("https://suvforms.suvojeetsengupta.in/privacy-policy")
+                                    Uri.parse("https://suvform.suvojeetsengupta.in/privacy-policy")
                                 )
                             )
                         },
