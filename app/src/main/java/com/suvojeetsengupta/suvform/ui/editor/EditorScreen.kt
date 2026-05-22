@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suvojeetsengupta.suvform.data.draft.CalculationEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldType
 
@@ -198,6 +199,52 @@ fun EditorScreen(
                 item { EmptyFieldsState() }
             }
 
+            item {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        "Calculations",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ) {
+                        Text("${draft.calculations.size}", modifier = Modifier.padding(4.dp))
+                    }
+                    Spacer(Modifier.weight(1f))
+                    IconButton(onClick = viewModel::addCalculation) {
+                        Icon(Icons.Default.AddCircleOutline, "Add calculation", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+
+            itemsIndexed(draft.calculations, key = { _, c -> c.id }) { index, calc ->
+                CalculationEditorCard(
+                    calculation = calc,
+                    onLabelChange = { viewModel.setCalculationLabel(index, it) },
+                    onExpressionChange = { viewModel.setCalculationExpression(index, it) },
+                    onFormatChange = { viewModel.setCalculationFormat(index, it) },
+                    onDelete = { viewModel.deleteCalculation(index) }
+                )
+            }
+
+            if (draft.calculations.isEmpty()) {
+                item {
+                    Text(
+                        "No calculations added. Use field IDs (e.g. f_123) in expressions.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                }
+            }
+
             item { Spacer(Modifier.height(80.dp)) }
         }
     }
@@ -332,6 +379,15 @@ private fun FieldEditorCard(
                         TypeSelector(current = field.type, onSelect = onTypeChange)
                         
                         Row {
+                            val clipboard = LocalClipboardManager.current
+                            
+                            AssistChip(
+                                onClick = { clipboard.setText(AnnotatedString(field.id)) },
+                                label = { Text(field.id, style = MaterialTheme.typography.labelSmall) },
+                                leadingIcon = { Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(14.dp)) },
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
                             IconButton(onClick = onMoveUp, enabled = !isFirst) {
                                 Icon(Icons.Default.ArrowUpward, null, modifier = Modifier.size(20.dp))
                             }
@@ -548,6 +604,144 @@ private fun PublishBar(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalculationEditorCard(
+    calculation: CalculationEdit,
+    onLabelChange: (String) -> Unit,
+    onExpressionChange: (String) -> Unit,
+    onFormatChange: (String?) -> Unit,
+    onDelete: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (expanded) MaterialTheme.colorScheme.surfaceContainerHigh
+            else MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (expanded) 2.dp else 0.dp),
+        onClick = { expanded = !expanded }
+    ) {
+        Column(Modifier.padding(if (expanded) 20.dp else 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = CircleShape,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Functions, null, modifier = Modifier.size(16.dp))
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = if (calculation.label.isBlank()) "New Calculation" else calculation.label,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = "Calculation",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null
+                    )
+                }
+            }
+
+            if (expanded) {
+                Spacer(Modifier.height(20.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(Modifier.height(20.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FormatSelector(current = calculation.format, onSelect = onFormatChange)
+                    }
+
+                    OutlinedTextField(
+                        value = calculation.label,
+                        onValueChange = onLabelChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Calculation Label") },
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    )
+
+                    OutlinedTextField(
+                        value = calculation.expression,
+                        onValueChange = onExpressionChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Expression (e.g. f_1 + f_2)") },
+                        shape = RoundedCornerShape(12.dp),
+                        placeholder = { Text("f_id * 10") },
+                        supportingText = { Text("Use field IDs and basic math: + - * / % ( )") }
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        IconButton(
+                            onClick = onDelete,
+                            colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Icon(Icons.Default.Delete, null, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FormatSelector(current: String?, onSelect: (String?) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val options = listOf(
+        null to "Decimal (1.23)",
+        "percent" to "Percentage (12.3%)",
+        "currency" to "Currency (₹12.34)"
+    )
+    val currentLabel = options.find { it.first == current }?.second ?: "Decimal"
+
+    Box {
+        InputChip(
+            selected = true,
+            onClick = { expanded = true },
+            label = { Text(currentLabel) },
+            leadingIcon = { Icon(Icons.Default.FormatListNumbered, null, modifier = Modifier.size(16.dp)) },
+            trailingIcon = { Icon(Icons.Default.ArrowDropDown, null) },
+            shape = RoundedCornerShape(12.dp)
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { (valKey, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        onSelect(valKey)
+                        expanded = false
+                    }
+                )
             }
         }
     }

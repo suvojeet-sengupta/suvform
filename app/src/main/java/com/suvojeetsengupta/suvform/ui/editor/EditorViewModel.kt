@@ -2,6 +2,7 @@ package com.suvojeetsengupta.suvform.ui.editor
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.suvojeetsengupta.suvform.data.draft.CalculationEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldType
 import com.suvojeetsengupta.suvform.data.draft.FormDraftStore
@@ -75,6 +76,19 @@ class EditorViewModel @Inject constructor(
     fun setPlaceholder(index: Int, placeholder: String) = mutateField(index) {
         it.copy(placeholder = placeholder.takeIf { p -> p.isNotBlank() })
     }
+
+    // ---- Calculations ----
+    fun addCalculation() = store.update {
+        it.copy(calculations = it.calculations + CalculationEdit(label = "New calculation"))
+    }
+
+    fun deleteCalculation(index: Int) = store.update {
+        it.copy(calculations = it.calculations.toMutableList().apply { removeAt(index) })
+    }
+
+    fun setCalculationLabel(index: Int, label: String) = mutateCalculation(index) { it.copy(label = label) }
+    fun setCalculationExpression(index: Int, expr: String) = mutateCalculation(index) { it.copy(expression = expr) }
+    fun setCalculationFormat(index: Int, format: String?) = mutateCalculation(index) { it.copy(format = format) }
 
     // ---- Options ----
     fun addOption(fieldIndex: Int) = mutateField(fieldIndex) {
@@ -173,6 +187,13 @@ class EditorViewModel @Inject constructor(
         store.update { d ->
             val f = d.fields.getOrNull(index) ?: return@update d
             d.copy(fields = d.fields.toMutableList().apply { this[index] = transform(f) })
+        }
+    }
+
+    private inline fun mutateCalculation(index: Int, crossinline transform: (CalculationEdit) -> CalculationEdit) {
+        store.update { d ->
+            val c = d.calculations.getOrNull(index) ?: return@update d
+            d.copy(calculations = d.calculations.toMutableList().apply { this[index] = transform(c) })
         }
     }
 }
