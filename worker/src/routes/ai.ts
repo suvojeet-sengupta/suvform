@@ -2,19 +2,21 @@ import { Hono } from "hono";
 import { Bindings, Variables } from "../types";
 import { generateFormWithGemini } from "../gemini";
 import { CONFIG } from "../config";
+import { getLocalDay } from "../utils/time";
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 // POST /v1/ai/generate-form
 app.post("/generate-form", async (c) => {
   const u = c.get("user");
+  const tz = c.get("timezone");
   const body = await c.req.json<{ prompt?: string; locale?: "en" | "hi" }>().catch(() => ({}));
   const prompt = ("prompt" in body ? body.prompt ?? "" : "").trim();
   
   if (prompt.length < CONFIG.PROMPT_MIN_LEN) return c.json({ error: "prompt_too_short" }, 400);
   if (prompt.length > CONFIG.PROMPT_MAX_LEN) return c.json({ error: "prompt_too_long" }, 400);
 
-  const day = new Date().toISOString().slice(0, 10);
+  const day = getLocalDay(tz);
   const quotaKey = `quota:${u.uid}:${day}`;
   const used = parseInt((await c.env.RATE_LIMIT.get(quotaKey)) ?? "0", 10);
   if (used >= CONFIG.AI_DAILY_QUOTA) return c.json({ error: "quota_exceeded", limit: CONFIG.AI_DAILY_QUOTA }, 429);

@@ -30,6 +30,10 @@ export function useApi() {
       const token = await getToken();
       const headers = new Headers(options.headers);
       if (token) headers.set("Authorization", `Bearer ${token}`);
+      
+      // Pass the user's timezone to the backend for localized quotas/timestamps.
+      headers.set("X-Timezone", Intl.DateTimeFormat().resolvedOptions().timeZone);
+
       if (!(options.body instanceof FormData) && !headers.has("Content-Type")) {
         headers.set("Content-Type", "application/json");
       }

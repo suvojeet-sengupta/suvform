@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { Bindings, Variables } from "../types";
 import { upsertUserProfile } from "../db";
 import { safeParse } from "../utils/helpers";
+import { formatLocalized } from "../utils/time";
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -26,6 +27,8 @@ app.post("/revoke-sessions", async (c) => {
 // Returns the profile, every form (with full schema), and every response.
 app.get("/export", async (c) => {
   const u = c.get("user");
+  const tz = c.get("timezone");
+  const now = Date.now();
 
   const profile = await c.env.DB.prepare(
     `SELECT uid, email, display_name, photo_url, created_at, updated_at FROM users WHERE uid = ?`,
@@ -63,12 +66,19 @@ app.get("/export", async (c) => {
         answers: safeParse(r.answers_json, {}),
         calculated: safeParse(r.calculated_json ?? "{}", {}),
         submitted_at: r.submitted_at,
+        submitted_at_str: formatLocalized(r.submitted_at, tz),
       })),
     });
   }
 
   return c.json(
-    { exported_at: Date.now(), profile, forms },
+    { 
+      exported_at: now, 
+      exported_at_str: formatLocalized(now, tz),
+      timezone: tz,
+      profile, 
+      forms 
+    },
     200,
     { "Content-Disposition": `attachment; filename="suvform-export-${u.uid}.json"` },
   );

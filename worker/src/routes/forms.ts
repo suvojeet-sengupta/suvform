@@ -4,12 +4,14 @@ import { ensureUserExists } from "../db";
 import { safeParse, makeSlug } from "../utils/helpers";
 import { summarizeResponsesWithGemini } from "../gemini";
 import { CONFIG } from "../config";
+import { formatLocalized } from "../utils/time";
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 // GET /v1/forms — list current user's forms
 app.get("/", async (c) => {
   const u = c.get("user");
+  const tz = c.get("timezone");
   // No ensureUserExists here: a SELECT needs no FK row, and the user is already
   // created on sign-in (POST /v1/me) and on form creation. Saves a write per list.
   const { results } = await c.env.DB.prepare(
@@ -18,7 +20,13 @@ app.get("/", async (c) => {
   )
     .bind(u.uid, CONFIG.FORMS_LIST_LIMIT)
     .all();
-  return c.json({ forms: results });
+    
+  const forms = (results as any[]).map(f => ({
+    ...f,
+    updated_at_str: formatLocalized(f.updated_at, tz)
+  }));
+
+  return c.json({ forms });
 });
 
 type FormBody = {
@@ -65,6 +73,7 @@ app.post("/", async (c) => {
       now,
     )
     .run();
+  const tz = c.get("timezone");
   return c.json(
     {
       id,
@@ -74,6 +83,7 @@ app.post("/", async (c) => {
       public_slug: null,
       created_at: now,
       updated_at: now,
+      updated_at_str: formatLocalized(now, tz),
     },
     201,
   );
@@ -102,6 +112,9 @@ app.get("/:id", async (c) => {
     }>();
   if (!row) return c.json({ error: "not_found" }, 404);
   if (row.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
+
+  const tz = c.get("timezone");
+
   return c.json({
     id: row.id,
     title: row.title,
@@ -112,6 +125,7 @@ app.get("/:id", async (c) => {
     public_slug: row.public_slug,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    updated_at_str: formatLocalized(row.updated_at, tz),
   });
 });
 
@@ -142,7 +156,8 @@ app.put("/:id", async (c) => {
       id,
     )
     .run();
-  return c.json({ id, updated_at: now });
+  const tz = c.get("timezone");
+  return c.json({ id, updated_at: now, updated_at_str: formatLocalized(now, tz) });
 });
 
 // DELETE /v1/forms/:id
@@ -231,10 +246,13 @@ app.get("/:id/responses", async (c) => {
     `SELECT COUNT(*) as count FROM responses WHERE form_id = ?`
   ).bind(id).first<{ count: number }>();
 
+  const tz = c.get("timezone");
+
   return c.json({
     responses: (results as any[]).map((r) => ({
       id: r.id,
       submitted_at: r.submitted_at,
+      submitted_at_str: formatLocalized(r.submitted_at, tz),
       answers: safeParse(r.answers_json, {}),
       calculated: safeParse(r.calculated_json ?? "{}", {}),
     })),

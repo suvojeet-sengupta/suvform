@@ -10,4 +10,5 @@ export type Bindings = {
 export type Variables = {
   user: FirebaseUser;
   reqId: string;
+  timezone: string;
 };

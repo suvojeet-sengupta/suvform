@@ -23,12 +23,18 @@ app.use("*", async (c, next) => {
   const reqId = crypto.randomUUID();
   c.set("reqId", reqId);
 
+  // Detect timezone from Cloudflare or X-Timezone header (useful for dev/native apps).
+  // Default to Asia/Kolkata since the primary user base is in India.
+  const tz = c.req.header("cf-timezone") || c.req.header("X-Timezone") || "Asia/Kolkata";
+  c.set("timezone", tz);
+
   await next();
 
   const duration = Date.now() - start;
   // Structured JSON logging for production
   console.log(JSON.stringify({
     timestamp: new Date().toISOString(),
+    timezone: tz,
     reqId,
     method: c.req.method,
     path: c.req.path,
