@@ -67,7 +67,13 @@ class EditorViewModel @Inject constructor(
         )
     }
 
-    fun setFieldLabel(index: Int, label: String) = mutateField(index) { it.copy(label = label) }
+    fun setFieldLabel(index: Int, label: String) = mutateField(index) {
+        if (it.label == "New field" || it.label.isBlank()) {
+            it.copy(label = label, id = label.toId("f"))
+        } else {
+            it.copy(label = label)
+        }
+    }
     fun setFieldType(index: Int, type: FieldType) = mutateField(index) {
         if (!type.hasOptions) it.copy(type = type, options = emptyList())
         else it.copy(type = type)
@@ -86,7 +92,13 @@ class EditorViewModel @Inject constructor(
         it.copy(calculations = it.calculations.toMutableList().apply { removeAt(index) })
     }
 
-    fun setCalculationLabel(index: Int, label: String) = mutateCalculation(index) { it.copy(label = label) }
+    fun setCalculationLabel(index: Int, label: String) = mutateCalculation(index) {
+        if (it.label == "New calculation" || it.label.isBlank()) {
+            it.copy(label = label, id = label.toId("c"))
+        } else {
+            it.copy(label = label)
+        }
+    }
     fun setCalculationExpression(index: Int, expr: String) = mutateCalculation(index) { it.copy(expression = expr) }
     fun setCalculationFormat(index: Int, format: String?) = mutateCalculation(index) { it.copy(format = format) }
 
@@ -195,6 +207,15 @@ class EditorViewModel @Inject constructor(
             val c = d.calculations.getOrNull(index) ?: return@update d
             d.copy(calculations = d.calculations.toMutableList().apply { this[index] = transform(c) })
         }
+    }
+
+    private fun String.toId(prefix: String): String {
+        val slug = this.lowercase()
+            .replace(Regex("[^a-z0-9]"), "_")
+            .replace(Regex("_+"), "_")
+            .trim('_')
+        return if (slug.isEmpty()) "${prefix}_${java.util.UUID.randomUUID().toString().take(8)}"
+        else "${prefix}_$slug"
     }
 }
 
