@@ -1,5 +1,7 @@
 package com.suvojeetsengupta.suvform.ui.settings
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -371,6 +374,23 @@ fun SettingsScreen(
                         headlineContent = { Text("Version") },
                         supportingContent = { Text(BuildConfig.VERSION_NAME) },
                         leadingContent = { Icon(Icons.Default.Info, null) },
+                        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    ListItem(
+                        headlineContent = { Text("Privacy Policy") },
+                        leadingContent = { Icon(Icons.Default.PrivacyTip, null) },
+                        modifier = Modifier.clickable {
+                            context.startActivity(
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://suvforms.suvojeetsengupta.in/privacy-policy")
+                                )
+                            )
+                        },
                         colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
                     )
                     HorizontalDivider(

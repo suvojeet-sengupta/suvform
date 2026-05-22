@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Layout } from "lucide-react";
+import Link from "next/link";
 
 export default function LoginPage() {
   const { user, login, loading } = useAuth();
@@ -78,6 +79,13 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      <Link
+        href="/privacy-policy"
+        className="mt-6 text-sm text-gray-500 hover:text-gray-700 underline transition-colors"
+      >
+        Privacy Policy
+      </Link>
     </div>
   );
 }
