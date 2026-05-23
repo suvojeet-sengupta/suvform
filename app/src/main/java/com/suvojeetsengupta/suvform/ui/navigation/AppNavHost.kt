@@ -30,15 +30,17 @@ class AuthStateViewModel @Inject constructor(
     val authState = authRepository.authState
     val isAdmin = authRepository.isAdmin
 
-    private var hasSyncedProfile = false
+    private var hasSyncedThisSession = false
 
     init {
         viewModelScope.launch {
             authRepository.authState.collect { state ->
-                if (state is FirebaseAuthState.SignedIn && !hasSyncedProfile) {
-                    hasSyncedProfile = true
-                    // Ensure we always fetch latest profile + is_admin from server
-                    authRepository.syncUserWithBackend()
+                if (state is FirebaseAuthState.SignedIn) {
+                    // Refresh only if 48 hours have passed OR first time this session
+                    if (!hasSyncedThisSession || authRepository.shouldRefreshProfile()) {
+                        hasSyncedThisSession = true
+                        authRepository.syncUserWithBackend()
+                    }
                 }
             }
         }

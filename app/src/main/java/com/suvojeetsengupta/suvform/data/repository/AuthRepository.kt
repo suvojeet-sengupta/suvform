@@ -12,6 +12,7 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.suvojeetsengupta.suvform.BuildConfig
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
 import com.suvojeetsengupta.suvform.data.remote.UserDto
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -28,10 +29,25 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val api: SuvFormApi,
+    @ApplicationContext private val context: Context,
 ) {
     private val _isAdmin = MutableStateFlow(false)
     /** True only if the server marked this user as admin in the admins table. */
     val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
+
+    private val prefs = context.getSharedPreferences("suvform_prefs", Context.MODE_PRIVATE)
+    private val LAST_SYNC_KEY = "last_profile_sync_time"
+    private val FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000L
+
+    /** Returns true if more than 48 hours have passed since last profile sync. */
+    fun shouldRefreshProfile(): Boolean {
+        val lastSync = prefs.getLong(LAST_SYNC_KEY, 0L)
+        return System.currentTimeMillis() - lastSync > FORTY_EIGHT_HOURS_MS
+    }
+
+    private fun updateLastSyncTime() {
+        prefs.edit().putLong(LAST_SYNC_KEY, System.currentTimeMillis()).apply()
+    }
 
     /** Emits the currently signed-in Firebase user (or null) — survives sign-in/out. */
     val authState: Flow<FirebaseAuthState> = callbackFlow {
@@ -83,6 +99,7 @@ class AuthRepository @Inject constructor(
     suspend fun syncUserWithBackend(): Result<UserDto> = runCatching {
         val dto = api.upsertMe()
         _isAdmin.value = dto.isAdmin
+        updateLastSyncTime()
         dto
     }
 
