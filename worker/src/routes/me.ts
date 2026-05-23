@@ -15,6 +15,7 @@ app.post("/", async (c) => {
     await upsertOwner(c.env.DB, u.uid);
   }
   const admin = await isAdmin(c.env.DB, u.uid);
+  console.log(`[ADMIN DEBUG] uid=${u.uid} isAdmin=${admin}`);
   return c.json({
     uid: u.uid,
     email: u.email,
