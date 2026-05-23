@@ -103,6 +103,7 @@ app.use("/v1/*", async (c, next) => {
     }
 
     c.set("user", user);
+    console.log(`[AUTH DEBUG] verified uid=${user.uid} path=${c.req.path}`);
     return next();
   } catch (e) {
     return c.json({ error: "invalid_token", detail: (e as Error).message }, 401);
