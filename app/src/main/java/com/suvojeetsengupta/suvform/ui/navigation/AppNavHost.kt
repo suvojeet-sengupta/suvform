@@ -17,15 +17,32 @@ import com.suvojeetsengupta.suvform.ui.auth.SignInScreen
 import com.suvojeetsengupta.suvform.ui.create.CreateScreen
 import com.suvojeetsengupta.suvform.ui.editor.EditorScreen
 import com.suvojeetsengupta.suvform.ui.preview.PreviewScreen
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class AuthStateViewModel @Inject constructor(
-    authRepository: AuthRepository,
+    private val authRepository: AuthRepository,
 ) : ViewModel() {
+
     val authState = authRepository.authState
     val isAdmin = authRepository.isAdmin
+
+    private var hasSyncedProfile = false
+
+    init {
+        viewModelScope.launch {
+            authRepository.authState.collect { state ->
+                if (state is FirebaseAuthState.SignedIn && !hasSyncedProfile) {
+                    hasSyncedProfile = true
+                    // Ensure we always fetch latest profile + is_admin from server
+                    authRepository.syncUserWithBackend()
+                }
+            }
+        }
+    }
 }
 
 @Composable
