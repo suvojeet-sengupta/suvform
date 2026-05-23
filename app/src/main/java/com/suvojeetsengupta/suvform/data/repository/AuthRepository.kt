@@ -15,6 +15,9 @@ import com.suvojeetsengupta.suvform.data.remote.UserDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -26,6 +29,10 @@ class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val api: SuvFormApi,
 ) {
+    private val _isAdmin = MutableStateFlow(false)
+    /** True only if the server marked this user as admin in the admins table. */
+    val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
+
     /** Emits the currently signed-in Firebase user (or null) — survives sign-in/out. */
     val authState: Flow<FirebaseAuthState> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { fa ->
@@ -71,10 +78,12 @@ class AuthRepository @Inject constructor(
 
     /**
      * Syncs the current Firebase user profile with our backend.
-     * Should be called after sign-in or when profile details change.
+     * Also updates local admin status from server response.
      */
     suspend fun syncUserWithBackend(): Result<UserDto> = runCatching {
-        api.upsertMe()
+        val dto = api.upsertMe()
+        _isAdmin.value = dto.isAdmin
+        dto
     }
 
     suspend fun signOut(context: Context) {
@@ -82,6 +91,7 @@ class AuthRepository @Inject constructor(
             CredentialManager.create(context).clearCredentialState(ClearCredentialStateRequest())
         }
         auth.signOut()
+        _isAdmin.value = false
     }
 
     /** "Sign out everywhere": revoke all server sessions, then sign out locally. */

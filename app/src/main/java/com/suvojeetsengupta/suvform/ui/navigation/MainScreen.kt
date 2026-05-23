@@ -33,6 +33,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import com.suvojeetsengupta.suvform.ui.admin.AdminScreen
 import com.suvojeetsengupta.suvform.ui.home.HomeScreen
 import com.suvojeetsengupta.suvform.ui.responses.ResponseDetailScreen
 import com.suvojeetsengupta.suvform.ui.responses.ResponsesScreen
@@ -54,20 +55,25 @@ sealed class BottomNavDestination(
     data object Settings : BottomNavDestination(
         Routes.Settings, "Settings", Icons.Filled.Person, Icons.Outlined.Person
     )
+    data object Admin : BottomNavDestination(
+        "admin_tab", "Admin", Icons.Filled.Person, Icons.Outlined.Person
+    )
 }
 
 @Composable
 fun MainScreen(
+    isAdmin: Boolean,
     onSignedOut: () -> Unit,
     onCreateForm: () -> Unit,
     onOpenForm: () -> Unit,
 ) {
     val navController = rememberNavController()
-    val items = listOf(
-        BottomNavDestination.Home,
-        BottomNavDestination.Responses,
-        BottomNavDestination.Settings,
-    )
+    val items = buildList {
+        add(BottomNavDestination.Home)
+        add(BottomNavDestination.Responses)
+        if (isAdmin) add(BottomNavDestination.Admin)
+        add(BottomNavDestination.Settings)
+    }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -194,6 +200,12 @@ fun MainScreen(
 
             composable(Routes.Settings) {
                 SettingsScreen(onSignedOut = onSignedOut)
+            }
+
+            if (isAdmin) {
+                composable("admin_tab") {
+                    AdminScreen()
+                }
             }
         }
     }

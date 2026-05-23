@@ -9,6 +9,7 @@ data class UserDto(
     val email: String? = null,
     @SerialName("display_name") val displayName: String? = null,
     @SerialName("photo_url") val photoUrl: String? = null,
+    @SerialName("is_admin") val isAdmin: Boolean = false,
 )
 
 @Serializable
@@ -117,3 +118,72 @@ data class InsightsDto(
     val summary: String,
     @SerialName("response_count") val responseCount: Int = 0,
 )
+
+// ===================== ADMIN DTOs =====================
+
+@Serializable
+data class AdminStatsDto(
+    @SerialName("total_users") val totalUsers: Int = 0,
+    @SerialName("total_forms") val totalForms: Int = 0,
+    @SerialName("published_forms") val publishedForms: Int = 0,
+    @SerialName("total_responses") val totalResponses: Int = 0,
+    @SerialName("total_admins") val totalAdmins: Int = 0,
+)
+
+@Serializable
+data class AdminUserDto(
+    val uid: String,
+    val email: String? = null,
+    @SerialName("display_name") val displayName: String? = null,
+    @SerialName("photo_url") val photoUrl: String? = null,
+    @SerialName("created_at") val createdAt: Long,
+)
+
+@Serializable
+data class AdminUsersDto(
+    val users: List<AdminUserDto> = emptyList(),
+    val total: Int = 0,
+    val limit: Int = 50,
+    val offset: Int = 0,
+    @SerialName("has_more") val hasMore: Boolean = false,
+)
+
+@Serializable
+data class AdminFormDto(
+    val id: String,
+    val title: String,
+    val description: String? = null,
+    val published: Int = 0,
+    @SerialName("public_slug") val publicSlug: String? = null,
+    @SerialName("created_at") val createdAt: Long,
+    @SerialName("owner_uid") val ownerUid: String,
+    @SerialName("owner_email") val ownerEmail: String? = null,
+    @SerialName("owner_name") val ownerName: String? = null,
+)
+
+@Serializable
+data class AdminFormsDto(
+    val forms: List<AdminFormDto> = emptyList(),
+    val total: Int = 0,
+    val limit: Int = 50,
+    val offset: Int = 0,
+    @SerialName("has_more") val hasMore: Boolean = false,
+)
+
+@Serializable
+data class AdminAdminDto(
+    val uid: String,
+    @SerialName("added_at") val addedAt: Long,
+    @SerialName("added_by") val addedBy: String,
+    val role: String = "admin",
+    val email: String? = null,
+    @SerialName("display_name") val displayName: String? = null,
+)
+
+@Serializable
+data class AdminAdminsDto(
+    val admins: List<AdminAdminDto> = emptyList(),
+)
+
+@Serializable
+data class AdminAddRequest(val uid: String)

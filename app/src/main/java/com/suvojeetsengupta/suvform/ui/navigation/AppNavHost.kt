@@ -25,6 +25,7 @@ class AuthStateViewModel @Inject constructor(
     authRepository: AuthRepository,
 ) : ViewModel() {
     val authState = authRepository.authState
+    val isAdmin = authRepository.isAdmin
 }
 
 @Composable
@@ -53,7 +54,9 @@ fun AppNavHost(initiallySignedIn: Boolean) {
             })
         }
         composable(Routes.Main) {
+            val isAdmin by authVm.isAdmin.collectAsStateWithLifecycle(initialValue = false)
             MainScreen(
+                isAdmin = isAdmin,
                 onSignedOut = {
                     nav.navigate(Routes.SignIn) { popUpTo(Routes.Main) { inclusive = true } }
                 },

@@ -10,6 +10,7 @@ import meRoutes from "./routes/me";
 import formsRoutes from "./routes/forms";
 import aiRoutes from "./routes/ai";
 import publicRoutes from "./routes/public";
+import adminRoutes from "./routes/admin";
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -114,6 +115,7 @@ app.get("/", (c) => c.json({ ok: true, service: "suvform-api", version: 1 }));
 app.route("/v1/me", meRoutes);
 app.route("/v1/forms", formsRoutes);
 app.route("/v1/ai", aiRoutes);
+app.route("/v1/admin", adminRoutes);
 app.route("/", publicRoutes); // Handles /f/:slug and /v1/public/*
 
 export default app;

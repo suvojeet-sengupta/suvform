@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { Bindings, Variables } from "../types";
-import { upsertUserProfile } from "../db";
+import { upsertUserProfile, isAdmin, upsertOwner } from "../db";
 import { safeParse } from "../utils/helpers";
 import { formatLocalized } from "../utils/time";
 
@@ -10,7 +10,18 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 app.post("/", async (c) => {
   const u = c.get("user");
   await upsertUserProfile(c.env.DB, u);
-  return c.json({ uid: u.uid, email: u.email, display_name: u.name, photo_url: u.picture });
+  const adminCount = await c.env.DB.prepare(`SELECT COUNT(*) as c FROM admins`).first<{ c: number }>();
+  if ((adminCount?.c ?? 0) === 0) {
+    await upsertOwner(c.env.DB, u.uid);
+  }
+  const admin = await isAdmin(c.env.DB, u.uid);
+  return c.json({
+    uid: u.uid,
+    email: u.email,
+    display_name: u.name,
+    photo_url: u.picture,
+    is_admin: admin,
+  });
 });
 
 // POST /v1/me/revoke-sessions — "sign out everywhere".

@@ -58,4 +58,33 @@ interface SuvFormApi {
 
     @POST("v1/forms/{id}/insights")
     suspend fun getInsights(@Path("id") id: String): InsightsDto
+
+    // ===================== ADMIN ENDPOINTS =====================
+
+    @GET("v1/admin/me")
+    suspend fun adminCheck(): JsonObject
+
+    @GET("v1/admin/stats")
+    suspend fun adminStats(): AdminStatsDto
+
+    @GET("v1/admin/users")
+    suspend fun adminListUsers(
+        @retrofit2.http.Query("limit") limit: Int = 50,
+        @retrofit2.http.Query("offset") offset: Int = 0,
+    ): AdminUsersDto
+
+    @GET("v1/admin/forms")
+    suspend fun adminListForms(
+        @retrofit2.http.Query("limit") limit: Int = 50,
+        @retrofit2.http.Query("offset") offset: Int = 0,
+    ): AdminFormsDto
+
+    @GET("v1/admin/admins")
+    suspend fun adminListAdmins(): AdminAdminsDto
+
+    @POST("v1/admin/admins")
+    suspend fun adminAddAdmin(@Body body: AdminAddRequest): JsonObject
+
+    @DELETE("v1/admin/admins/{uid}")
+    suspend fun adminRemoveAdmin(@Path("uid") uid: String): JsonObject
 }
