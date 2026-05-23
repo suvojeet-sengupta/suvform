@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { Bindings, Variables } from "../types";
-import { upsertUserProfile, isAdmin, upsertOwner } from "../db";
+import { syncProfileAndCheckAdmin } from "../db";
 import { safeParse } from "../utils/helpers";
 import { formatLocalized } from "../utils/time";
 
@@ -9,14 +9,12 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 // POST /v1/me — sync user profile after sign-in
 app.post("/", async (c) => {
   const u = c.get("user");
-  console.log(`[ADMIN DEBUG - ENTERED] uid=${u.uid}`);
-  await upsertUserProfile(c.env.DB, u);
-  const adminCount = await c.env.DB.prepare(`SELECT COUNT(*) as c FROM admins`).first<{ c: number }>();
-  if ((adminCount?.c ?? 0) === 0) {
-    await upsertOwner(c.env.DB, u.uid);
-  }
-  const admin = await isAdmin(c.env.DB, u.uid);
-  console.log(`[ADMIN DEBUG - RESULT] uid=${u.uid} isAdmin=${admin}`);
+  console.log(`[AUTH DEBUG - SYNC] uid=${u.uid}`);
+
+  // Sync profile and check admin status in a single efficient DB batch
+  const admin = await syncProfileAndCheckAdmin(c.env.DB, u);
+
+  console.log(`[AUTH DEBUG - RESULT] uid=${u.uid} isAdmin=${admin}`);
   return c.json({
     uid: u.uid,
     email: u.email,

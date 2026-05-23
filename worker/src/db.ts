@@ -105,12 +105,13 @@ export async function isOwner(db: D1Database, uid: string): Promise<boolean> {
  * Safety: cannot remove the last remaining admin.
  */
 /**
- * Full profile sync. Usually called once after sign-in.
+ * Full profile sync and admin check in a single batch.
+ * Usually called once after sign-in to ensure the user exists and to check their privileges.
  */
-export async function upsertUserProfile(db: D1Database, u: FirebaseUser) {
+export async function syncProfileAndCheckAdmin(db: D1Database, u: FirebaseUser): Promise<boolean> {
   const now = Date.now();
-  await db
-    .prepare(
+  const results = await db.batch([
+    db.prepare(
       `INSERT INTO users (uid, email, display_name, photo_url, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(uid) DO UPDATE SET
@@ -118,9 +119,12 @@ export async function upsertUserProfile(db: D1Database, u: FirebaseUser) {
          display_name = excluded.display_name,
          photo_url = excluded.photo_url,
          updated_at = excluded.updated_at`,
-    )
-    .bind(u.uid, u.email ?? null, u.name ?? null, u.picture ?? null, now, now)
-    .run();
+    ).bind(u.uid, u.email ?? null, u.name ?? null, u.picture ?? null, now, now),
+    db.prepare(`SELECT 1 FROM admins WHERE uid = ? LIMIT 1`).bind(u.uid)
+  ]);
+
+  const adminRow = results[1].results?.[0];
+  return !!adminRow;
 }
 
 export async function removeAdmin(db: D1Database, targetUid: string): Promise<{ removed: boolean; reason?: string }> {
