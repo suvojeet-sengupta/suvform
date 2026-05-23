@@ -45,6 +45,35 @@ app.get("/me", async (c) => {
   return c.json({ uid: u.uid, is_admin: true, is_owner: await isOwner(c.env.DB, u.uid) });
 });
 
+// GET /v1/admin/dashboard — consolidated overview to reduce roundtrips
+app.get("/dashboard", async (c) => {
+  const db = c.env.DB;
+  
+  // Use batch to get everything in ONE roundtrip
+  const results = await db.batch([
+    db.prepare(`SELECT COUNT(*) as c FROM users`),
+    db.prepare(`SELECT COUNT(*) as c FROM forms`),
+    db.prepare(`SELECT COUNT(*) as c FROM responses`),
+    db.prepare(`SELECT COUNT(*) as c FROM admins`),
+    db.prepare(`SELECT COUNT(*) as c FROM forms WHERE published = 1`),
+    // Also get the latest 5 users and forms for the "Recent activity" section
+    db.prepare(`SELECT uid, email, display_name, created_at FROM users ORDER BY created_at DESC LIMIT 5`),
+    db.prepare(`SELECT f.id, f.title, f.owner_uid, u.email as owner_email FROM forms f JOIN users u ON f.owner_uid = u.uid ORDER BY f.created_at DESC LIMIT 5`),
+  ]);
+
+  return c.json({
+    stats: {
+      total_users: (results[0].results?.[0] as any)?.c ?? 0,
+      total_forms: (results[1].results?.[0] as any)?.c ?? 0,
+      total_responses: (results[2].results?.[0] as any)?.c ?? 0,
+      total_admins: (results[3].results?.[0] as any)?.c ?? 0,
+      published_forms: (results[4].results?.[0] as any)?.c ?? 0,
+    },
+    recent_users: results[5].results,
+    recent_forms: results[6].results,
+  });
+});
+
 // GET /v1/admin/stats — high level dashboard numbers
 app.get("/stats", async (c) => {
   const db = c.env.DB;

@@ -54,33 +54,42 @@ app.get("/export", async (c) => {
     .bind(u.uid)
     .all();
 
-  const forms = [] as any[];
-  for (const f of formRows as any[]) {
-    const { results: respRows } = await c.env.DB.prepare(
-      `SELECT id, answers_json, calculated_json, submitted_at
-         FROM responses WHERE form_id = ? ORDER BY submitted_at ASC`,
-    )
-      .bind(f.id)
-      .all();
-    forms.push({
-      id: f.id,
-      title: f.title,
-      description: f.description,
-      fields: safeParse(f.schema_json, []),
-      calculations: safeParse(f.calculations_json ?? "[]", []),
-      published: f.published,
-      public_slug: f.public_slug,
-      created_at: f.created_at,
-      updated_at: f.updated_at,
-      responses: (respRows as any[]).map((r) => ({
-        id: r.id,
-        answers: safeParse(r.answers_json, {}),
-        calculated: safeParse(r.calculated_json ?? "{}", {}),
-        submitted_at: r.submitted_at,
-        submitted_at_str: formatLocalized(r.submitted_at, tz),
-      })),
+  // Optimized: Fetch all responses for all user forms in ONE query
+  const { results: allResponses } = await c.env.DB.prepare(
+    `SELECT r.id, r.form_id, r.answers_json, r.calculated_json, r.submitted_at
+       FROM responses r
+       JOIN forms f ON r.form_id = f.id
+       WHERE f.owner_uid = ?
+       ORDER BY r.submitted_at ASC`,
+  )
+    .bind(u.uid)
+    .all();
+
+  // Group responses by form_id for O(1) lookup
+  const responsesByForm = (allResponses as any[]).reduce((acc, r) => {
+    if (!acc[r.form_id]) acc[r.form_id] = [];
+    acc[r.form_id].push({
+      id: r.id,
+      answers: safeParse(r.answers_json, {}),
+      calculated: safeParse(r.calculated_json ?? "{}", {}),
+      submitted_at: r.submitted_at,
+      submitted_at_str: formatLocalized(r.submitted_at, tz),
     });
-  }
+    return acc;
+  }, {} as Record<string, any[]>);
+
+  const forms = (formRows as any[]).map((f) => ({
+    id: f.id,
+    title: f.title,
+    description: f.description,
+    fields: safeParse(f.schema_json, []),
+    calculations: safeParse(f.calculations_json ?? "[]", []),
+    published: f.published,
+    public_slug: f.public_slug,
+    created_at: f.created_at,
+    updated_at: f.updated_at,
+    responses: responsesByForm[f.id] ?? [],
+  }));
 
   return c.json(
     { 
