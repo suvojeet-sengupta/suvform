@@ -31,4 +31,22 @@ class AdminRepository @Inject constructor(
         runCatching { api.adminRemoveAdmin(uid) }
 
     suspend fun quickAdminCheck(): Result<JsonObject> = runCatching { api.adminCheck() }
+
+    /**
+     * Verifies if the current user still has admin access.
+     * Returns true if still admin, false if access was revoked.
+     */
+    suspend fun verifyAdminAccess(): Result<Boolean> = runCatching {
+        api.adminCheck()
+        true
+    }.recoverCatching { throwable ->
+        // If we get 403 with admin_revoked, treat as revoked
+        val message = throwable.message ?: ""
+        if (message.contains("admin_revoked", ignoreCase = true) ||
+            message.contains("forbidden", ignoreCase = true)) {
+            false
+        } else {
+            throw throwable
+        }
+    }
 }

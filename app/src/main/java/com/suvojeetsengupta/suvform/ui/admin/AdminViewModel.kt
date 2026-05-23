@@ -18,6 +18,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AdminViewModel @Inject constructor(
     private val adminRepo: AdminRepository,
+    private val authRepository: AuthRepository,
 ) : ViewModel() {
 
     private val _stats = MutableStateFlow<AdminStatsDto?>(null)
@@ -45,6 +46,15 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             _loading.value = true
             _error.value = null
+
+            // First verify if user still has admin access (important after revocation)
+            val accessCheck = adminRepo.verifyAdminAccess()
+            if (accessCheck.isFailure || accessCheck.getOrNull() == false) {
+                authRepository.markAdminAccessRevoked()
+                _error.value = "Your admin access has been revoked by the owner."
+                _loading.value = false
+                return@launch
+            }
 
             val statsRes = adminRepo.getStats()
             statsRes.onSuccess { _stats.value = it }

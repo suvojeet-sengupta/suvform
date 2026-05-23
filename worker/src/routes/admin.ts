@@ -9,7 +9,10 @@ app.use("*", async (c, next) => {
   const u = c.get("user");
   const admin = await isAdmin(c.env.DB, u.uid);
   if (!admin) {
-    return c.json({ error: "forbidden", message: "Admin access required" }, 403);
+    return c.json({
+      error: "admin_revoked",
+      message: "Your admin access has been revoked by the owner.",
+    }, 403);
   }
   return next();
 });

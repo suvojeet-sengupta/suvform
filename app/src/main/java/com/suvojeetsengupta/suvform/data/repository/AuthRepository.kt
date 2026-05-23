@@ -109,6 +109,14 @@ class AuthRepository @Inject constructor(
     /** Fetch the full data export as a JSON string. */
     suspend fun exportData(): String =
         withContext(Dispatchers.IO) { api.exportData().string() }
+
+    /**
+     * Called when backend confirms that admin access was revoked.
+     * Updates local state so Admin tab hides immediately.
+     */
+    fun markAdminAccessRevoked() {
+        _isAdmin.value = false
+    }
 }
 
 sealed interface FirebaseAuthState {
