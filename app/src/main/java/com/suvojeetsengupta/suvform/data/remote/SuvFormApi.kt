@@ -103,4 +103,10 @@ interface SuvFormApi {
 
     @PUT("v1/admin/forms/{id}")
     suspend fun adminUpdateForm(@Path("id") id: String, @Body body: SaveFormRequest): UpdateAckDto
+
+    @DELETE("v1/admin/forms/{id}")
+    suspend fun adminDeleteForm(@Path("id") id: String): JsonObject
+
+    @DELETE("v1/admin/users/{uid}")
+    suspend fun adminDeleteUser(@Path("uid") uid: String): JsonObject
 }

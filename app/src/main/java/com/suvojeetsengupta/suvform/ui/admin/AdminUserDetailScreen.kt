@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,7 +27,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +52,26 @@ fun AdminUserDetailScreen(
     val forms by viewModel.forms.collectAsStateWithLifecycle()
     val loading by viewModel.loading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val deleting by viewModel.deleting.collectAsStateWithLifecycle()
+    val deleted by viewModel.deleted.collectAsStateWithLifecycle()
+
+    LaunchedEffect(deleted) { if (deleted) onBack() }
+
+    var showDelete by remember { mutableStateOf(false) }
+    val u = user
+
+    if (showDelete && u != null) {
+        TwoStepDeleteDialog(
+            title = "Delete this user?",
+            warning = "This will permanently delete ${u.displayName ?: u.email ?: u.uid} along with " +
+                "their ${u.totalForms} forms and ${u.totalResponses} responses. They will be signed out everywhere.",
+            confirmPhrase = u.email ?: u.uid,
+            confirmActionLabel = "Delete user",
+            inProgress = deleting,
+            onConfirm = { viewModel.deleteUser() },
+            onDismiss = { showDelete = false },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -55,6 +80,13 @@ fun AdminUserDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (u != null && u.role != "owner") {
+                        IconButton(onClick = { showDelete = true }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Delete user", tint = MaterialTheme.colorScheme.error)
+                        }
                     }
                 },
             )

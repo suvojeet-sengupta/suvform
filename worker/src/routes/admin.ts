@@ -159,6 +159,54 @@ app.get("/responses", async (c) => {
   });
 });
 
+// DELETE /v1/admin/forms/:id — admin delete of any user's form.
+// Explicitly removes responses first so it works regardless of FK cascade.
+// The client gates this behind a warning + type-to-confirm step.
+app.delete("/forms/:id", async (c) => {
+  const id = c.req.param("id");
+  const exists = await c.env.DB.prepare(`SELECT 1 FROM forms WHERE id = ? LIMIT 1`).bind(id).first();
+  if (!exists) return c.json({ error: "not_found" }, 404);
+
+  await c.env.DB.batch([
+    c.env.DB.prepare(`DELETE FROM responses WHERE form_id = ?`).bind(id),
+    c.env.DB.prepare(`DELETE FROM forms WHERE id = ?`).bind(id),
+  ]);
+
+  return c.json({ ok: true, deleted: id });
+});
+
+// DELETE /v1/admin/users/:uid — admin delete of an entire user account and all
+// their data (forms + responses). Protected: cannot delete the owner or yourself.
+// The client gates this behind a warning + type-to-confirm (email) step.
+app.delete("/users/:uid", async (c) => {
+  const uid = c.req.param("uid");
+  const caller = c.get("user").uid;
+
+  if (uid === caller) {
+    return c.json({ error: "cannot_delete_self", message: "You can't delete your own account from the admin panel." }, 403);
+  }
+  if (await isOwner(c.env.DB, uid)) {
+    return c.json({ error: "cannot_delete_owner", message: "The owner account cannot be deleted." }, 403);
+  }
+
+  const user = await c.env.DB.prepare(`SELECT uid FROM users WHERE uid = ? LIMIT 1`).bind(uid).first();
+  if (!user) return c.json({ error: "not_found" }, 404);
+
+  // Remove responses → forms → admin row → user, in dependency order.
+  await c.env.DB.batch([
+    c.env.DB.prepare(`DELETE FROM responses WHERE form_id IN (SELECT id FROM forms WHERE owner_uid = ?)`).bind(uid),
+    c.env.DB.prepare(`DELETE FROM forms WHERE owner_uid = ?`).bind(uid),
+    c.env.DB.prepare(`DELETE FROM admins WHERE uid = ?`).bind(uid),
+    c.env.DB.prepare(`DELETE FROM users WHERE uid = ?`).bind(uid),
+  ]);
+
+  // Invalidate any outstanding tokens for the deleted user.
+  const nowSec = Math.floor(Date.now() / 1000);
+  await c.env.RATE_LIMIT.put(`revoke:${uid}`, String(nowSec));
+
+  return c.json({ ok: true, deleted: uid });
+});
+
 // === ADMIN MANAGEMENT ===
 
 // GET /v1/admin/admins — list current admins

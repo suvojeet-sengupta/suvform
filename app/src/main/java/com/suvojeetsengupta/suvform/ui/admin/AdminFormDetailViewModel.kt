@@ -46,6 +46,13 @@ class AdminFormDetailViewModel @Inject constructor(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    private val _deleting = MutableStateFlow(false)
+    val deleting: StateFlow<Boolean> = _deleting.asStateFlow()
+
+    /** Flips to true once the form is deleted so the screen can navigate back. */
+    private val _deleted = MutableStateFlow(false)
+    val deleted: StateFlow<Boolean> = _deleted.asStateFlow()
+
     init {
         load()
     }
@@ -108,6 +115,19 @@ class AdminFormDetailViewModel @Inject constructor(
                 }
                 .onFailure { _error.value = it.message ?: "Failed to save" }
             _saving.value = false
+        }
+    }
+
+    /** Permanently delete this form and its responses. Caller handles confirmation. */
+    fun deleteForm() {
+        if (formId.isBlank()) return
+        viewModelScope.launch {
+            _deleting.value = true
+            _error.value = null
+            adminRepo.deleteForm(formId)
+                .onSuccess { _deleted.value = true }
+                .onFailure { _error.value = it.message ?: "Failed to delete form" }
+            _deleting.value = false
         }
     }
 

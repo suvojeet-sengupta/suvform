@@ -49,6 +49,12 @@ class AdminRepository @Inject constructor(
     suspend fun updateForm(id: String, body: SaveFormRequest): Result<UpdateAckDto> =
         runCatching { api.adminUpdateForm(id, body) }
 
+    suspend fun deleteForm(id: String): Result<JsonObject> =
+        runCatching { api.adminDeleteForm(id) }
+
+    suspend fun deleteUser(uid: String): Result<JsonObject> =
+        runCatching { api.adminDeleteUser(uid) }
+
     suspend fun quickAdminCheck(): Result<JsonObject> = runCatching { api.adminCheck() }
 
     /**

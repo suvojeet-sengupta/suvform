@@ -36,6 +36,13 @@ class AdminUserDetailViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _deleting = MutableStateFlow(false)
+    val deleting: StateFlow<Boolean> = _deleting.asStateFlow()
+
+    /** Flips to true once the user is deleted so the screen can navigate back. */
+    private val _deleted = MutableStateFlow(false)
+    val deleted: StateFlow<Boolean> = _deleted.asStateFlow()
+
     init {
         load()
     }
@@ -82,6 +89,28 @@ class AdminUserDetailViewModel @Inject constructor(
                 _forms.update { it.copy(loadingMore = false) }
                 _error.value = it.message
             }
+    }
+
+    /** Permanently delete this user and all their forms + responses. */
+    fun deleteUser() {
+        if (uid.isBlank()) return
+        viewModelScope.launch {
+            _deleting.value = true
+            _error.value = null
+            adminRepo.deleteUser(uid)
+                .onSuccess { _deleted.value = true }
+                .onFailure { _error.value = friendlyError(it.message) }
+            _deleting.value = false
+        }
+    }
+
+    private fun friendlyError(raw: String?): String {
+        val m = raw ?: return "Failed to delete user"
+        return when {
+            m.contains("cannot_delete_owner", true) -> "The owner account cannot be deleted."
+            m.contains("cannot_delete_self", true) -> "You can't delete your own account here."
+            else -> m
+        }
     }
 
     fun clearError() { _error.value = null }

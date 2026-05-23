@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -29,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,8 +58,26 @@ fun AdminFormDetailScreen(
     val draftDescription by viewModel.draftDescription.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val deleting by viewModel.deleting.collectAsStateWithLifecycle()
+    val deleted by viewModel.deleted.collectAsStateWithLifecycle()
+
+    LaunchedEffect(deleted) { if (deleted) onBack() }
 
     var showConfirm by remember { mutableStateOf(false) }
+    var showDelete by remember { mutableStateOf(false) }
+
+    if (showDelete && form != null) {
+        TwoStepDeleteDialog(
+            title = "Delete this form?",
+            warning = "This will permanently delete \"${form!!.title}\" and all ${form!!.totalResponses} of its responses, " +
+                "owned by ${form!!.ownerName ?: form!!.ownerEmail ?: form!!.ownerUid}.",
+            confirmPhrase = form!!.title.ifBlank { "DELETE" },
+            confirmActionLabel = "Delete form",
+            inProgress = deleting,
+            onConfirm = { viewModel.deleteForm() },
+            onDismiss = { showDelete = false },
+        )
+    }
 
     if (showConfirm) {
         AlertDialog(
@@ -96,6 +116,9 @@ fun AdminFormDetailScreen(
                     if (form != null && !editMode) {
                         IconButton(onClick = { viewModel.enterEditMode() }) {
                             Icon(Icons.Filled.Edit, contentDescription = "Edit")
+                        }
+                        IconButton(onClick = { showDelete = true }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 },
