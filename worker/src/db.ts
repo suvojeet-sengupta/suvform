@@ -90,6 +90,25 @@ export async function isOwner(db: D1Database, uid: string): Promise<boolean> {
  * Removes an admin.
  * Safety: cannot remove the last remaining admin.
  */
+/**
+ * Full profile sync. Usually called once after sign-in.
+ */
+export async function upsertUserProfile(db: D1Database, u: FirebaseUser) {
+  const now = Date.now();
+  await db
+    .prepare(
+      `INSERT INTO users (uid, email, display_name, photo_url, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(uid) DO UPDATE SET
+         email = excluded.email,
+         display_name = excluded.display_name,
+         photo_url = excluded.photo_url,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(u.uid, u.email ?? null, u.name ?? null, u.picture ?? null, now, now)
+    .run();
+}
+
 export async function removeAdmin(db: D1Database, targetUid: string): Promise<{ removed: boolean; reason?: string }> {
   const target = await getAdminRecord(db, targetUid);
   if (target?.role === 'owner') {

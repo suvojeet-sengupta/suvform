@@ -144,7 +144,7 @@ app.get("/admins", async (c) => {
 
 // POST /v1/admin/admins — add new admin (body: { uid: "..." })
 app.post("/admins", async (c) => {
-  const body = await c.req.json<{ uid?: string }>().catch(() => ({}));
+  const body = await c.req.json<{ uid?: string }>().catch(() => ({} as { uid?: string }));
   const target = (body.uid || "").trim();
   if (!target) return c.json({ error: "uid_required" }, 400);
 
