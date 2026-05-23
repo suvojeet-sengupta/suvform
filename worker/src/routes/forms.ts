@@ -15,8 +15,9 @@ app.get("/", async (c) => {
   // No ensureUserExists here: a SELECT needs no FK row, and the user is already
   // created on sign-in (POST /v1/me) and on form creation. Saves a write per list.
   const { results } = await c.env.DB.prepare(
-    `SELECT id, title, description, published, public_slug, created_at, updated_at
-       FROM forms WHERE owner_uid = ? ORDER BY updated_at DESC LIMIT ?`,
+    `SELECT f.id, f.title, f.description, f.published, f.public_slug, f.created_at, f.updated_at,
+            (SELECT COUNT(*) FROM responses WHERE form_id = f.id) as response_count
+       FROM forms f WHERE f.owner_uid = ? ORDER BY f.updated_at DESC LIMIT ?`,
   )
     .bind(u.uid, CONFIG.FORMS_LIST_LIMIT)
     .all();

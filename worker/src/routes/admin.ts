@@ -131,7 +131,8 @@ app.get("/forms", async (c) => {
     .prepare(
       `SELECT f.id, f.title, f.description, f.published, f.public_slug,
               f.created_at, f.updated_at, f.owner_uid,
-              u.email as owner_email, u.display_name as owner_name
+              u.email as owner_email, u.display_name as owner_name,
+              (SELECT COUNT(*) FROM responses WHERE form_id = f.id) as response_count
        FROM forms f
        LEFT JOIN users u ON u.uid = f.owner_uid
        ORDER BY f.created_at DESC LIMIT ? OFFSET ?`
@@ -311,8 +312,9 @@ app.get("/users/:uid/forms", async (c) => {
 
   const { results } = await c.env.DB
     .prepare(
-      `SELECT id, title, description, published, public_slug, created_at, updated_at, owner_uid
-       FROM forms WHERE owner_uid = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+      `SELECT f.id, f.title, f.description, f.published, f.public_slug, f.created_at, f.updated_at, f.owner_uid,
+              (SELECT COUNT(*) FROM responses WHERE form_id = f.id) as response_count
+       FROM forms f WHERE f.owner_uid = ? ORDER BY f.updated_at DESC LIMIT ? OFFSET ?`,
     )
     .bind(uid, limit, offset)
     .all();
