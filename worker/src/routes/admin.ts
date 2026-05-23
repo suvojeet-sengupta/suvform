@@ -339,6 +339,48 @@ app.get("/forms/:id", async (c) => {
   });
 });
 
+// GET /v1/admin/forms/:id/responses — responses for any form (paginated).
+// Mirrors the owner-facing /v1/forms/:id/responses shape so the client can
+// reuse the same response models and rendering.
+app.get("/forms/:id/responses", async (c) => {
+  const id = c.req.param("id");
+  const exists = await c.env.DB.prepare(`SELECT 1 FROM forms WHERE id = ? LIMIT 1`).bind(id).first();
+  if (!exists) return c.json({ error: "not_found" }, 404);
+
+  const limit = Math.min(
+    Math.max(parseInt(c.req.query("limit") || String(CONFIG.RESPONSES_PAGE_DEFAULT)) || CONFIG.RESPONSES_PAGE_DEFAULT, 1),
+    CONFIG.RESPONSES_PAGE_MAX,
+  );
+  const offset = Math.max(parseInt(c.req.query("offset") || "0") || 0, 0);
+
+  const { results } = await c.env.DB
+    .prepare(
+      `SELECT id, answers_json, calculated_json, submitted_at
+       FROM responses WHERE form_id = ? ORDER BY submitted_at DESC LIMIT ? OFFSET ?`,
+    )
+    .bind(id, limit, offset)
+    .all();
+
+  const countRow = await c.env.DB
+    .prepare(`SELECT COUNT(*) as count FROM responses WHERE form_id = ?`)
+    .bind(id)
+    .first<{ count: number }>();
+
+  const tz = c.get("timezone");
+
+  return c.json({
+    responses: (results as any[]).map((r) => ({
+      id: r.id,
+      submitted_at: r.submitted_at,
+      submitted_at_str: formatLocalized(r.submitted_at, tz),
+      answers: safeParse(r.answers_json, {}),
+      calculated: safeParse(r.calculated_json ?? "{}", {}),
+    })),
+    total_count: countRow?.count ?? 0,
+    has_more: (offset + results.length) < (countRow?.count ?? 0),
+  });
+});
+
 // PUT /v1/admin/forms/:id — admin edit of any user's form.
 // The client surfaces a warning + explicit confirm before calling this.
 app.put("/forms/:id", async (c) => {

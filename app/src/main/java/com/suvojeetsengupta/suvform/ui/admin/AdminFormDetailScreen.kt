@@ -1,5 +1,6 @@
 package com.suvojeetsengupta.suvform.ui.admin
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Warning
@@ -48,6 +50,7 @@ import com.suvojeetsengupta.suvform.data.remote.FieldDto
 @Composable
 fun AdminFormDetailScreen(
     onBack: () -> Unit,
+    onViewResponses: (String) -> Unit,
     viewModel: AdminFormDetailViewModel = hiltViewModel(),
 ) {
     val form by viewModel.form.collectAsStateWithLifecycle()
@@ -209,7 +212,25 @@ fun AdminFormDetailScreen(
                     f.updatedAtStr?.let {
                         Text("Updated: $it", style = MaterialTheme.typography.bodySmall)
                     }
-                    Text("${f.totalResponses} responses", style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(12.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                        modifier = Modifier.fillMaxWidth().clickable { onViewResponses(f.id) },
+                    ) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "View ${f.totalResponses} responses",
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Icon(
+                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        }
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
             }

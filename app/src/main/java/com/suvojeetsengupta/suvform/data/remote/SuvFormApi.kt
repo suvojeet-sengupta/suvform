@@ -104,6 +104,13 @@ interface SuvFormApi {
     @PUT("v1/admin/forms/{id}")
     suspend fun adminUpdateForm(@Path("id") id: String, @Body body: SaveFormRequest): UpdateAckDto
 
+    @GET("v1/admin/forms/{id}/responses")
+    suspend fun adminListFormResponses(
+        @Path("id") id: String,
+        @retrofit2.http.Query("limit") limit: Int = 50,
+        @retrofit2.http.Query("offset") offset: Int = 0,
+    ): ResponsesListDto
+
     @DELETE("v1/admin/forms/{id}")
     suspend fun adminDeleteForm(@Path("id") id: String): JsonObject
 

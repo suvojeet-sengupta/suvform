@@ -7,6 +7,7 @@ import com.suvojeetsengupta.suvform.data.remote.AdminFormsDto
 import com.suvojeetsengupta.suvform.data.remote.AdminStatsDto
 import com.suvojeetsengupta.suvform.data.remote.AdminUserDetailDto
 import com.suvojeetsengupta.suvform.data.remote.AdminUsersDto
+import com.suvojeetsengupta.suvform.data.remote.ResponsesListDto
 import com.suvojeetsengupta.suvform.data.remote.SaveFormRequest
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
 import com.suvojeetsengupta.suvform.data.remote.UpdateAckDto
@@ -48,6 +49,9 @@ class AdminRepository @Inject constructor(
 
     suspend fun updateForm(id: String, body: SaveFormRequest): Result<UpdateAckDto> =
         runCatching { api.adminUpdateForm(id, body) }
+
+    suspend fun listFormResponses(id: String, limit: Int = 50, offset: Int = 0): Result<ResponsesListDto> =
+        runCatching { api.adminListFormResponses(id, limit, offset) }
 
     suspend fun deleteForm(id: String): Result<JsonObject> =
         runCatching { api.adminDeleteForm(id) }

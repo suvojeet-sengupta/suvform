@@ -36,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.suvojeetsengupta.suvform.ui.admin.AdminFormDetailScreen
+import com.suvojeetsengupta.suvform.ui.admin.AdminFormResponsesScreen
 import com.suvojeetsengupta.suvform.ui.admin.AdminScreen
 import com.suvojeetsengupta.suvform.ui.admin.AdminUserDetailScreen
 import com.suvojeetsengupta.suvform.ui.home.HomeScreen
@@ -227,7 +228,16 @@ fun MainScreen(
                         route = "admin_form/{formId}",
                         arguments = listOf(navArgument("formId") { type = NavType.StringType }),
                     ) {
-                        AdminFormDetailScreen(onBack = { navController.popBackStack() })
+                        AdminFormDetailScreen(
+                            onBack = { navController.popBackStack() },
+                            onViewResponses = { formId -> navController.navigate("admin_form_responses/$formId") },
+                        )
+                    }
+                    composable(
+                        route = "admin_form_responses/{formId}",
+                        arguments = listOf(navArgument("formId") { type = NavType.StringType }),
+                    ) {
+                        AdminFormResponsesScreen(onBack = { navController.popBackStack() })
                     }
                 }
             }
