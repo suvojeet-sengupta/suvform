@@ -1,6 +1,6 @@
 name = "suvform-api"
 main = "src/index.ts"
-compatibility_date = "2026-05-01"
+compatibility_date = "2026-05-23"
 compatibility_flags = ["nodejs_compat"]
 
 [observability]
