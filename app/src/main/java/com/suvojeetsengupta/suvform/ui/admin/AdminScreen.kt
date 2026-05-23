@@ -3,6 +3,7 @@ package com.suvojeetsengupta.suvform.ui.admin
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -158,7 +159,7 @@ fun AdminScreen(
 }
 
 @Composable
-private fun StatCard(title: String, value: Int) {
+private fun RowScope.StatCard(title: String, value: Int) {
     Card(modifier = Modifier.weight(1f)) {
         Column(
             modifier = Modifier.padding(12.dp),
