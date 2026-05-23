@@ -87,4 +87,20 @@ interface SuvFormApi {
 
     @DELETE("v1/admin/admins/{uid}")
     suspend fun adminRemoveAdmin(@Path("uid") uid: String): JsonObject
+
+    @GET("v1/admin/users/{uid}")
+    suspend fun adminGetUser(@Path("uid") uid: String): AdminUserDetailDto
+
+    @GET("v1/admin/users/{uid}/forms")
+    suspend fun adminListUserForms(
+        @Path("uid") uid: String,
+        @retrofit2.http.Query("limit") limit: Int = 50,
+        @retrofit2.http.Query("offset") offset: Int = 0,
+    ): AdminFormsDto
+
+    @GET("v1/admin/forms/{id}")
+    suspend fun adminGetForm(@Path("id") id: String): AdminFormDetailDto
+
+    @PUT("v1/admin/forms/{id}")
+    suspend fun adminUpdateForm(@Path("id") id: String, @Body body: SaveFormRequest): UpdateAckDto
 }

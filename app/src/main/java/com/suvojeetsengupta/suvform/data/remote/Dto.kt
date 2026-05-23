@@ -156,7 +156,8 @@ data class AdminFormDto(
     val published: Int = 0,
     @SerialName("public_slug") val publicSlug: String? = null,
     @SerialName("created_at") val createdAt: Long,
-    @SerialName("owner_uid") val ownerUid: String,
+    @SerialName("updated_at") val updatedAt: Long = 0,
+    @SerialName("owner_uid") val ownerUid: String = "",
     @SerialName("owner_email") val ownerEmail: String? = null,
     @SerialName("owner_name") val ownerName: String? = null,
 )
@@ -186,4 +187,40 @@ data class AdminAdminsDto(
 )
 
 @Serializable
-data class AdminAddRequest(val uid: String)
+data class AdminAddRequest(
+    val uid: String? = null,
+    val email: String? = null,
+)
+
+@Serializable
+data class AdminUserDetailDto(
+    val uid: String,
+    val email: String? = null,
+    @SerialName("display_name") val displayName: String? = null,
+    @SerialName("photo_url") val photoUrl: String? = null,
+    @SerialName("created_at") val createdAt: Long = 0,
+    @SerialName("created_at_str") val createdAtStr: String? = null,
+    @SerialName("is_admin") val isAdmin: Boolean = false,
+    val role: String? = null,
+    @SerialName("total_forms") val totalForms: Int = 0,
+    @SerialName("published_forms") val publishedForms: Int = 0,
+    @SerialName("total_responses") val totalResponses: Int = 0,
+)
+
+@Serializable
+data class AdminFormDetailDto(
+    val id: String,
+    val title: String,
+    val description: String? = null,
+    val fields: List<FieldDto> = emptyList(),
+    val calculations: List<CalculationDto> = emptyList(),
+    val published: Int = 0,
+    @SerialName("public_slug") val publicSlug: String? = null,
+    @SerialName("created_at") val createdAt: Long = 0,
+    @SerialName("updated_at") val updatedAt: Long = 0,
+    @SerialName("updated_at_str") val updatedAtStr: String? = null,
+    @SerialName("owner_uid") val ownerUid: String = "",
+    @SerialName("owner_email") val ownerEmail: String? = null,
+    @SerialName("owner_name") val ownerName: String? = null,
+    @SerialName("total_responses") val totalResponses: Int = 0,
+)

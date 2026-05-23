@@ -29,6 +29,20 @@ export async function isAdmin(db: D1Database, uid: string): Promise<boolean> {
 }
 
 /**
+ * Looks up a user by email (case-insensitive). Returns null if no such user
+ * has signed in yet — admin rights can only attach to a real account.
+ */
+export async function findUserByEmail(db: D1Database, email: string) {
+  return await db
+    .prepare(
+      `SELECT uid, email, display_name, photo_url, created_at
+       FROM users WHERE lower(email) = lower(?) LIMIT 1`,
+    )
+    .bind(email)
+    .first<{ uid: string; email: string | null; display_name: string | null; photo_url: string | null; created_at: number }>();
+}
+
+/**
  * Returns list of all admins with basic info.
  */
 export async function listAdmins(db: D1Database) {

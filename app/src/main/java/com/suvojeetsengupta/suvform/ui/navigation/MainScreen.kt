@@ -33,7 +33,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.suvojeetsengupta.suvform.ui.admin.AdminFormDetailScreen
 import com.suvojeetsengupta.suvform.ui.admin.AdminScreen
+import com.suvojeetsengupta.suvform.ui.admin.AdminUserDetailScreen
 import com.suvojeetsengupta.suvform.ui.home.HomeScreen
 import com.suvojeetsengupta.suvform.ui.responses.ResponseDetailScreen
 import com.suvojeetsengupta.suvform.ui.responses.ResponsesScreen
@@ -203,8 +207,28 @@ fun MainScreen(
             }
 
             if (isAdmin) {
-                composable("admin_tab") {
-                    AdminScreen()
+                navigation(startDestination = "admin_dashboard", route = "admin_tab") {
+                    composable("admin_dashboard") {
+                        AdminScreen(
+                            onOpenUser = { uid -> navController.navigate("admin_user/$uid") },
+                            onOpenForm = { formId -> navController.navigate("admin_form/$formId") },
+                        )
+                    }
+                    composable(
+                        route = "admin_user/{uid}",
+                        arguments = listOf(navArgument("uid") { type = NavType.StringType }),
+                    ) {
+                        AdminUserDetailScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenForm = { formId -> navController.navigate("admin_form/$formId") },
+                        )
+                    }
+                    composable(
+                        route = "admin_form/{formId}",
+                        arguments = listOf(navArgument("formId") { type = NavType.StringType }),
+                    ) {
+                        AdminFormDetailScreen(onBack = { navController.popBackStack() })
+                    }
                 }
             }
         }

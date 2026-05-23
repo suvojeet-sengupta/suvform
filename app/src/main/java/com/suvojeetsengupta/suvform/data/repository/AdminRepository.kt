@@ -2,10 +2,14 @@ package com.suvojeetsengupta.suvform.data.repository
 
 import com.suvojeetsengupta.suvform.data.remote.AdminAddRequest
 import com.suvojeetsengupta.suvform.data.remote.AdminAdminsDto
+import com.suvojeetsengupta.suvform.data.remote.AdminFormDetailDto
 import com.suvojeetsengupta.suvform.data.remote.AdminFormsDto
 import com.suvojeetsengupta.suvform.data.remote.AdminStatsDto
+import com.suvojeetsengupta.suvform.data.remote.AdminUserDetailDto
 import com.suvojeetsengupta.suvform.data.remote.AdminUsersDto
+import com.suvojeetsengupta.suvform.data.remote.SaveFormRequest
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
+import com.suvojeetsengupta.suvform.data.remote.UpdateAckDto
 import kotlinx.serialization.json.JsonObject
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,11 +28,26 @@ class AdminRepository @Inject constructor(
 
     suspend fun listAdmins(): Result<AdminAdminsDto> = runCatching { api.adminListAdmins() }
 
+    suspend fun addAdminByEmail(email: String): Result<JsonObject> =
+        runCatching { api.adminAddAdmin(AdminAddRequest(email = email)) }
+
     suspend fun addAdmin(uid: String): Result<JsonObject> =
-        runCatching { api.adminAddAdmin(AdminAddRequest(uid)) }
+        runCatching { api.adminAddAdmin(AdminAddRequest(uid = uid)) }
 
     suspend fun removeAdmin(uid: String): Result<JsonObject> =
         runCatching { api.adminRemoveAdmin(uid) }
+
+    suspend fun getUser(uid: String): Result<AdminUserDetailDto> =
+        runCatching { api.adminGetUser(uid) }
+
+    suspend fun listUserForms(uid: String, limit: Int = 50, offset: Int = 0): Result<AdminFormsDto> =
+        runCatching { api.adminListUserForms(uid, limit, offset) }
+
+    suspend fun getForm(id: String): Result<AdminFormDetailDto> =
+        runCatching { api.adminGetForm(id) }
+
+    suspend fun updateForm(id: String, body: SaveFormRequest): Result<UpdateAckDto> =
+        runCatching { api.adminUpdateForm(id, body) }
 
     suspend fun quickAdminCheck(): Result<JsonObject> = runCatching { api.adminCheck() }
 

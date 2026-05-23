@@ -1,0 +1,116 @@
+package com.suvojeetsengupta.suvform.ui.admin
+
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.suvojeetsengupta.suvform.data.remote.AdminFormDetailDto
+import com.suvojeetsengupta.suvform.data.remote.SaveFormRequest
+import com.suvojeetsengupta.suvform.data.repository.AdminRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class AdminFormDetailViewModel @Inject constructor(
+    private val adminRepo: AdminRepository,
+    savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+
+    val formId: String = savedStateHandle.get<String>("formId").orEmpty()
+
+    private val _form = MutableStateFlow<AdminFormDetailDto?>(null)
+    val form: StateFlow<AdminFormDetailDto?> = _form.asStateFlow()
+
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
+
+    private val _saving = MutableStateFlow(false)
+    val saving: StateFlow<Boolean> = _saving.asStateFlow()
+
+    private val _editMode = MutableStateFlow(false)
+    val editMode: StateFlow<Boolean> = _editMode.asStateFlow()
+
+    // Editable draft (only title + description are admin-editable; fields/calcs preserved).
+    private val _draftTitle = MutableStateFlow("")
+    val draftTitle: StateFlow<String> = _draftTitle.asStateFlow()
+
+    private val _draftDescription = MutableStateFlow("")
+    val draftDescription: StateFlow<String> = _draftDescription.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message.asStateFlow()
+
+    init {
+        load()
+    }
+
+    fun load() {
+        if (formId.isBlank()) {
+            _error.value = "Missing form id"
+            return
+        }
+        viewModelScope.launch {
+            _loading.value = true
+            _error.value = null
+            adminRepo.getForm(formId)
+                .onSuccess {
+                    _form.value = it
+                    _draftTitle.value = it.title
+                    _draftDescription.value = it.description.orEmpty()
+                }
+                .onFailure { _error.value = it.message }
+            _loading.value = false
+        }
+    }
+
+    fun enterEditMode() {
+        _form.value?.let {
+            _draftTitle.value = it.title
+            _draftDescription.value = it.description.orEmpty()
+        }
+        _editMode.value = true
+    }
+
+    fun cancelEdit() {
+        _editMode.value = false
+        _form.value?.let {
+            _draftTitle.value = it.title
+            _draftDescription.value = it.description.orEmpty()
+        }
+    }
+
+    fun setTitle(v: String) { _draftTitle.value = v }
+    fun setDescription(v: String) { _draftDescription.value = v }
+
+    /** Persist the edit. Caller is responsible for the confirm dialog. */
+    fun saveEdit() {
+        val current = _form.value ?: return
+        viewModelScope.launch {
+            _saving.value = true
+            _error.value = null
+            val body = SaveFormRequest(
+                title = _draftTitle.value.trim().ifBlank { "Untitled form" },
+                description = _draftDescription.value,
+                fields = current.fields,
+                calculations = current.calculations,
+            )
+            adminRepo.updateForm(formId, body)
+                .onSuccess {
+                    _message.value = "Changes saved"
+                    _editMode.value = false
+                    load()
+                }
+                .onFailure { _error.value = it.message ?: "Failed to save" }
+            _saving.value = false
+        }
+    }
+
+    fun clearError() { _error.value = null }
+    fun clearMessage() { _message.value = null }
+}

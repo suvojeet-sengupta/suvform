@@ -1,8 +1,30 @@
 import { Hono } from "hono";
 import { Bindings, Variables } from "../types";
-import { isAdmin, isOwner, listAdmins, addAdmin, removeAdmin } from "../db";
+import { isAdmin, isOwner, listAdmins, addAdmin, removeAdmin, findUserByEmail } from "../db";
+import { CONFIG } from "../config";
+import { safeParse } from "../utils/helpers";
+import { formatLocalized } from "../utils/time";
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+
+type FormBody = {
+  title?: string;
+  description?: string;
+  fields?: unknown[];
+  calculations?: unknown[];
+};
+
+function validateFormBody(b: FormBody): { ok: true; data: Required<FormBody> } | { ok: false; err: string } {
+  const title = (b.title ?? "").toString().trim() || "Untitled form";
+  if (title.length > CONFIG.TITLE_MAX_LEN) return { ok: false, err: "title_too_long" };
+  const description = (b.description ?? "").toString();
+  if (description.length > CONFIG.DESCRIPTION_MAX_LEN) return { ok: false, err: "description_too_long" };
+  const fields = Array.isArray(b.fields) ? b.fields : [];
+  if (fields.length > CONFIG.MAX_FIELDS) return { ok: false, err: "too_many_fields" };
+  const calculations = Array.isArray(b.calculations) ? b.calculations : [];
+  if (calculations.length > CONFIG.MAX_CALCULATIONS) return { ok: false, err: "too_many_calculations" };
+  return { ok: true, data: { title, description, fields, calculations } };
+}
 
 // Middleware: only allow admins
 app.use("*", async (c, next) => {
@@ -145,11 +167,25 @@ app.get("/admins", async (c) => {
   return c.json({ admins });
 });
 
-// POST /v1/admin/admins — add new admin (body: { uid: "..." })
+// POST /v1/admin/admins — add new admin by email (preferred) or uid.
+// Email must belong to a user who has already signed in.
 app.post("/admins", async (c) => {
-  const body = await c.req.json<{ uid?: string }>().catch(() => ({} as { uid?: string }));
-  const target = (body.uid || "").trim();
-  if (!target) return c.json({ error: "uid_required" }, 400);
+  const body = await c.req.json<{ uid?: string; email?: string }>().catch(() => ({} as { uid?: string; email?: string }));
+  const email = (body.email || "").trim();
+  let target = (body.uid || "").trim();
+
+  if (!target && email) {
+    const user = await findUserByEmail(c.env.DB, email);
+    if (!user) {
+      return c.json({
+        error: "user_not_found",
+        message: "No registered user with that email. They must sign in to the app at least once before they can be made an admin.",
+      }, 404);
+    }
+    target = user.uid;
+  }
+
+  if (!target) return c.json({ error: "uid_or_email_required" }, 400);
 
   const caller = c.get("user").uid;
   if (await isOwner(c.env.DB, target)) {
@@ -158,6 +194,125 @@ app.post("/admins", async (c) => {
   await addAdmin(c.env.DB, target, caller);
 
   return c.json({ ok: true, added: target });
+});
+
+// GET /v1/admin/users/:uid — single user profile with form/response counts
+app.get("/users/:uid", async (c) => {
+  const uid = c.req.param("uid");
+  const tz = c.get("timezone");
+
+  const user = await c.env.DB
+    .prepare(`SELECT uid, email, display_name, photo_url, created_at, updated_at FROM users WHERE uid = ?`)
+    .bind(uid)
+    .first<{ uid: string; email: string | null; display_name: string | null; photo_url: string | null; created_at: number; updated_at: number }>();
+  if (!user) return c.json({ error: "not_found" }, 404);
+
+  const [formCount, publishedCount, responseCount, adminRow] = await Promise.all([
+    c.env.DB.prepare(`SELECT COUNT(*) as c FROM forms WHERE owner_uid = ?`).bind(uid).first<{ c: number }>(),
+    c.env.DB.prepare(`SELECT COUNT(*) as c FROM forms WHERE owner_uid = ? AND published = 1`).bind(uid).first<{ c: number }>(),
+    c.env.DB.prepare(`SELECT COUNT(*) as c FROM responses r JOIN forms f ON f.id = r.form_id WHERE f.owner_uid = ?`).bind(uid).first<{ c: number }>(),
+    c.env.DB.prepare(`SELECT role FROM admins WHERE uid = ? LIMIT 1`).bind(uid).first<{ role: string }>(),
+  ]);
+
+  return c.json({
+    ...user,
+    created_at_str: formatLocalized(user.created_at, tz),
+    is_admin: !!adminRow,
+    role: adminRow?.role ?? null,
+    total_forms: formCount?.c ?? 0,
+    published_forms: publishedCount?.c ?? 0,
+    total_responses: responseCount?.c ?? 0,
+  });
+});
+
+// GET /v1/admin/users/:uid/forms — forms owned by a specific user (paginated)
+app.get("/users/:uid/forms", async (c) => {
+  const uid = c.req.param("uid");
+  const limit = Math.min(parseInt(c.req.query("limit") || "50", 10), 200);
+  const offset = Math.max(parseInt(c.req.query("offset") || "0", 10), 0);
+  const tz = c.get("timezone");
+
+  const { results } = await c.env.DB
+    .prepare(
+      `SELECT id, title, description, published, public_slug, created_at, updated_at, owner_uid
+       FROM forms WHERE owner_uid = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?`,
+    )
+    .bind(uid, limit, offset)
+    .all();
+
+  const total = await c.env.DB.prepare(`SELECT COUNT(*) as c FROM forms WHERE owner_uid = ?`).bind(uid).first<{ c: number }>();
+
+  return c.json({
+    forms: (results as any[]).map((f) => ({ ...f, updated_at_str: formatLocalized(f.updated_at, tz) })),
+    total: total?.c ?? 0,
+    limit,
+    offset,
+    has_more: (offset + results.length) < (total?.c ?? 0),
+  });
+});
+
+// GET /v1/admin/forms/:id — full detail of any form (fields + calculations)
+app.get("/forms/:id", async (c) => {
+  const id = c.req.param("id");
+  const tz = c.get("timezone");
+
+  const row = await c.env.DB
+    .prepare(
+      `SELECT f.id, f.title, f.description, f.schema_json, f.calculations_json,
+              f.published, f.public_slug, f.created_at, f.updated_at, f.owner_uid,
+              u.email as owner_email, u.display_name as owner_name
+       FROM forms f LEFT JOIN users u ON u.uid = f.owner_uid
+       WHERE f.id = ?`,
+    )
+    .bind(id)
+    .first<any>();
+  if (!row) return c.json({ error: "not_found" }, 404);
+
+  const responseCount = await c.env.DB
+    .prepare(`SELECT COUNT(*) as c FROM responses WHERE form_id = ?`)
+    .bind(id)
+    .first<{ c: number }>();
+
+  return c.json({
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    fields: safeParse(row.schema_json || "[]", []),
+    calculations: safeParse(row.calculations_json || "[]", []),
+    published: row.published,
+    public_slug: row.public_slug,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    updated_at_str: formatLocalized(row.updated_at, tz),
+    owner_uid: row.owner_uid,
+    owner_email: row.owner_email,
+    owner_name: row.owner_name,
+    total_responses: responseCount?.c ?? 0,
+  });
+});
+
+// PUT /v1/admin/forms/:id — admin edit of any user's form.
+// The client surfaces a warning + explicit confirm before calling this.
+app.put("/forms/:id", async (c) => {
+  const id = c.req.param("id");
+  const exists = await c.env.DB.prepare(`SELECT 1 FROM forms WHERE id = ? LIMIT 1`).bind(id).first();
+  if (!exists) return c.json({ error: "not_found" }, 404);
+
+  const body = await c.req.json<FormBody>().catch(() => ({} as FormBody));
+  const v = validateFormBody(body);
+  if (!v.ok) return c.json({ error: v.err }, 400);
+
+  const now = Date.now();
+  await c.env.DB
+    .prepare(
+      `UPDATE forms SET title = ?, description = ?, schema_json = ?, calculations_json = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .bind(v.data.title, v.data.description, JSON.stringify(v.data.fields), JSON.stringify(v.data.calculations), now, id)
+    .run();
+
+  const tz = c.get("timezone");
+  return c.json({ id, updated_at: now, updated_at_str: formatLocalized(now, tz) });
 });
 
 // DELETE /v1/admin/admins/:uid — remove an admin (cannot remove last admin)
