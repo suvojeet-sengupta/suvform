@@ -65,13 +65,10 @@ app.post("/", async (c) => {
   const calcStr = JSON.stringify(v.data.calculations);
 
   await c.env.DB.batch([
+    // 1. Create the form row first (current_version_id remains NULL)
     c.env.DB.prepare(
-      `INSERT INTO form_versions (id, form_id, schema_json, calculations_json, created_at)
-       VALUES (?, ?, ?, ?, ?)`
-    ).bind(versionId, id, schemaStr, calcStr, now),
-    c.env.DB.prepare(
-      `INSERT INTO forms (id, owner_uid, title, description, schema_json, calculations_json, current_version_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO forms (id, owner_uid, title, description, schema_json, calculations_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       id,
       u.uid,
@@ -79,10 +76,18 @@ app.post("/", async (c) => {
       v.data.description,
       schemaStr,
       calcStr,
-      versionId,
       now,
       now,
-    )
+    ),
+    // 2. Create the initial version row (references the form ID)
+    c.env.DB.prepare(
+      `INSERT INTO form_versions (id, form_id, schema_json, calculations_json, created_at)
+       VALUES (?, ?, ?, ?, ?)`
+    ).bind(versionId, id, schemaStr, calcStr, now),
+    // 3. Link the form back to its initial version
+    c.env.DB.prepare(
+      `UPDATE forms SET current_version_id = ? WHERE id = ?`
+    ).bind(versionId, id)
   ]);
 
   const tz = c.get("timezone");
