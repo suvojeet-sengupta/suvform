@@ -5,6 +5,7 @@ export type Bindings = {
   RATE_LIMIT: KVNamespace;
   FIREBASE_PROJECT_ID: string;
   GEMINI_API_KEY: string;
+  GROQ_API_KEY?: string;  // Optional Groq key
 };
 
 export type Variables = {
