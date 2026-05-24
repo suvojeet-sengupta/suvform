@@ -167,7 +167,7 @@ class ResponsesViewModel @Inject constructor(
             }
             // Nothing cached — sync from the network.
             runCatching {
-                formRepository.syncForms(force = true)
+                formRepository.syncDashboard(force = true)
                 formRepository.observeForms().first()
             }
                 .onSuccess { forms ->
