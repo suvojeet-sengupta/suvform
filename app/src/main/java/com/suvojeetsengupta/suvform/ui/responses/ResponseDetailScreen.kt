@@ -50,6 +50,12 @@ fun ResponseDetailScreen(
 ) {
     val fmt = remember { SimpleDateFormat("d MMMM yyyy, h:mm a", Locale.getDefault()) }
 
+    // Legacy fields: answers that are not in the current fields list
+    val currentFieldIds = remember(fields) { fields.map { it.id }.toSet() }
+    val legacyAnswers = remember(response.answers, currentFieldIds) {
+        response.answers.filterKeys { it !in currentFieldIds }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
