@@ -64,10 +64,10 @@ fun ResponsesScreen(
     onBack: () -> Unit,
     onViewDetail: () -> Unit,
     viewModel: ResponsesViewModel = hiltViewModel<ResponsesViewModel>(),
-    biometricAuthManager: BiometricAuthManager = hiltViewModel<BiometricAuthManager>()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsStateWithLifecycle()
+    val biometricAuthManager = viewModel.biometricAuthManager
     val context = LocalContext.current
     val c = SuvTheme.colors
     val lazyPagingItems = viewModel.responsesPagingData.collectAsLazyPagingItems()

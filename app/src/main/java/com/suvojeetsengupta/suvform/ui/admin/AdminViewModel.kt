@@ -33,6 +33,7 @@ class AdminViewModel @Inject constructor(
     private val adminRepo: AdminRepository,
     private val authRepository: AuthRepository,
     private val securityStore: SecurityPreferenceStore,
+    val biometricAuthManager: BiometricAuthManager,
 ) : ViewModel() {
 
     private val _stats = MutableStateFlow<AdminStatsDto?>(null)

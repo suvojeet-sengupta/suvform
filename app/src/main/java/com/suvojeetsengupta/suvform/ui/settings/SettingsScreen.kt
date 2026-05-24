@@ -73,12 +73,12 @@ import com.suvojeetsengupta.suvform.util.BiometricAuthManager
 fun SettingsScreen(
     onSignedOut: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel<SettingsViewModel>(),
-    biometricAuthManager: BiometricAuthManager = hiltViewModel<BiometricAuthManager>()
 ) {
     val user by viewModel.user.collectAsStateWithLifecycle()
     val apiKey by viewModel.apiKey.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsStateWithLifecycle()
+    val biometricAuthManager = viewModel.biometricAuthManager
     val account by viewModel.account.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }

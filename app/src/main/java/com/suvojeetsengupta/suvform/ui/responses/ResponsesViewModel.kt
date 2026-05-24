@@ -51,6 +51,7 @@ class ResponsesViewModel @Inject constructor(
     private val formRepository: FormRepository,
     private val responseRepository: ResponseRepository,
     private val securityStore: SecurityPreferenceStore,
+    val biometricAuthManager: BiometricAuthManager,
 ) : ViewModel() {
 
     private val _selectedFormId = MutableStateFlow(selectedForm.formId)

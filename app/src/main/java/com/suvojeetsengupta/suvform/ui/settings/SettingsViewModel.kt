@@ -31,6 +31,7 @@ class SettingsViewModel @Inject constructor(
     private val themeStore: ThemePreferenceStore,
     private val geminiKeyStore: GeminiKeyStore,
     private val securityStore: SecurityPreferenceStore,
+    val biometricAuthManager: BiometricAuthManager,
 ) : ViewModel() {
 
     private val _user = MutableStateFlow<FirebaseUser?>(auth.currentUser)

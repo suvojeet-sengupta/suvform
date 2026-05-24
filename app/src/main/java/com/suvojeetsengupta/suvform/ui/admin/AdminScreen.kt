@@ -51,7 +51,6 @@ fun AdminScreen(
     onOpenUser: (String) -> Unit,
     onOpenForm: (String) -> Unit,
     viewModel: AdminViewModel = hiltViewModel<AdminViewModel>(),
-    biometricAuthManager: BiometricAuthManager = hiltViewModel<BiometricAuthManager>()
 ) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val users by viewModel.users.collectAsStateWithLifecycle()
@@ -62,6 +61,7 @@ fun AdminScreen(
     val error by viewModel.error.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsStateWithLifecycle()
+    val biometricAuthManager = viewModel.biometricAuthManager
 
     val context = LocalContext.current
     var biometricAuthenticated by remember { mutableStateOf(false) }
