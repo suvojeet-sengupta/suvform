@@ -7,9 +7,10 @@
 const GROQ_BASE = "https://api.groq.com/openai/v1/chat/completions";
 
 // Recommended models (May 2026):
-// - "llama-3.3-70b-versatile" → Best quality for JSON forms
-// - "llama-3.1-8b-instant"    → Fastest + highest free tier limits
-const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
+// - "llama-3.3-70b-versatile" → Best quality for JSON forms (Primary)
+// - "llama-3.1-8b-instant"    → Ultra fast + higher limits (Fallback)
+const PRIMARY_GROQ_MODEL = "llama-3.3-70b-versatile";
+const FALLBACK_GROQ_MODEL = "llama-3.1-8b-instant";
 
 async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
@@ -64,8 +65,7 @@ async function callGroq(
 export async function generateFormWithGroq(
   apiKey: string,
   prompt: string,
-  locale: string,
-  model: string = DEFAULT_GROQ_MODEL
+  locale: string
 ) {
   const systemPrompt =
     locale === "hi"
@@ -89,9 +89,17 @@ Expression rules: Use field IDs, numbers, and + - * / % (). Example: "(field_1 +
     { role: "user", content: userContent },
   ];
 
-  const text = await callGroq(apiKey, messages, model, 25000); // 25s timeout
+  let text: string;
+  try {
+    // Attempt with high-quality versatile model first
+    text = await callGroq(apiKey, messages, PRIMARY_GROQ_MODEL, 20000);
+  } catch (e) {
+    console.log("[GROQ PRIMARY FAILED] Falling back to instant model:", (e as Error).message);
+    // If versatile fails or times out, try the ultra-fast instant model
+    text = await callGroq(apiKey, messages, FALLBACK_GROQ_MODEL, 10000);
+  }
 
-  // Clean possible markdown
+  // Clean possible markdown wrapping
   const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
   return JSON.parse(cleaned);
 }
