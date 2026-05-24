@@ -7,6 +7,7 @@ import com.suvojeetsengupta.suvform.data.remote.FormDetailDto
 import com.suvojeetsengupta.suvform.data.remote.PublishResponse
 import com.suvojeetsengupta.suvform.data.remote.SaveFormRequest
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
+import com.suvojeetsengupta.suvform.data.remote.UserStatsDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import java.util.concurrent.ConcurrentHashMap
@@ -34,6 +35,8 @@ class FormRepository @Inject constructor(
     private val syncThrottleMs = 5 * 60_000L
     @Volatile private var lastSyncAt = 0L
 
+    @Volatile private var cachedStats: UserStatsDto? = null
+
     // ---- List (Room-backed) ----
 
     /** Observe the current user's cached form summaries. Emits offline too. */
@@ -43,19 +46,28 @@ class FormRepository @Inject constructor(
     }
 
     /**
-     * Sync the form list from the server into Room. Throttled to [syncThrottleMs]
+     * Sync the form list and stats from the server into Room. Throttled to [syncThrottleMs]
      * unless [force] is true. Returns true if a network call actually ran.
      * Throws on network failure (caller decides how to surface it).
      */
-    suspend fun syncForms(force: Boolean): Boolean {
-        val uid = auth.currentUser?.uid ?: return false
+    suspend fun syncDashboard(force: Boolean): UserStatsDto? {
+        val uid = auth.currentUser?.uid ?: return cachedStats
         val now = System.currentTimeMillis()
-        if (!force && now - lastSyncAt < syncThrottleMs) return false
-        val resp = api.listForms()
+        if (!force && now - lastSyncAt < syncThrottleMs && cachedStats != null) return cachedStats
+
+        val resp = api.getUserDashboard()
         formDao.replaceForOwner(uid, resp.forms.map { FormSummaryEntity.fromDto(uid, it) })
+        cachedStats = resp.stats
         lastSyncAt = now
+        return resp.stats
+    }
+
+    suspend fun syncForms(force: Boolean): Boolean {
+        syncDashboard(force)
         return true
     }
+
+    fun getCachedStats(): UserStatsDto? = cachedStats
 
     // ---- Detail (in-memory cache) ----
 

@@ -28,6 +28,9 @@ interface SuvFormApi {
     @GET("v1/forms")
     suspend fun listForms(): FormListDto
 
+    @GET("v1/forms/dashboard")
+    suspend fun getUserDashboard(): UserDashboardDto
+
     @POST("v1/forms")
     suspend fun createForm(@Body body: SaveFormRequest): FormDetailDto
 

@@ -184,6 +184,65 @@ fun HomeScreen(
 }
 
 @Composable
+private fun DashboardStatsSection(stats: com.suvojeetsengupta.suvform.data.remote.UserStatsDto?) {
+    val c = SuvTheme.colors
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        StatCard(
+            label = "RESPONSES",
+            value = (stats?.totalResponses ?: 0).toString(),
+            modifier = Modifier.weight(1f),
+            color = c.accent
+        )
+        StatCard(
+            label = "FORMS",
+            value = (stats?.totalForms ?: 0).toString(),
+            modifier = Modifier.weight(1f),
+            color = c.ink
+        )
+        StatCard(
+            label = "LIVE",
+            value = (stats?.publishedForms ?: 0).toString(),
+            modifier = Modifier.weight(1f),
+            color = c.ok
+        )
+    }
+}
+
+@Composable
+private fun StatCard(label: String, value: String, modifier: Modifier = Modifier, color: Color) {
+    val c = SuvTheme.colors
+    SuvCard(
+        radius = 20,
+        modifier = modifier,
+        container = c.card,
+        border = true,
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        Column {
+            Text(
+                text = label,
+                fontFamily = Mono,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                color = c.muted2,
+                letterSpacing = 0.5.sp
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = value,
+                fontFamily = Fraunces,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+        }
+    }
+}
+
+@Composable
 private fun Banner(tag: String, msg: String, bg: Color, fg: Color) {
     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(bg).padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {

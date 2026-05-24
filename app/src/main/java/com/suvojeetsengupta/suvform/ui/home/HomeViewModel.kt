@@ -45,6 +45,7 @@ class HomeViewModel @Inject constructor(
                 loading = meta.loading,
                 forms = entities.map { it.toDto() },
                 shareUrls = entities.associate { it.id to it.shareUrl },
+                stats = meta.stats ?: formRepository.getCachedStats(),
                 error = meta.error,
                 openingFormId = meta.openingFormId,
                 offline = meta.offline,
@@ -57,8 +58,10 @@ class HomeViewModel @Inject constructor(
         if (_meta.value.loading) return
         _meta.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
-            runCatching { formRepository.syncForms(force) }
-                .onSuccess { _meta.update { it.copy(loading = false, offline = false) } }
+            runCatching { formRepository.syncDashboard(force) }
+                .onSuccess { stats -> 
+                    _meta.update { it.copy(loading = false, offline = false, stats = stats) } 
+                }
                 .onFailure { e ->
                     val msg = ErrorMapper.message(e)
                     // Don't blow away cached data — show offline banner.
@@ -161,6 +164,7 @@ class HomeViewModel @Inject constructor(
         val error: String? = null,
         val openingFormId: String? = null,
         val offline: Boolean = false,
+        val stats: UserStatsDto? = null,
     )
 }
 
@@ -168,6 +172,7 @@ data class HomeUiState(
     val loading: Boolean = false,
     val forms: List<FormSummaryDto> = emptyList(),
     val shareUrls: Map<String, String?> = emptyMap(),
+    val stats: UserStatsDto? = null,
     val error: String? = null,
     val openingFormId: String? = null,
     val offline: Boolean = false,

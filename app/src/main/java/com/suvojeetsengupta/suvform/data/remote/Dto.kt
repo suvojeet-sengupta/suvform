@@ -27,6 +27,19 @@ data class FormSummaryDto(
 data class FormListDto(val forms: List<FormSummaryDto>)
 
 @Serializable
+data class UserStatsDto(
+    @SerialName("total_forms") val totalForms: Int = 0,
+    @SerialName("total_responses") val totalResponses: Int = 0,
+    @SerialName("published_forms") val publishedForms: Int = 0,
+)
+
+@Serializable
+data class UserDashboardDto(
+    val stats: UserStatsDto,
+    val forms: List<FormSummaryDto> = emptyList(),
+)
+
+@Serializable
 data class CreateFormRequest(val title: String = "Untitled form", val description: String = "")
 
 // --- AI form generation ---
