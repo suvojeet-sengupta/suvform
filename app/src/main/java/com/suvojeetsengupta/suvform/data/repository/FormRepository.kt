@@ -62,11 +62,6 @@ class FormRepository @Inject constructor(
         return resp.stats
     }
 
-    suspend fun syncForms(force: Boolean): Boolean {
-        syncDashboard(force)
-        return true
-    }
-
     fun getCachedStats(): UserStatsDto? = cachedStats
 
     // ---- Detail (in-memory cache) ----
