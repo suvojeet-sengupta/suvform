@@ -30,6 +30,45 @@ app.get("/", async (c) => {
   return c.json({ forms });
 });
 
+// GET /v1/forms/dashboard — High-performance consolidated home view
+app.get("/dashboard", async (c) => {
+  const u = c.get("user");
+  const tz = c.get("timezone");
+  const db = c.env.DB;
+
+  // Use D1 Batching to get everything in ONE database roundtrip.
+  // 1. Get recent forms
+  // 2. Get total forms count
+  // 3. Get total responses count across all forms
+  // 4. Get total published forms count
+  const results = await db.batch([
+    db.prepare(
+      `SELECT f.id, f.title, f.description, f.published, f.public_slug, f.created_at, f.updated_at,
+              (SELECT COUNT(*) FROM responses WHERE form_id = f.id) as response_count
+         FROM forms f WHERE f.owner_uid = ? ORDER BY f.updated_at DESC LIMIT ?`,
+    ).bind(u.uid, CONFIG.FORMS_LIST_LIMIT),
+    db.prepare(`SELECT COUNT(*) as c FROM forms WHERE owner_uid = ?`).bind(u.uid),
+    db.prepare(
+      `SELECT COUNT(*) as c FROM responses r JOIN forms f ON r.form_id = f.id WHERE f.owner_uid = ?`
+    ).bind(u.uid),
+    db.prepare(`SELECT COUNT(*) as c FROM forms WHERE owner_uid = ? AND published = 1`).bind(u.uid)
+  ]);
+
+  const forms = (results[0].results as any[]).map(f => ({
+    ...f,
+    updated_at_str: formatLocalized(f.updated_at, tz)
+  }));
+
+  return c.json({
+    stats: {
+      total_forms: (results[1].results?.[0] as any)?.c ?? 0,
+      total_responses: (results[2].results?.[0] as any)?.c ?? 0,
+      published_forms: (results[3].results?.[0] as any)?.c ?? 0,
+    },
+    forms,
+  });
+});
+
 type FormBody = {
   title?: string;
   description?: string;
