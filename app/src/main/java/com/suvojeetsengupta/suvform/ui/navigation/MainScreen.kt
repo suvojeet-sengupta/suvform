@@ -204,15 +204,17 @@ fun MainScreen(
                 }
             }
 
-            composable(Routes.Settings) {
-                SettingsScreen(
-                    onSignedOut = onSignedOut,
-                    onOpenAbout = { navController.navigate(Routes.About) }
-                )
-            }
+            navigation(startDestination = Routes.Settings, route = "settings_flow") {
+                composable(Routes.Settings) {
+                    SettingsScreen(
+                        onSignedOut = onSignedOut,
+                        onOpenAbout = { navController.navigate(Routes.About) }
+                    )
+                }
 
-            composable(Routes.About) {
-                AboutScreen(onBack = { navController.popBackStack() })
+                composable(Routes.About) {
+                    AboutScreen(onBack = { navController.popBackStack() })
+                }
             }
 
             if (isAdmin) {
