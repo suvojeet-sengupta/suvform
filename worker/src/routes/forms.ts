@@ -8,28 +8,6 @@ import { formatLocalized } from "../utils/time";
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
-// GET /v1/forms — list current user's forms
-app.get("/", async (c) => {
-  const u = c.get("user");
-  const tz = c.get("timezone");
-  // No ensureUserExists here: a SELECT needs no FK row, and the user is already
-  // created on sign-in (POST /v1/me) and on form creation. Saves a write per list.
-  const { results } = await c.env.DB.prepare(
-    `SELECT f.id, f.title, f.description, f.published, f.public_slug, f.created_at, f.updated_at,
-            (SELECT COUNT(*) FROM responses WHERE form_id = f.id) as response_count
-       FROM forms f WHERE f.owner_uid = ? ORDER BY f.updated_at DESC LIMIT ?`,
-  )
-    .bind(u.uid, CONFIG.FORMS_LIST_LIMIT)
-    .all();
-    
-  const forms = (results as any[]).map(f => ({
-    ...f,
-    updated_at_str: formatLocalized(f.updated_at, tz)
-  }));
-
-  return c.json({ forms });
-});
-
 // GET /v1/forms/dashboard — High-performance consolidated home view
 app.get("/dashboard", async (c) => {
   const u = c.get("user");

@@ -27,7 +27,7 @@ export function useForms(enabled = true) {
   const api = useApi();
   return useQuery({
     queryKey: queryKeys.forms,
-    queryFn: () => api.get("/v1/forms"),
+    queryFn: () => api.get("/v1/forms/dashboard"),
     enabled,
   });
 }

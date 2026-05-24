@@ -40,6 +40,7 @@ export default function Dashboard() {
   const { data, isLoading } = useForms(!!user);
   const deleteForm = useDeleteForm();
   const forms: FormSummary[] = data?.forms ?? [];
+  const stats = data?.stats ?? { total_forms: 0, total_responses: 0, published_forms: 0 };
 
   const [activeFilter, setActiveFilter] = useState<"all" | "public" | "responses">("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -202,6 +203,22 @@ export default function Dashboard() {
         {/* Dashboard Content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8" onClick={() => setOpenMenuId(null)}>
           <div className="max-w-6xl mx-auto">
+            {/* Stats Section */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+              <div className="bg-card border border-line rounded-2xl p-5 shadow-sm">
+                <p className="mono-label text-muted2 text-[10px] mb-1">TOTAL RESPONSES</p>
+                <p className="text-3xl font-serif text-accent font-bold">{stats.total_responses}</p>
+              </div>
+              <div className="bg-card border border-line rounded-2xl p-5 shadow-sm">
+                <p className="mono-label text-muted2 text-[10px] mb-1">FORMS CREATED</p>
+                <p className="text-3xl font-serif text-ink font-bold">{stats.total_forms}</p>
+              </div>
+              <div className="bg-card border border-line rounded-2xl p-5 shadow-sm">
+                <p className="mono-label text-muted2 text-[10px] mb-1">LIVE FORMS</p>
+                <p className="text-3xl font-serif text-ok font-bold">{stats.published_forms}</p>
+              </div>
+            </div>
+
             <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
               <div>
                 <h2 className="text-3xl font-serif text-ink tracking-tight">
