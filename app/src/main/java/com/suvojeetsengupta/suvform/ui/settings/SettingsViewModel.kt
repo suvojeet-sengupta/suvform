@@ -11,6 +11,7 @@ import com.suvojeetsengupta.suvform.data.prefs.SecurityPreferenceStore
 import com.suvojeetsengupta.suvform.data.prefs.ThemePreferenceStore
 import com.suvojeetsengupta.suvform.data.repository.AuthRepository
 import com.suvojeetsengupta.suvform.ui.theme.ThemeMode
+import com.suvojeetsengupta.suvform.util.BiometricAuthManager
 import com.suvojeetsengupta.suvform.util.ErrorMapper
 import com.suvojeetsengupta.suvform.util.ResponseExport
 import dagger.hilt.android.lifecycle.HiltViewModel

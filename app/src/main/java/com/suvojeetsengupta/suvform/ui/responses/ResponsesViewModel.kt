@@ -11,6 +11,7 @@ import com.suvojeetsengupta.suvform.data.remote.FieldDto
 import com.suvojeetsengupta.suvform.data.remote.ResponseItemDto
 import com.suvojeetsengupta.suvform.data.repository.FormRepository
 import com.suvojeetsengupta.suvform.data.repository.ResponseRepository
+import com.suvojeetsengupta.suvform.util.BiometricAuthManager
 import com.suvojeetsengupta.suvform.util.ErrorMapper
 import com.suvojeetsengupta.suvform.util.ResponseExport
 import dagger.hilt.android.lifecycle.HiltViewModel
