@@ -103,12 +103,6 @@ fun ResponseDetailScreen(
                 Spacer(Modifier.height(20.dp))
             }
 
-            // Legacy fields: answers that are not in the current fields list
-            val currentFieldIds = remember(fields) { fields.map { it.id }.toSet() }
-            val legacyAnswers = remember(response.answers, currentFieldIds) {
-                response.answers.filterKeys { it !in currentFieldIds }
-            }
-
             if (legacyAnswers.isNotEmpty()) {
                 item {
                     Spacer(Modifier.height(8.dp))
