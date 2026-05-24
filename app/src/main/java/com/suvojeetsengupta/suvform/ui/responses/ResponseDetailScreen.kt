@@ -97,6 +97,29 @@ fun ResponseDetailScreen(
                 Spacer(Modifier.height(20.dp))
             }
 
+            // Legacy fields: answers that are not in the current fields list
+            val currentFieldIds = remember(fields) { fields.map { it.id }.toSet() }
+            val legacyAnswers = remember(response.answers, currentFieldIds) {
+                response.answers.filterKeys { it !in currentFieldIds }
+            }
+
+            if (legacyAnswers.isNotEmpty()) {
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Legacy Data (Previous Versions)",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
+                items(legacyAnswers.toList()) { (id, answer) ->
+                    DetailItem(label = id, value = answer)
+                    Spacer(Modifier.height(20.dp))
+                }
+            }
+
             if (response.calculated.isNotEmpty()) {
                 item {
                     Spacer(Modifier.height(8.dp))

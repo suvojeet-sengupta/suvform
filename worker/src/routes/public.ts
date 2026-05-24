@@ -10,26 +10,27 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 app.get("/v1/public/forms/:slug", async (c) => {
   const slug = c.req.param("slug");
   const row = await c.env.DB.prepare(
-    `SELECT title, description, schema_json, calculations_json
+    `SELECT title, description, schema_json, calculations_json, current_version_id
        FROM forms WHERE public_slug = ? AND published = 1`,
   )
     .bind(slug)
-    .first<{ title: string; description: string; schema_json: string; calculations_json: string }>();
+    .first<{ title: string; description: string; schema_json: string; calculations_json: string; current_version_id: string }>();
   if (!row) return c.json({ error: "not_found" }, 404);
   return c.json({
     title: row.title,
     description: row.description,
     fields: safeParse(row.schema_json, []),
     calculations: safeParse(row.calculations_json || "[]", []),
+    version_id: row.current_version_id,
   });
 });
 
 // POST /v1/public/forms/:slug/responses
 app.post("/v1/public/forms/:slug/responses", async (c) => {
   const slug = c.req.param("slug");
-  const form = await c.env.DB.prepare(`SELECT id, schema_json FROM forms WHERE public_slug = ? AND published = 1`)
+  const form = await c.env.DB.prepare(`SELECT id, current_version_id, schema_json FROM forms WHERE public_slug = ? AND published = 1`)
     .bind(slug)
-    .first<{ id: string; schema_json: string }>();
+    .first<{ id: string; current_version_id: string; schema_json: string }>();
   if (!form) return c.json({ error: "not_found" }, 404);
 
   const ip = c.req.header("CF-Connecting-IP") ?? "0.0.0.0";
@@ -38,11 +39,28 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
   const used = parseInt((await c.env.RATE_LIMIT.get(rlKey)) ?? "0", 10);
   if (used >= CONFIG.PUBLIC_SUBMIT_PER_HOUR) return c.json({ error: "rate_limited" }, 429);
 
-  // Reject oversized payloads early to prevent storage abuse / DoS.
   const rawBody = await c.req.text();
   if (rawBody.length > CONFIG.MAX_BODY_BYTES) return c.json({ error: "payload_too_large" }, 413);
 
-  const body = safeParse<{ answers?: Record<string, unknown>; calculated?: Record<string, number> }>(rawBody, {});
+  const body = safeParse<{ answers?: Record<string, unknown>; calculated?: Record<string, number>; versionId?: string }>(rawBody, {});
+  
+  // Use the submitted versionId if valid, otherwise fallback to current.
+  let targetVersionId = body?.versionId || form.current_version_id;
+  let validationSchemaJson = form.schema_json;
+
+  // If the submitted version isn't the current one, fetch its specific schema for validation.
+  if (body?.versionId && body.versionId !== form.current_version_id) {
+    const verRow = await c.env.DB.prepare(`SELECT schema_json FROM form_versions WHERE id = ? AND form_id = ?`)
+      .bind(body.versionId, form.id)
+      .first<{ schema_json: string }>();
+    if (verRow) {
+      validationSchemaJson = verRow.schema_json;
+    } else {
+      // Version not found for this form, fallback to current
+      targetVersionId = form.current_version_id;
+    }
+  }
+
   const rawAnswers = (body && typeof body === "object" && body.answers && typeof body.answers === "object")
     ? (body.answers as Record<string, unknown>)
     : {};
@@ -50,7 +68,7 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
     ? (body.calculated as Record<string, number>)
     : {};
 
-  const fields = safeParse(form.schema_json, []) as any[];
+  const fields = safeParse(validationSchemaJson, []) as any[];
   const MAX_TEXT_LEN = CONFIG.MAX_TEXT_LEN;
 
   // Build answers only from known fields, validating each by type. Unknown keys are dropped.
@@ -110,10 +128,10 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
   const id = crypto.randomUUID();
   const now = Date.now();
   await c.env.DB.prepare(
-    `INSERT INTO responses (id, form_id, answers_json, calculated_json, submitter_ip_hash, submitted_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO responses (id, form_id, version_id, answers_json, calculated_json, submitter_ip_hash, submitted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, form.id, JSON.stringify(answers), JSON.stringify(calculated), ipHash, now)
+    .bind(id, form.id, targetVersionId, JSON.stringify(answers), JSON.stringify(calculated), ipHash, now)
     .run();
 
   await c.env.RATE_LIMIT.put(rlKey, String(used + 1), { expirationTtl: CONFIG.RATE_LIMIT_TTL_SECONDS });
@@ -124,11 +142,11 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
 app.get("/f/:slug", async (c) => {
   const slug = c.req.param("slug");
   const row = await c.env.DB.prepare(
-    `SELECT title, description, schema_json, calculations_json
+    `SELECT title, description, schema_json, calculations_json, current_version_id
        FROM forms WHERE public_slug = ? AND published = 1`,
   )
     .bind(slug)
-    .first<{ title: string; description: string; schema_json: string; calculations_json: string }>();
+    .first<{ title: string; description: string; schema_json: string; calculations_json: string; current_version_id: string }>();
   if (!row) return c.text("Form not found", 404);
   
   const url = new URL(c.req.url);
@@ -138,6 +156,7 @@ app.get("/f/:slug", async (c) => {
     description: row.description ?? "",
     fields: safeParse(row.schema_json, []),
     calculations: safeParse(row.calculations_json || "[]", []),
+    versionId: row.current_version_id,
     submitUrl: `${url.origin}/v1/public/forms/${slug}/responses`,
   });
   return c.html(html, { headers: { "Cache-Control": `public, max-age=${CONFIG.PUBLIC_FORM_CACHE_SECONDS}` } });

@@ -102,6 +102,7 @@ data class PublishResponse(
 data class ResponseItemDto(
     val id: String,
     @SerialName("submitted_at") val submittedAt: Long,
+    @SerialName("version_id") val versionId: String? = null,
     val answers: Map<String, kotlinx.serialization.json.JsonElement> = emptyMap(),
     val calculated: Map<String, Double> = emptyMap(),
 )

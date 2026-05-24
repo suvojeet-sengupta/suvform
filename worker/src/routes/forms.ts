@@ -58,22 +58,33 @@ app.post("/", async (c) => {
   const v = validateFormBody(body);
   if (!v.ok) return c.json({ error: v.err }, 400);
   const id = crypto.randomUUID();
+  const versionId = crypto.randomUUID();
   const now = Date.now();
-  await c.env.DB.prepare(
-    `INSERT INTO forms (id, owner_uid, title, description, schema_json, calculations_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  )
-    .bind(
+  
+  const schemaStr = JSON.stringify(v.data.fields);
+  const calcStr = JSON.stringify(v.data.calculations);
+
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `INSERT INTO form_versions (id, form_id, schema_json, calculations_json, created_at)
+       VALUES (?, ?, ?, ?, ?)`
+    ).bind(versionId, id, schemaStr, calcStr, now),
+    c.env.DB.prepare(
+      `INSERT INTO forms (id, owner_uid, title, description, schema_json, calculations_json, current_version_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
       id,
       u.uid,
       v.data.title,
       v.data.description,
-      JSON.stringify(v.data.fields),
-      JSON.stringify(v.data.calculations),
+      schemaStr,
+      calcStr,
+      versionId,
       now,
       now,
     )
-    .run();
+  ]);
+
   const tz = c.get("timezone");
   return c.json(
     {
@@ -82,6 +93,7 @@ app.post("/", async (c) => {
       description: v.data.description,
       published: 0,
       public_slug: null,
+      current_version_id: versionId,
       created_at: now,
       updated_at: now,
       updated_at_str: formatLocalized(now, tz),
@@ -134,31 +146,53 @@ app.get("/:id", async (c) => {
 app.put("/:id", async (c) => {
   const u = c.get("user");
   const id = c.req.param("id");
-  const owner = await c.env.DB.prepare(`SELECT owner_uid FROM forms WHERE id = ?`)
+  const existing = await c.env.DB.prepare(`SELECT owner_uid, schema_json, calculations_json, current_version_id FROM forms WHERE id = ?`)
     .bind(id)
-    .first<{ owner_uid: string }>();
-  if (!owner) return c.json({ error: "not_found" }, 404);
-  if (owner.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
+    .first<{ owner_uid: string; schema_json: string; calculations_json: string; current_version_id: string }>();
+  if (!existing) return c.json({ error: "not_found" }, 404);
+  if (existing.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
 
   const body = await c.req.json<FormBody>().catch(() => ({} as FormBody));
   const v = validateFormBody(body);
   if (!v.ok) return c.json({ error: v.err }, 400);
+
+  const schemaStr = JSON.stringify(v.data.fields);
+  const calcStr = JSON.stringify(v.data.calculations);
   const now = Date.now();
-  await c.env.DB.prepare(
-    `UPDATE forms SET title = ?, description = ?, schema_json = ?, calculations_json = ?, updated_at = ?
-       WHERE id = ?`,
-  )
-    .bind(
+
+  const isSchemaChanged = schemaStr !== existing.schema_json || calcStr !== existing.calculations_json;
+  let newVersionId = existing.current_version_id;
+
+  const queries = [];
+  if (isSchemaChanged) {
+    newVersionId = crypto.randomUUID();
+    queries.push(
+      c.env.DB.prepare(
+        `INSERT INTO form_versions (id, form_id, schema_json, calculations_json, created_at)
+         VALUES (?, ?, ?, ?, ?)`
+      ).bind(newVersionId, id, schemaStr, calcStr, now)
+    );
+  }
+
+  queries.push(
+    c.env.DB.prepare(
+      `UPDATE forms SET title = ?, description = ?, schema_json = ?, calculations_json = ?, current_version_id = ?, updated_at = ?
+         WHERE id = ?`
+    ).bind(
       v.data.title,
       v.data.description,
-      JSON.stringify(v.data.fields),
-      JSON.stringify(v.data.calculations),
+      schemaStr,
+      calcStr,
+      newVersionId,
       now,
       id,
     )
-    .run();
+  );
+
+  await c.env.DB.batch(queries);
+
   const tz = c.get("timezone");
-  return c.json({ id, updated_at: now, updated_at_str: formatLocalized(now, tz) });
+  return c.json({ id, updated_at: now, updated_at_str: formatLocalized(now, tz), version_id: newVersionId });
 });
 
 // DELETE /v1/forms/:id
@@ -237,7 +271,7 @@ app.get("/:id/responses", async (c) => {
   const offset = Math.max(parseInt(c.req.query("offset") || "0") || 0, 0);
 
   const { results } = await c.env.DB.prepare(
-    `SELECT id, answers_json, calculated_json, submitted_at
+    `SELECT id, answers_json, calculated_json, version_id, submitted_at
        FROM responses WHERE form_id = ? ORDER BY submitted_at DESC LIMIT ? OFFSET ?`,
   )
     .bind(id, limit, offset)
@@ -254,6 +288,7 @@ app.get("/:id/responses", async (c) => {
       id: r.id,
       submitted_at: r.submitted_at,
       submitted_at_str: formatLocalized(r.submitted_at, tz),
+      version_id: r.version_id,
       answers: safeParse(r.answers_json, {}),
       calculated: safeParse(r.calculated_json ?? "{}", {}),
     })),

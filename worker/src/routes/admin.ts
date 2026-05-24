@@ -386,7 +386,7 @@ app.get("/forms/:id/responses", async (c) => {
 
   const { results } = await c.env.DB
     .prepare(
-      `SELECT id, answers_json, calculated_json, submitted_at
+      `SELECT id, answers_json, calculated_json, version_id, submitted_at
        FROM responses WHERE form_id = ? ORDER BY submitted_at DESC LIMIT ? OFFSET ?`,
     )
     .bind(id, limit, offset)
@@ -404,6 +404,7 @@ app.get("/forms/:id/responses", async (c) => {
       id: r.id,
       submitted_at: r.submitted_at,
       submitted_at_str: formatLocalized(r.submitted_at, tz),
+      version_id: r.version_id,
       answers: safeParse(r.answers_json, {}),
       calculated: safeParse(r.calculated_json ?? "{}", {}),
     })),
@@ -416,24 +417,52 @@ app.get("/forms/:id/responses", async (c) => {
 // The client surfaces a warning + explicit confirm before calling this.
 app.put("/forms/:id", async (c) => {
   const id = c.req.param("id");
-  const exists = await c.env.DB.prepare(`SELECT 1 FROM forms WHERE id = ? LIMIT 1`).bind(id).first();
-  if (!exists) return c.json({ error: "not_found" }, 404);
+  const existing = await c.env.DB.prepare(`SELECT schema_json, calculations_json, current_version_id FROM forms WHERE id = ?`)
+    .bind(id)
+    .first<{ schema_json: string; calculations_json: string; current_version_id: string }>();
+  if (!existing) return c.json({ error: "not_found" }, 404);
 
   const body = await c.req.json<FormBody>().catch(() => ({} as FormBody));
   const v = validateFormBody(body);
   if (!v.ok) return c.json({ error: v.err }, 400);
 
+  const schemaStr = JSON.stringify(v.data.fields);
+  const calcStr = JSON.stringify(v.data.calculations);
   const now = Date.now();
-  await c.env.DB
-    .prepare(
-      `UPDATE forms SET title = ?, description = ?, schema_json = ?, calculations_json = ?, updated_at = ?
-       WHERE id = ?`,
+
+  const isSchemaChanged = schemaStr !== existing.schema_json || calcStr !== existing.calculations_json;
+  let newVersionId = existing.current_version_id;
+
+  const queries = [];
+  if (isSchemaChanged) {
+    newVersionId = crypto.randomUUID();
+    queries.push(
+      c.env.DB.prepare(
+        `INSERT INTO form_versions (id, form_id, schema_json, calculations_json, created_at)
+         VALUES (?, ?, ?, ?, ?)`
+      ).bind(newVersionId, id, schemaStr, calcStr, now)
+    );
+  }
+
+  queries.push(
+    c.env.DB.prepare(
+      `UPDATE forms SET title = ?, description = ?, schema_json = ?, calculations_json = ?, current_version_id = ?, updated_at = ?
+         WHERE id = ?`
+    ).bind(
+      v.data.title,
+      v.data.description,
+      schemaStr,
+      calcStr,
+      newVersionId,
+      now,
+      id,
     )
-    .bind(v.data.title, v.data.description, JSON.stringify(v.data.fields), JSON.stringify(v.data.calculations), now, id)
-    .run();
+  );
+
+  await c.env.DB.batch(queries);
 
   const tz = c.get("timezone");
-  return c.json({ id, updated_at: now, updated_at_str: formatLocalized(now, tz) });
+  return c.json({ id, updated_at: now, updated_at_str: formatLocalized(now, tz), version_id: newVersionId });
 });
 
 // DELETE /v1/admin/admins/:uid — remove an admin (cannot remove last admin)

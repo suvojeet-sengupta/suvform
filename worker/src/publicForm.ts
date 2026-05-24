@@ -9,6 +9,7 @@ export function publicFormHtml(opts: {
   description: string;
   fields: unknown[];
   calculations: unknown[];
+  versionId: string;
   submitUrl: string;
 }): string {
   const dataPayload = JSON.stringify({
@@ -16,6 +17,7 @@ export function publicFormHtml(opts: {
     description: opts.description,
     fields: opts.fields,
     calculations: opts.calculations,
+    versionId: opts.versionId,
     slug: opts.slug,
     submitUrl: opts.submitUrl,
   });
@@ -457,7 +459,7 @@ export function publicFormHtml(opts: {
       const res = await fetch(FORM.submitUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers, calculated }),
+        body: JSON.stringify({ answers, calculated, versionId: FORM.versionId }),
       });
       if (!res.ok) {
         const t = await res.text();
