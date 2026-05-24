@@ -50,8 +50,8 @@ import com.suvojeetsengupta.suvform.util.BiometricAuthManager
 fun AdminScreen(
     onOpenUser: (String) -> Unit,
     onOpenForm: (String) -> Unit,
-    viewModel: AdminViewModel = hiltViewModel(),
-    biometricAuthManager: BiometricAuthManager = hiltViewModel()
+    viewModel: AdminViewModel = hiltViewModel<AdminViewModel>(),
+    biometricAuthManager: BiometricAuthManager = hiltViewModel<BiometricAuthManager>()
 ) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val users by viewModel.users.collectAsStateWithLifecycle()
@@ -65,6 +65,7 @@ fun AdminScreen(
 
     val context = LocalContext.current
     var biometricAuthenticated by remember { mutableStateOf(false) }
+    var newAdminEmail by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         if (!isBiometricEnabled) {

@@ -60,14 +60,34 @@ import java.util.Locale
 fun ResponsesScreen(
     onBack: () -> Unit,
     onViewDetail: () -> Unit,
-    viewModel: ResponsesViewModel = hiltViewModel(),
+    viewModel: ResponsesViewModel = hiltViewModel<ResponsesViewModel>(),
+    biometricAuthManager: BiometricAuthManager = hiltViewModel<BiometricAuthManager>()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val c = SuvTheme.colors
     val lazyPagingItems = viewModel.responsesPagingData.collectAsLazyPagingItems()
 
-    LaunchedEffect(Unit) { viewModel.refresh() }
+    var biometricAuthenticated by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (!isBiometricEnabled) {
+            biometricAuthenticated = true
+            viewModel.refresh()
+        } else {
+            biometricAuthManager.authenticate(
+                activity = context as FragmentActivity,
+                title = "Access Responses",
+                subtitle = "Authenticate to view collected data",
+                onSuccess = {
+                    biometricAuthenticated = true
+                    viewModel.refresh()
+                },
+                onError = { }
+            )
+        }
+    }
 
     BackHandler(enabled = true) {
         if (state.selectedFormId != null) viewModel.clearSelection() else onBack()

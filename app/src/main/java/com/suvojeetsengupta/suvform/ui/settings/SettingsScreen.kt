@@ -41,6 +41,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -58,21 +59,25 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.suvojeetsengupta.suvform.BuildConfig
 import com.suvojeetsengupta.suvform.ui.theme.ThemeMode
+import com.suvojeetsengupta.suvform.util.BiometricAuthManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onSignedOut: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel()
+    viewModel: SettingsViewModel = hiltViewModel<SettingsViewModel>(),
+    biometricAuthManager: BiometricAuthManager = hiltViewModel<BiometricAuthManager>()
 ) {
     val user by viewModel.user.collectAsStateWithLifecycle()
     val apiKey by viewModel.apiKey.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsStateWithLifecycle()
     val account by viewModel.account.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
