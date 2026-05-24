@@ -37,16 +37,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.ui.platform.LocalContext
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.suvojeetsengupta.suvform.data.remote.AdminFormDto
 import com.suvojeetsengupta.suvform.data.remote.AdminUserDto
+import com.suvojeetsengupta.suvform.util.BiometricAuthManager
 
 @Composable
 fun AdminScreen(
     onOpenUser: (String) -> Unit,
     onOpenForm: (String) -> Unit,
     viewModel: AdminViewModel = hiltViewModel(),
+    biometricAuthManager: BiometricAuthManager = hiltViewModel()
 ) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val users by viewModel.users.collectAsStateWithLifecycle()
@@ -56,12 +61,60 @@ fun AdminScreen(
     val revoked by viewModel.revoked.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) { viewModel.loadDashboard() }
+    val context = LocalContext.current
+    var biometricAuthenticated by remember { mutableStateOf(false) }
 
-    var newAdminEmail by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        if (!isBiometricEnabled) {
+            biometricAuthenticated = true
+            viewModel.loadDashboard()
+        } else {
+            biometricAuthManager.authenticate(
+                activity = context as FragmentActivity,
+                title = "Admin Access",
+                subtitle = "Authenticate to enter the admin dashboard",
+                onSuccess = {
+                    biometricAuthenticated = true
+                    viewModel.loadDashboard()
+                },
+                onError = { /* If they cancel or fail, we stay on the lock screen */ }
+            )
+        }
+    }
 
     Scaffold { padding ->
+        if (isBiometricEnabled && !biometricAuthenticated) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.padding(bottom = 16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text("Admin Dashboard is Locked", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = {
+                        biometricAuthManager.authenticate(
+                            activity = context as FragmentActivity,
+                            title = "Admin Access",
+                            subtitle = "Authenticate to enter the admin dashboard",
+                            onSuccess = {
+                                biometricAuthenticated = true
+                                viewModel.loadDashboard()
+                            },
+                            onError = { }
+                        )
+                    }) {
+                        Text("Unlock with Biometrics")
+                    }
+                }
+            }
+            return@Scaffold
+        }
+
         if (loading && stats == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()

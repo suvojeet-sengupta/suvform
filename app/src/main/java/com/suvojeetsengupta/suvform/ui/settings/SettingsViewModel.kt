@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.suvojeetsengupta.suvform.data.prefs.GeminiKeyStore
+import com.suvojeetsengupta.suvform.data.prefs.SecurityPreferenceStore
 import com.suvojeetsengupta.suvform.data.prefs.ThemePreferenceStore
 import com.suvojeetsengupta.suvform.data.repository.AuthRepository
 import com.suvojeetsengupta.suvform.ui.theme.ThemeMode
@@ -29,6 +30,7 @@ class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val themeStore: ThemePreferenceStore,
     private val geminiKeyStore: GeminiKeyStore,
+    private val securityStore: SecurityPreferenceStore,
 ) : ViewModel() {
 
     private val _user = MutableStateFlow<FirebaseUser?>(auth.currentUser)
@@ -38,9 +40,13 @@ class SettingsViewModel @Inject constructor(
 
     val themeMode: StateFlow<ThemeMode> = themeStore.mode
 
+    val isBiometricEnabled: StateFlow<Boolean> = securityStore.isBiometricEnabled
+
     fun setThemeMode(mode: ThemeMode) = themeStore.setMode(mode)
 
     fun saveApiKey(key: String) = geminiKeyStore.setKey(key)
+
+    fun setBiometricEnabled(enabled: Boolean) = securityStore.setBiometricEnabled(enabled)
 
     fun signOut(context: Context, onDone: () -> Unit) {
         viewModelScope.launch {

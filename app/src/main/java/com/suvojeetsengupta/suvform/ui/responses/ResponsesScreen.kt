@@ -120,6 +120,39 @@ fun ResponsesScreen(
             )
         },
     ) { padding ->
+        if (isBiometricEnabled && !biometricAuthenticated) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.padding(bottom = 16.dp),
+                        tint = c.ink
+                    )
+                    Text("Responses are Locked", fontFamily = Fraunces, fontSize = 22.sp, color = c.ink)
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            biometricAuthManager.authenticate(
+                                activity = context as FragmentActivity,
+                                title = "Access Responses",
+                                subtitle = "Authenticate to view collected data",
+                                onSuccess = {
+                                    biometricAuthenticated = true
+                                    viewModel.refresh()
+                                },
+                                onError = { }
+                            )
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = c.ink, contentColor = c.paper)
+                    ) {
+                        Text("Unlock with Biometrics")
+                    }
+                }
+            }
+            return@Scaffold
+        }
+
         PullToRefreshBox(
             isRefreshing = lazyPagingItems.loadState.refresh is LoadState.Loading && lazyPagingItems.itemCount > 0,
             onRefresh = { lazyPagingItems.refresh() },

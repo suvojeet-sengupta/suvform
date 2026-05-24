@@ -2,6 +2,7 @@ package com.suvojeetsengupta.suvform.ui.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.suvojeetsengupta.suvform.data.prefs.SecurityPreferenceStore
 import com.suvojeetsengupta.suvform.data.remote.AdminAdminDto
 import com.suvojeetsengupta.suvform.data.remote.AdminFormDto
 import com.suvojeetsengupta.suvform.data.remote.AdminStatsDto
@@ -31,6 +32,7 @@ private const val PAGE_SIZE = 25
 class AdminViewModel @Inject constructor(
     private val adminRepo: AdminRepository,
     private val authRepository: AuthRepository,
+    private val securityStore: SecurityPreferenceStore,
 ) : ViewModel() {
 
     private val _stats = MutableStateFlow<AdminStatsDto?>(null)
@@ -56,6 +58,8 @@ class AdminViewModel @Inject constructor(
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    val isBiometricEnabled: StateFlow<Boolean> = securityStore.isBiometricEnabled
 
     fun loadDashboard() {
         viewModelScope.launch {

@@ -109,6 +109,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.splashscreen)
+    implementation(libs.androidx.biometric)
 
     // Lifecycle + ViewModel + Navigation
     implementation(libs.androidx.lifecycle.runtime.ktx)

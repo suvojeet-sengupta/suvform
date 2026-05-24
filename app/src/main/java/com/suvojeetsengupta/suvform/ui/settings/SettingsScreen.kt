@@ -312,6 +312,49 @@ fun SettingsScreen(
                 )
             }
 
+            if (biometricAuthManager.canAuthenticate()) {
+                Spacer(Modifier.height(24.dp))
+
+                Text(
+                    "Security",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+                )
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    ListItem(
+                        headlineContent = { Text("Biometric Lock") },
+                        supportingContent = { Text("Require fingerprint, face, or PIN to access admin panel and responses") },
+                        leadingContent = { Icon(Icons.Default.Fingerprint, null) },
+                        trailingContent = {
+                            Switch(
+                                checked = isBiometricEnabled,
+                                onCheckedChange = { checked ->
+                                    if (checked) {
+                                        biometricAuthManager.authenticate(
+                                            activity = context as FragmentActivity,
+                                            onSuccess = { viewModel.setBiometricEnabled(true) },
+                                            onError = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+                                        )
+                                    } else {
+                                        viewModel.setBiometricEnabled(false)
+                                    }
+                                }
+                            )
+                        },
+                        colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
+                    )
+                }
+            }
+
             Spacer(Modifier.height(24.dp))
 
             Text(

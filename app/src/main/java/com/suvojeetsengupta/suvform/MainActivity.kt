@@ -1,12 +1,12 @@
 package com.suvojeetsengupta.suvform
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.fragment.app.FragmentActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.suvojeetsengupta.suvform.data.prefs.ThemePreferenceStore
 import com.suvojeetsengupta.suvform.ui.navigation.AppNavHost
@@ -16,7 +16,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     @Inject lateinit var auth: FirebaseAuth
     @Inject lateinit var themeStore: ThemePreferenceStore
 

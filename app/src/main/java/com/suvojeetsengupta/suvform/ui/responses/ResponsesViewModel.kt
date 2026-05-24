@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import com.suvojeetsengupta.suvform.data.draft.SelectedFormStore
+import com.suvojeetsengupta.suvform.data.prefs.SecurityPreferenceStore
 import com.suvojeetsengupta.suvform.data.remote.CalculationDto
 import com.suvojeetsengupta.suvform.data.remote.FieldDto
 import com.suvojeetsengupta.suvform.data.remote.ResponseItemDto
@@ -49,6 +50,7 @@ class ResponsesViewModel @Inject constructor(
     private val selectedForm: SelectedFormStore,
     private val formRepository: FormRepository,
     private val responseRepository: ResponseRepository,
+    private val securityStore: SecurityPreferenceStore,
 ) : ViewModel() {
 
     private val _selectedFormId = MutableStateFlow(selectedForm.formId)
@@ -61,6 +63,8 @@ class ResponsesViewModel @Inject constructor(
         ),
     )
     val state: StateFlow<ResponsesUiState> = _state.asStateFlow()
+
+    val isBiometricEnabled: StateFlow<Boolean> = securityStore.isBiometricEnabled
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val responsesPagingData: Flow<PagingData<ResponseItemDto>> =
