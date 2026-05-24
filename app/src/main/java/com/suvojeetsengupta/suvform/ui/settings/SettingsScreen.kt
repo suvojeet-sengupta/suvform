@@ -145,35 +145,6 @@ fun SettingsScreen(
         )
     }
 
-    if (showAboutDialog) {
-        AlertDialog(
-            onDismissRequest = { showAboutDialog = false },
-            title = { Text("About SuvForm") },
-            text = {
-                Column {
-                    Text(
-                        "SuvForm is a personal project born out of a desire for a clean, efficient, " +
-                        "and mobile-first form management tool. I wanted to build something that " +
-                        "combines the simplicity of a notepad with the power of a professional data " +
-                        "collection platform."
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        "Whether you're conducting a quick poll, managing inventory, or gathering " +
-                        "feedback, SuvForm leverages Gemini AI to help you build forms instantly. " +
-                        "Your forms stay cached on your device, so you can browse them even when " +
-                        "you're offline."
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text("Made with passion by Suvojeet Sengupta.", fontWeight = FontWeight.SemiBold)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAboutDialog = false }) { Text("Close") }
-            }
-        )
-    }
-
     if (showSignOutEverywhereDialog) {
         AlertDialog(
             onDismissRequest = { showSignOutEverywhereDialog = false },
