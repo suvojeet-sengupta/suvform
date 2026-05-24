@@ -43,6 +43,7 @@ import com.suvojeetsengupta.suvform.ui.home.HomeScreen
 import com.suvojeetsengupta.suvform.ui.responses.ResponseDetailScreen
 import com.suvojeetsengupta.suvform.ui.responses.ResponsesScreen
 import com.suvojeetsengupta.suvform.ui.responses.ResponsesViewModel
+import com.suvojeetsengupta.suvform.ui.settings.AboutScreen
 import com.suvojeetsengupta.suvform.ui.settings.SettingsScreen
 
 sealed class BottomNavDestination(
@@ -204,7 +205,14 @@ fun MainScreen(
             }
 
             composable(Routes.Settings) {
-                SettingsScreen(onSignedOut = onSignedOut)
+                SettingsScreen(
+                    onSignedOut = onSignedOut,
+                    onOpenAbout = { navController.navigate(Routes.About) }
+                )
+            }
+
+            composable(Routes.About) {
+                AboutScreen(onBack = { navController.popBackStack() })
             }
 
             if (isAdmin) {

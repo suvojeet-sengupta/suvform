@@ -72,6 +72,7 @@ import com.suvojeetsengupta.suvform.util.BiometricAuthManager
 @Composable
 fun SettingsScreen(
     onSignedOut: () -> Unit,
+    onOpenAbout: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel<SettingsViewModel>(),
 ) {
     val user by viewModel.user.collectAsStateWithLifecycle()
@@ -83,7 +84,6 @@ fun SettingsScreen(
     val context = LocalContext.current
     var showSignOutDialog by remember { mutableStateOf(false) }
     var showApiKeyDialog by remember { mutableStateOf(false) }
-    var showAboutDialog by remember { mutableStateOf(false) }
     var showSignOutEverywhereDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
 
@@ -412,7 +412,7 @@ fun SettingsScreen(
                         leadingContent = { Icon(Icons.Default.Info, null) },
                         modifier = Modifier
                             .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                            .clickable { showAboutDialog = true },
+                            .clickable { onOpenAbout() },
                         colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
                     )
                     HorizontalDivider(

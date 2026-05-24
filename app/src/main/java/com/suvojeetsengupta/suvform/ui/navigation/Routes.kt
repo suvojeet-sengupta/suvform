@@ -10,4 +10,5 @@ object Routes {
     const val Responses = "responses"
     const val ResponseDetail = "response_detail"
     const val Settings = "settings"
+    const val About = "about"
 }
