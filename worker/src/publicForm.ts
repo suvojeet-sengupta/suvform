@@ -2,6 +2,13 @@
  * Public form filler page — self-contained HTML with inline JS.
  * Editorial "paper" identity matching the SuvForm app (light only):
  * warm paper background, Fraunces serif headings, Geist body, red-orange accent.
+ *
+ * Enhancements included:
+ * - Progress bar for long forms (5+ fields)
+ * - Local draft auto-save (restored on reload, cleared on successful submit)
+ * - Print-friendly view (clean @media print styles + button)
+ * - Keyboard submit (⌘/Ctrl + Enter)
+ * - Improved mobile focus + scroll behavior + touch feedback
  */
 export function publicFormHtml(opts: {
   slug: string;
@@ -67,6 +74,26 @@ export function publicFormHtml(opts: {
   .field-input:focus { outline: none; border-color: #E94221; box-shadow: 0 0 0 3px rgba(233,66,33,.15); }
   .submit-btn:active { transform: translateY(1px); }
   input[type="radio"], input[type="checkbox"] { accent-color: #E94221; }
+
+  /* Print-friendly styles */
+  @media print {
+    @page { margin: 1.2cm; }
+    body { background: white !important; color: #111 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    header, footer, #print-btn, #submit-btn, #submit-msg, #draft-status, #calc-section, .submit-btn { display: none !important; }
+    main { max-width: 100% !important; padding: 0 !important; }
+    #form-content { box-shadow: none !important; }
+    .field-input, textarea { border: 1px solid #ccc !important; background: white !important; }
+    .field-input:focus { box-shadow: none !important; border-color: #999 !important; }
+    label { color: #222 !important; }
+    .text-muted, .text-muted2 { color: #555 !important; }
+    #progress-container { display: none !important; }
+    /* Leave space for handwritten answers on printouts of unfilled forms */
+    input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], textarea {
+      min-height: 2.1em;
+      padding-bottom: 1.6em;
+    }
+    .space-y-5 > div { margin-bottom: 1.25rem !important; }
+  }
 </style>
 </head>
 <body class="min-h-screen bg-paper text-ink antialiased">
@@ -80,7 +107,14 @@ export function publicFormHtml(opts: {
       </div>
       <span class="font-serif text-lg text-ink">SuvForm<span class="text-accent">.</span></span>
     </div>
-    <span class="font-mono text-[11px] uppercase tracking-wider text-muted">Secure form</span>
+    <div class="flex items-center gap-2">
+      <button id="print-btn" type="button" aria-label="Print or save as PDF"
+        class="flex items-center gap-1.5 px-2 py-1 rounded-lg text-muted hover:text-ink hover:bg-paper2 active:bg-line2 transition text-[11px] font-mono uppercase tracking-wider">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H3a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4" /></svg>
+        <span class="hidden sm:inline">Print</span>
+      </button>
+      <span class="font-mono text-[11px] uppercase tracking-wider text-muted">Secure form</span>
+    </div>
   </div>
 </header>
 
@@ -97,6 +131,17 @@ export function publicFormHtml(opts: {
       <span class="text-accent">*</span> indicates a required field
     </p>
 
+    <!-- Progress (only shown for forms with several fields) -->
+    <div id="progress-container" class="hidden mb-6">
+      <div class="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.08em] text-muted mb-1.5">
+        <span>Progress</span>
+        <span id="progress-text">0 of 0</span>
+      </div>
+      <div class="h-1.5 w-full bg-line2 rounded-full overflow-hidden">
+        <div id="progress-bar" class="h-full bg-accent transition-all duration-200 rounded-full" style="width: 0%"></div>
+      </div>
+    </div>
+
     <!-- Fields -->
     <form id="form-root" class="space-y-5"></form>
 
@@ -112,8 +157,11 @@ export function publicFormHtml(opts: {
         class="submit-btn w-full bg-accent hover:opacity-90 text-white font-semibold py-3.5 rounded-2xl transition disabled:opacity-50 disabled:cursor-not-allowed">
         Submit
       </button>
+      <div class="mt-2 flex items-center justify-between text-[11px]">
+        <span id="draft-status" class="font-mono text-muted2 opacity-70 hidden">Draft saved locally</span>
+        <span class="font-mono text-muted2">Your response is private and only visible to the form's owner.</span>
+      </div>
       <p id="submit-msg" class="mt-3 text-center text-sm hidden"></p>
-      <p class="mt-4 font-mono text-[11px] text-muted2 text-center">Your response is private and only visible to the form's owner.</p>
     </div>
   </div>
 
@@ -169,12 +217,17 @@ export function publicFormHtml(opts: {
     } else {
       formContent.classList.remove('hidden');
       alreadyResponded.classList.add('hidden');
+      loadDraft(); // restore any previous work
     }
   }
 
   refillBtn.addEventListener('click', () => {
     localStorage.removeItem(STORAGE_KEY);
     init();
+    // Re-apply any restored draft into the (still existing) inputs
+    if (!formContent.classList.contains('hidden')) {
+      hydrateFromAnswers();
+    }
   });
 
   init();
@@ -193,8 +246,78 @@ export function publicFormHtml(opts: {
   const calcSection = document.getElementById('calc-section');
   const submitBtn = document.getElementById('submit-btn');
   const submitMsg = document.getElementById('submit-msg');
+  const draftStatus = document.getElementById('draft-status');
+  const progressContainer = document.getElementById('progress-container');
+  const progressBar = document.getElementById('progress-bar');
+  const progressText = document.getElementById('progress-text');
+  const printBtn = document.getElementById('print-btn');
+
+  const DRAFT_KEY = 'draft:' + FORM.slug;
+  let saveDraftTimer = null;
 
   const answers = {};
+
+  // Central place to update an answer (used by all field inputs)
+  function updateAnswer(id, value) {
+    answers[id] = value;
+    scheduleSaveDraft();
+    recalc();
+    updateProgress();
+  }
+
+  function scheduleSaveDraft() {
+    if (saveDraftTimer) clearTimeout(saveDraftTimer);
+    saveDraftTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(answers));
+        if (draftStatus) {
+          draftStatus.classList.remove('hidden');
+          draftStatus.style.opacity = '0.85';
+        }
+      } catch (e) { /* quota or private mode */ }
+    }, 420); // gentle debounce
+  }
+
+  function loadDraft() {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved && typeof saved === 'object') {
+        Object.assign(answers, saved);
+        if (draftStatus) draftStatus.classList.remove('hidden');
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
+    if (draftStatus) draftStatus.classList.add('hidden');
+  }
+
+  function countAnswered() {
+    const fields = FORM.fields || [];
+    let answered = 0;
+    for (const f of fields) {
+      const v = answers[f.id];
+      const empty = v == null || v === '' || (Array.isArray(v) && v.length === 0);
+      if (!empty) answered++;
+    }
+    return { answered, total: fields.length };
+  }
+
+  function updateProgress() {
+    const { answered, total } = countAnswered();
+    if (!progressContainer || !progressBar || !progressText) return;
+    if (total < 5) { // only show for reasonably long forms
+      progressContainer.classList.add('hidden');
+      return;
+    }
+    progressContainer.classList.remove('hidden');
+    const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
+    progressBar.style.width = pct + '%';
+    progressText.textContent = `${answered} of ${total}`;
+  }
 
   // ---------- Expression evaluator ----------
   function tokenize(s) {
@@ -280,9 +403,10 @@ export function publicFormHtml(opts: {
         i.type = field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text';
         i.className = FIELD_INPUT_CLS;
         i.placeholder = field.placeholder || '';
+        i.dataset.fieldId = field.id;
         if (field.type === 'email') i.autocomplete = 'email';
         if (field.type === 'phone') i.autocomplete = 'tel';
-        i.addEventListener('input', e => { answers[field.id] = e.target.value; recalc(); });
+        i.addEventListener('input', e => updateAnswer(field.id, e.target.value));
         return i;
       }
       case 'long_text': {
@@ -290,7 +414,8 @@ export function publicFormHtml(opts: {
         t.rows = 4;
         t.className = FIELD_INPUT_CLS + ' resize-y';
         t.placeholder = field.placeholder || '';
-        t.addEventListener('input', e => { answers[field.id] = e.target.value; recalc(); });
+        t.dataset.fieldId = field.id;
+        t.addEventListener('input', e => updateAnswer(field.id, e.target.value));
         return t;
       }
       case 'number': {
@@ -299,14 +424,16 @@ export function publicFormHtml(opts: {
         i.className = FIELD_INPUT_CLS;
         i.placeholder = field.placeholder || '';
         i.inputMode = 'decimal';
-        i.addEventListener('input', e => { answers[field.id] = e.target.value; recalc(); });
+        i.dataset.fieldId = field.id;
+        i.addEventListener('input', e => updateAnswer(field.id, e.target.value));
         return i;
       }
       case 'date': {
         const i = document.createElement('input');
         i.type = 'date';
         i.className = FIELD_INPUT_CLS;
-        i.addEventListener('input', e => { answers[field.id] = e.target.value; recalc(); });
+        i.dataset.fieldId = field.id;
+        i.addEventListener('input', e => updateAnswer(field.id, e.target.value));
         return i;
       }
       case 'single_choice': {
@@ -317,7 +444,8 @@ export function publicFormHtml(opts: {
           const r = document.createElement('input');
           r.type = 'radio'; r.name = field.id; r.value = opt;
           r.className = 'h-4 w-4';
-          r.addEventListener('change', () => { answers[field.id] = opt; recalc(); });
+          r.dataset.fieldId = field.id;
+          r.addEventListener('change', () => updateAnswer(field.id, opt));
           row.appendChild(r);
           const sp = document.createElement('span');
           sp.textContent = opt;
@@ -336,11 +464,12 @@ export function publicFormHtml(opts: {
           const cb = document.createElement('input');
           cb.type = 'checkbox'; cb.value = opt;
           cb.className = 'h-4 w-4 rounded';
+          cb.dataset.fieldId = field.id;
           cb.addEventListener('change', e => {
             const arr = answers[field.id] || [];
             if (e.target.checked) arr.push(opt);
             else { const k = arr.indexOf(opt); if (k >= 0) arr.splice(k, 1); }
-            answers[field.id] = arr; recalc();
+            updateAnswer(field.id, arr);
           });
           row.appendChild(cb);
           const sp = document.createElement('span');
@@ -364,12 +493,11 @@ export function publicFormHtml(opts: {
           b.addEventListener('click', () => {
             const cur = answers[field.id] || 0;
             const next = cur === i ? 0 : i;
-            answers[field.id] = next;
+            updateAnswer(field.id, next);
             stars.forEach((s, idx) => {
               s.classList.toggle('text-accent', idx < next);
               s.classList.toggle('text-line', idx >= next);
             });
-            recalc();
           });
           wrap.appendChild(b); stars.push(b);
         }
@@ -385,6 +513,31 @@ export function publicFormHtml(opts: {
   }
 
   (FORM.fields || []).forEach(f => root.appendChild(makeFieldBlock(f)));
+
+  // Re-render values from answers into DOM (used after draft load)
+  function hydrateFromAnswers() {
+    (FORM.fields || []).forEach(f => {
+      const val = answers[f.id];
+      if (val == null || val === '') return;
+
+      const selector = `[data-field-id="${f.id}"]`;
+      const els = root.querySelectorAll(selector);
+      if (!els.length) return;
+
+      els.forEach(el => {
+        if (el.type === 'radio') {
+          if (el.value === val) el.checked = true;
+        } else if (el.type === 'checkbox') {
+          if (Array.isArray(val) && val.includes(el.value)) el.checked = true;
+        } else {
+          el.value = Array.isArray(val) ? '' : val; // safety
+        }
+      });
+    });
+    updateProgress();
+  }
+
+  hydrateFromAnswers();
 
   // ---------- Live calculations ----------
   function fmt(v, format) {
@@ -421,6 +574,7 @@ export function publicFormHtml(opts: {
     });
   }
   recalc();
+  updateProgress();
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -466,6 +620,7 @@ export function publicFormHtml(opts: {
         throw new Error('HTTP ' + res.status + ': ' + t.slice(0, 200));
       }
       localStorage.setItem(STORAGE_KEY, '1');
+      clearDraft();
       showSuccess();
     } catch (e) {
       submitBtn.disabled = false;
@@ -480,6 +635,53 @@ export function publicFormHtml(opts: {
     formContent.classList.add('hidden');
     successContent.classList.remove('hidden');
   }
+
+  // ---------- Keyboard + Print + Mobile polish ----------
+  if (printBtn) {
+    printBtn.addEventListener('click', () => window.print());
+    // Also allow keyboard access on mobile header
+    printBtn.setAttribute('tabindex', '0');
+  }
+
+  // Global keyboard submit (Cmd/Ctrl + Enter)
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      // Only trigger if the form is visible and not already submitting
+      if (!formContent.classList.contains('hidden') && !submitBtn.disabled) {
+        e.preventDefault();
+        submitBtn.click();
+      }
+    }
+    // Escape clears submit error message
+    if (e.key === 'Escape' && !submitMsg.classList.contains('hidden')) {
+      submitMsg.classList.add('hidden');
+    }
+  });
+
+  // Improve mobile experience: scroll the submit area into view when last field is focused
+  // (helps when virtual keyboard appears on long forms)
+  const lastField = root.lastElementChild;
+  if (lastField) {
+    const focusables = lastField.querySelectorAll('input, textarea, button');
+    focusables.forEach(el => {
+      el.addEventListener('focus', () => {
+        // Small delay so keyboard has time to appear
+        setTimeout(() => {
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }, 120);
+      }, { passive: true });
+    });
+  }
+
+  // Make rating stars more touch friendly on mobile (larger hit area via CSS is already good)
+  // Add subtle active state feedback for all choice rows
+  root.querySelectorAll('label').forEach(lab => {
+    lab.addEventListener('touchstart', () => lab.classList.add('!border-accent'), { passive: true });
+    lab.addEventListener('touchend', () => lab.classList.remove('!border-accent'), { passive: true });
+  });
+
+  // Initial progress in case of restored draft
+  updateProgress();
 })();
 </script>
 </body>
