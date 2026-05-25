@@ -6,13 +6,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Inbox
-import androidx.compose.material.icons.outlined.Person
+import androidx.annotation.DrawableRes
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -22,7 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
@@ -35,6 +29,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.suvojeetsengupta.suvform.R
 import com.suvojeetsengupta.suvform.ui.admin.AdminFormDetailScreen
 import com.suvojeetsengupta.suvform.ui.admin.AdminFormResponsesScreen
 import com.suvojeetsengupta.suvform.ui.admin.AdminScreen
@@ -49,20 +44,20 @@ import com.suvojeetsengupta.suvform.ui.settings.SettingsScreen
 sealed class BottomNavDestination(
     val route: String,
     val label: String,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector,
+    @DrawableRes val selectedIcon: Int,
+    @DrawableRes val unselectedIcon: Int,
 ) {
     data object Home : BottomNavDestination(
-        "home_tab", "Home", Icons.Filled.Home, Icons.Outlined.Home
+        "home_tab", "Home", R.drawable.ic_home, R.drawable.ic_home_outlined
     )
     data object Responses : BottomNavDestination(
-        "responses_flow", "Responses", Icons.Filled.Inbox, Icons.Outlined.Inbox
+        "responses_flow", "Responses", R.drawable.ic_inbox, R.drawable.ic_inbox_outlined
     )
     data object Settings : BottomNavDestination(
-        Routes.Settings, "Settings", Icons.Filled.Person, Icons.Outlined.Person
+        Routes.Settings, "Settings", R.drawable.ic_person, R.drawable.ic_person_outlined
     )
     data object Admin : BottomNavDestination(
-        "admin_tab", "Admin", Icons.Filled.Person, Icons.Outlined.Person
+        "admin_tab", "Admin", R.drawable.ic_person, R.drawable.ic_person_outlined
     )
 }
 
@@ -93,7 +88,7 @@ fun MainScreen(
                     NavigationBarItem(
                         icon = {
                             Icon(
-                                if (selected) screen.selectedIcon else screen.unselectedIcon,
+                                painterResource(if (selected) screen.selectedIcon else screen.unselectedIcon),
                                 contentDescription = screen.label
                             )
                         },

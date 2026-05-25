@@ -12,12 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -39,12 +33,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suvojeetsengupta.suvform.R
 import com.suvojeetsengupta.suvform.data.remote.CalculationDto
 import com.suvojeetsengupta.suvform.data.remote.FieldDto
 
@@ -88,7 +84,7 @@ fun AdminFormDetailScreen(
     if (showConfirm) {
         AlertDialog(
             onDismissRequest = { showConfirm = false },
-            icon = { Icon(Icons.Filled.Warning, contentDescription = null) },
+            icon = { Icon(painterResource(R.drawable.ic_warning), contentDescription = null) },
             title = { Text("Save changes to another user's form?") },
             text = {
                 Text(
@@ -115,16 +111,16 @@ fun AdminFormDetailScreen(
                 title = { Text(if (editMode) "Editing form" else "Form details") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
                     }
                 },
                 actions = {
                     if (form != null && !editMode) {
                         IconButton(onClick = { viewModel.enterEditMode() }) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Edit")
+                            Icon(painterResource(R.drawable.ic_edit), contentDescription = "Edit")
                         }
                         IconButton(onClick = { showDelete = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                            Icon(painterResource(R.drawable.ic_delete), contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 },
@@ -157,7 +153,7 @@ fun AdminFormDetailScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
+                        Icon(painterResource(R.drawable.ic_warning), contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
                         Spacer(Modifier.height(0.dp))
                         Column(Modifier.padding(start = 12.dp)) {
                             Text(
@@ -245,7 +241,7 @@ fun AdminFormDetailScreen(
                                 modifier = Modifier.weight(1f),
                             )
                             Icon(
-                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                painterResource(R.drawable.ic_keyboard_arrow_right),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                             )

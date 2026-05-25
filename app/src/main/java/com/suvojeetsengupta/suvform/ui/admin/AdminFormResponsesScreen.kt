@@ -14,13 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,10 +33,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suvojeetsengupta.suvform.R
 import com.suvojeetsengupta.suvform.data.remote.FieldDto
 import com.suvojeetsengupta.suvform.data.remote.ResponseItemDto
 import kotlinx.serialization.json.JsonArray
@@ -81,12 +76,12 @@ fun AdminFormResponsesScreen(
                     title = { Text("${selectedIds.size} selected") },
                     navigationIcon = {
                         IconButton(onClick = { viewModel.clearSelection() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Cancel")
+                            Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Cancel")
                         }
                     },
                     actions = {
                         IconButton(onClick = { viewModel.deleteSelected() }) {
-                            Icon(Icons.Filled.Delete, "Delete")
+                            Icon(painterResource(R.drawable.ic_delete), "Delete")
                         }
                     }
                 )
@@ -95,18 +90,18 @@ fun AdminFormResponsesScreen(
                     title = { Text("Responses", maxLines = 1) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
                         }
                     },
                     actions = {
                         Box {
                             IconButton(onClick = { menuOpen = true }) {
-                                Icon(Icons.Filled.MoreVert, "More")
+                                Icon(painterResource(R.drawable.ic_more_vert), "More")
                             }
                             androidx.compose.material3.DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                 androidx.compose.material3.DropdownMenuItem(
                                     text = { Text("Delete all responses", color = MaterialTheme.colorScheme.error) },
-                                    leadingIcon = { Icon(Icons.Filled.DeleteForever, null, tint = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = { Icon(painterResource(R.drawable.ic_delete_forever), null, tint = MaterialTheme.colorScheme.error) },
                                     onClick = { menuOpen = false; showDeleteAllConfirm = true }
                                 )
                             }
@@ -234,7 +229,7 @@ private fun ResponseCard(
                 Text(submittedAt, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                 if (!isSelectionMode) {
                     Icon(
-                        if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        painterResource(if (isExpanded) R.drawable.ic_expand_less else R.drawable.ic_expand_more),
                         contentDescription = if (isExpanded) "Collapse" else "Expand",
                     )
                 }

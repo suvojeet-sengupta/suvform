@@ -9,12 +9,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -25,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suvojeetsengupta.suvform.R
 import com.suvojeetsengupta.suvform.data.remote.FormSummaryDto
 import com.suvojeetsengupta.suvform.ui.components.ChipVariant
 import com.suvojeetsengupta.suvform.ui.components.GlyphIcon
@@ -115,7 +111,7 @@ fun HomeScreen(
                 containerColor = c.feature,
                 contentColor = c.onFeature,
                 shape = RoundedCornerShape(100.dp),
-                icon = { Icon(Icons.Filled.Add, null) },
+                icon = { Icon(painterResource(R.drawable.ic_add), null) },
                 text = { Text("New form", fontWeight = FontWeight.SemiBold) },
             )
         },
@@ -322,12 +318,12 @@ private fun FormListCard(
                 } else {
                     Box {
                         IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Filled.MoreVert, "More", tint = metaColor)
+                            Icon(painterResource(R.drawable.ic_more_vert), "More", tint = metaColor)
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(text = { Text("View responses") }, leadingIcon = { Icon(Icons.Filled.Inbox, null) }, onClick = { menuOpen = false; onViewResponses() })
-                            DropdownMenuItem(text = { Text("Share") }, leadingIcon = { Icon(Icons.Filled.Share, null) }, onClick = { menuOpen = false; onShare(context) })
-                            DropdownMenuItem(text = { Text("Delete", color = c.accent) }, leadingIcon = { Icon(Icons.Filled.Delete, null, tint = c.accent) }, onClick = { menuOpen = false; onDelete() })
+                            DropdownMenuItem(text = { Text("View responses") }, leadingIcon = { Icon(painterResource(R.drawable.ic_inbox), null) }, onClick = { menuOpen = false; onViewResponses() })
+                            DropdownMenuItem(text = { Text("Share") }, leadingIcon = { Icon(painterResource(R.drawable.ic_share), null) }, onClick = { menuOpen = false; onShare(context) })
+                            DropdownMenuItem(text = { Text("Delete", color = c.accent) }, leadingIcon = { Icon(painterResource(R.drawable.ic_delete), null, tint = c.accent) }, onClick = { menuOpen = false; onDelete() })
                         }
                     }
                 }

@@ -14,11 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -45,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -52,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suvojeetsengupta.suvform.R
 import com.suvojeetsengupta.suvform.data.draft.CalculationEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldType
@@ -75,7 +72,7 @@ fun PreviewScreen(
                 title = { Text("Preview") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -314,7 +311,7 @@ private fun RatingRow(rating: Int, onChange: (Int) -> Unit) {
         for (i in 1..5) {
             IconButton(onClick = { onChange(if (rating == i) 0 else i) }) {
                 Icon(
-                    imageVector = if (i <= rating) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                    painter = painterResource(if (i <= rating) R.drawable.ic_star else R.drawable.ic_star_outline),
                     contentDescription = "$i star",
                     tint = if (i <= rating)
                         MaterialTheme.colorScheme.primary
@@ -342,7 +339,7 @@ private fun DateField(millis: Long?, onChange: (Long?) -> Unit) {
         onClick = { showPicker = true },
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Icon(Icons.Filled.CalendarMonth, null, modifier = Modifier.size(18.dp))
+        Icon(painterResource(R.drawable.ic_calendar_month), null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(if (millis != null) fmt.format(Date(millis)) else "Select date")
     }

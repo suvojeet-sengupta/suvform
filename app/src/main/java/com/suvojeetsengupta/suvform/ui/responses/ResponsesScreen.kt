@@ -9,16 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.IosShare
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -29,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,6 +33,7 @@ import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
+import com.suvojeetsengupta.suvform.R
 import com.suvojeetsengupta.suvform.data.remote.FieldDto
 import com.suvojeetsengupta.suvform.data.remote.FormSummaryDto
 import com.suvojeetsengupta.suvform.data.remote.ResponseItemDto
@@ -121,12 +113,12 @@ fun ResponsesScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = { viewModel.clearResponseSelection() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Cancel", tint = c.ink)
+                            Icon(painterResource(R.drawable.ic_arrow_back), "Cancel", tint = c.ink)
                         }
                     },
                     actions = {
                         IconButton(onClick = { viewModel.deleteSelectedResponses() }) {
-                            Icon(Icons.Filled.Delete, "Delete", tint = c.accent)
+                            Icon(painterResource(R.drawable.ic_delete), "Delete", tint = c.accent)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = c.paper),
@@ -151,7 +143,7 @@ fun ResponsesScreen(
                     navigationIcon = {
                         if (state.selectedFormId != null) {
                             IconButton(onClick = { viewModel.clearSelection() }) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = c.ink)
+                                Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = c.ink)
                             }
                         }
                     },
@@ -160,23 +152,23 @@ fun ResponsesScreen(
                             Box {
                                 IconButton(onClick = { exportMenuOpen = true }, enabled = lazyPagingItems.itemCount > 0 && !state.exporting) {
                                     if (state.exporting) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = c.ink)
-                                    else Icon(Icons.Filled.IosShare, "Export", tint = c.ink)
+                                    else Icon(painterResource(R.drawable.ic_ios_share), "Export", tint = c.ink)
                                 }
                                 DropdownMenu(expanded = exportMenuOpen, onDismissRequest = { exportMenuOpen = false }) {
                                     DropdownMenuItem(
                                         text = { Text("Export as CSV") },
-                                        leadingIcon = { Icon(Icons.Filled.TableChart, null) },
+                                        leadingIcon = { Icon(painterResource(R.drawable.ic_table_chart), null) },
                                         onClick = { exportMenuOpen = false; viewModel.exportCsv(context) }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Export as PDF") },
-                                        leadingIcon = { Icon(Icons.Filled.PictureAsPdf, null) },
+                                        leadingIcon = { Icon(painterResource(R.drawable.ic_picture_as_pdf), null) },
                                         onClick = { exportMenuOpen = false; viewModel.exportPdf(context) }
                                     )
                                     HorizontalDivider()
                                     DropdownMenuItem(
                                         text = { Text("Delete all responses", color = c.accent) },
-                                        leadingIcon = { Icon(Icons.Filled.DeleteForever, null, tint = c.accent) },
+                                        leadingIcon = { Icon(painterResource(R.drawable.ic_delete_forever), null, tint = c.accent) },
                                         onClick = { exportMenuOpen = false; showDeleteAllConfirm = true }
                                     )
                                 }
@@ -215,7 +207,7 @@ fun ResponsesScreen(
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        Icons.Default.Lock,
+                        painterResource(R.drawable.ic_lock),
                         contentDescription = null,
                         modifier = Modifier.padding(bottom = 16.dp),
                         tint = c.ink
@@ -392,7 +384,7 @@ private fun InsightCard(loading: Boolean, summary: String?, error: String?, onGe
                     color = c.onFeature,
                 )
                 else -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.AutoAwesome, null, tint = c.accent, modifier = Modifier.size(18.dp))
+                    Icon(painterResource(R.drawable.ic_auto_awesome), null, tint = c.accent, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
                     Text("Generate a quick overview of all responses", color = c.onFeature.copy(alpha = 0.85f), style = MaterialTheme.typography.bodyMedium)
                 }
@@ -446,7 +438,7 @@ private fun ResponseRow(
                     contentAlignment = Alignment.Center
                 ) {
                     if (isSelected) {
-                        Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp), tint = c.paper)
+                        Icon(painterResource(R.drawable.ic_check), null, modifier = Modifier.size(16.dp), tint = c.paper)
                     } else {
                         Text(avatarLetter, fontFamily = Fraunces, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = avFg)
                     }

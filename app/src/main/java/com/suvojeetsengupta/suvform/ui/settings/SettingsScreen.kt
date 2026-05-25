@@ -17,16 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -58,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
@@ -65,6 +56,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.suvojeetsengupta.suvform.BuildConfig
+import com.suvojeetsengupta.suvform.R
 import com.suvojeetsengupta.suvform.ui.theme.ThemeMode
 import com.suvojeetsengupta.suvform.util.BiometricAuthManager
 
@@ -236,7 +228,7 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.primaryContainer
                         ) {
                             Icon(
-                                Icons.Default.Person,
+                                painterResource(R.drawable.ic_person),
                                 contentDescription = null,
                                 modifier = Modifier.padding(16.dp),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
@@ -281,7 +273,7 @@ fun SettingsScreen(
                 ListItem(
                     headlineContent = { Text("Gemini API Key") },
                     supportingContent = { Text(if (apiKey.isBlank()) "Not set" else "••••••••") },
-                    leadingContent = { Icon(Icons.Default.Key, null) },
+                    leadingContent = { Icon(painterResource(R.drawable.ic_key), null) },
                     modifier = Modifier
                         .clip(RoundedCornerShape(24.dp))
                         .clickable { showApiKeyDialog = true },
@@ -310,7 +302,7 @@ fun SettingsScreen(
                     ListItem(
                         headlineContent = { Text("Biometric Lock") },
                         supportingContent = { Text("Require fingerprint, face, or PIN to access admin panel and responses") },
-                        leadingContent = { Icon(Icons.Default.Fingerprint, null) },
+                        leadingContent = { Icon(painterResource(R.drawable.ic_fingerprint), null) },
                         trailingContent = {
                             Switch(
                                 checked = isBiometricEnabled,
@@ -380,7 +372,7 @@ fun SettingsScreen(
                 Column {
                     ListItem(
                         headlineContent = { Text("About SuvForm") },
-                        leadingContent = { Icon(Icons.Default.Info, null) },
+                        leadingContent = { Icon(painterResource(R.drawable.ic_info), null) },
                         modifier = Modifier
                             .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                             .clickable { onOpenAbout() },
@@ -393,7 +385,7 @@ fun SettingsScreen(
                     ListItem(
                         headlineContent = { Text("Version") },
                         supportingContent = { Text(BuildConfig.VERSION_NAME) },
-                        leadingContent = { Icon(Icons.Default.Info, null) },
+                        leadingContent = { Icon(painterResource(R.drawable.ic_info), null) },
                         colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
                     )
                     HorizontalDivider(
@@ -402,7 +394,7 @@ fun SettingsScreen(
                     )
                     ListItem(
                         headlineContent = { Text("Privacy Policy") },
-                        leadingContent = { Icon(Icons.Default.PrivacyTip, null) },
+                        leadingContent = { Icon(painterResource(R.drawable.ic_privacy_tip), null) },
                         modifier = Modifier.clickable {
                             context.startActivity(
                                 Intent(
@@ -421,10 +413,10 @@ fun SettingsScreen(
                         headlineContent = { Text("Sign out", color = MaterialTheme.colorScheme.error) },
                         leadingContent = { 
                             Icon(
-                                Icons.AutoMirrored.Filled.Logout, 
-                                null, 
-                                tint = MaterialTheme.colorScheme.error 
-                            ) 
+                                painterResource(R.drawable.ic_logout),
+                                null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
                         },
                         modifier = Modifier
                             .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
@@ -455,7 +447,7 @@ fun SettingsScreen(
                     ListItem(
                         headlineContent = { Text("Sign out everywhere") },
                         supportingContent = { Text("End all active sessions on every device") },
-                        leadingContent = { Icon(Icons.Filled.Logout, null) },
+                        leadingContent = { Icon(painterResource(R.drawable.ic_logout), null) },
                         modifier = Modifier
                             .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                             .clickable(enabled = !account.working) { showSignOutEverywhereDialog = true },
@@ -468,7 +460,7 @@ fun SettingsScreen(
                     ListItem(
                         headlineContent = { Text("Export my data") },
                         supportingContent = { Text("Download all your forms and responses as JSON") },
-                        leadingContent = { Icon(Icons.Default.Download, null) },
+                        leadingContent = { Icon(painterResource(R.drawable.ic_download), null) },
                         modifier = Modifier
                             .clickable(enabled = !account.working) { viewModel.exportData(context) },
                         colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
@@ -482,7 +474,7 @@ fun SettingsScreen(
                         supportingContent = { Text("Permanently delete your account and all data") },
                         leadingContent = {
                             Icon(
-                                Icons.Default.DeleteForever,
+                                painterResource(R.drawable.ic_delete_forever),
                                 null,
                                 tint = MaterialTheme.colorScheme.error
                             )

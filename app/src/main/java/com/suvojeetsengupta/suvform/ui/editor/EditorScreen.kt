@@ -9,9 +9,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -28,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suvojeetsengupta.suvform.R
 import com.suvojeetsengupta.suvform.data.draft.CalculationEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldType
@@ -77,12 +76,12 @@ fun EditorScreen(
                 title = { Text("Editor", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
                     }
                 },
                 actions = {
                     IconButton(onClick = onPreview, enabled = draft.fields.isNotEmpty()) {
-                        Icon(Icons.Default.Visibility, "Preview")
+                        Icon(painterResource(R.drawable.ic_visibility), "Preview")
                     }
                     TextButton(
                         onClick = { viewModel.save() },
@@ -108,7 +107,7 @@ fun EditorScreen(
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(Icons.Filled.Add, "Add field")
+                Icon(painterResource(R.drawable.ic_add), "Add field")
             }
         },
         bottomBar = {
@@ -228,7 +227,7 @@ fun EditorScreen(
                     }
                     Spacer(Modifier.weight(1f))
                     IconButton(onClick = viewModel::addCalculation) {
-                        Icon(Icons.Default.AddCircleOutline, "Add calculation", tint = MaterialTheme.colorScheme.primary)
+                        Icon(painterResource(R.drawable.ic_add_circle_outline), "Add calculation", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -368,7 +367,7 @@ private fun FieldEditorCard(
                 }
                 IconButton(onClick = { expanded = !expanded }) {
                     Icon(
-                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        painterResource(if (expanded) R.drawable.ic_expand_less else R.drawable.ic_expand_more),
                         contentDescription = null
                     )
                 }
@@ -393,15 +392,15 @@ private fun FieldEditorCard(
                             AssistChip(
                                 onClick = { clipboard.setText(AnnotatedString(field.id)) },
                                 label = { Text(field.id, style = MaterialTheme.typography.labelSmall) },
-                                leadingIcon = { Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(14.dp)) },
+                                leadingIcon = { Icon(painterResource(R.drawable.ic_content_copy), null, modifier = Modifier.size(14.dp)) },
                                 shape = RoundedCornerShape(8.dp)
                             )
                             Spacer(Modifier.width(8.dp))
                             IconButton(onClick = onMoveUp, enabled = !isFirst) {
-                                Icon(Icons.Default.ArrowUpward, null, modifier = Modifier.size(20.dp))
+                                Icon(painterResource(R.drawable.ic_arrow_upward), null, modifier = Modifier.size(20.dp))
                             }
                             IconButton(onClick = onMoveDown, enabled = !isLast) {
-                                Icon(Icons.Default.ArrowDownward, null, modifier = Modifier.size(20.dp))
+                                Icon(painterResource(R.drawable.ic_arrow_downward), null, modifier = Modifier.size(20.dp))
                             }
                         }
                     }
@@ -440,7 +439,7 @@ private fun FieldEditorCard(
                             )
                         }
                         TextButton(onClick = onAddOption) {
-                            Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                            Icon(painterResource(R.drawable.ic_add), null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("Add Option")
                         }
@@ -458,13 +457,13 @@ private fun FieldEditorCard(
                         }
                         Spacer(Modifier.weight(1f))
                         IconButton(onClick = onDuplicate) {
-                            Icon(Icons.Default.ContentCopy, null, modifier = Modifier.size(20.dp))
+                            Icon(painterResource(R.drawable.ic_content_copy), null, modifier = Modifier.size(20.dp))
                         }
                         IconButton(
                             onClick = onDelete,
                             colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Icon(Icons.Default.Delete, null, modifier = Modifier.size(20.dp))
+                            Icon(painterResource(R.drawable.ic_delete), null, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -480,8 +479,8 @@ private fun OptionItem(value: String, onValueChange: (String) -> Unit, onRemove:
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            Icons.Default.RadioButtonUnchecked, 
-            null, 
+            painterResource(R.drawable.ic_radio_button_unchecked),
+            null,
             modifier = Modifier.size(20.dp),
             tint = MaterialTheme.colorScheme.outline
         )
@@ -497,7 +496,7 @@ private fun OptionItem(value: String, onValueChange: (String) -> Unit, onRemove:
             )
         )
         IconButton(onClick = onRemove) {
-            Icon(Icons.Default.Close, null, modifier = Modifier.size(18.dp))
+            Icon(painterResource(R.drawable.ic_close), null, modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -512,7 +511,7 @@ private fun TypeSelector(current: FieldType, onSelect: (FieldType) -> Unit) {
             onClick = { expanded = true },
             label = { Text(current.display) },
             leadingIcon = { Text(current.emoji) },
-            trailingIcon = { Icon(Icons.Default.ArrowDropDown, null) },
+            trailingIcon = { Icon(painterResource(R.drawable.ic_arrow_drop_down), null) },
             shape = RoundedCornerShape(12.dp)
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -570,13 +569,13 @@ private fun PublishBar(
                         )
                     }
                     IconButton(onClick = onCopy) {
-                        Icon(Icons.Default.ContentCopy, null)
+                        Icon(painterResource(R.drawable.ic_content_copy), null)
                     }
                     Button(
                         onClick = onShare,
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
+                        Icon(painterResource(R.drawable.ic_share), null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text("Share")
                     }
@@ -604,7 +603,7 @@ private fun PublishBar(
                         Spacer(Modifier.width(12.dp))
                         Text("Saving...")
                     } else {
-                        Icon(Icons.Default.CloudUpload, null)
+                        Icon(painterResource(R.drawable.ic_cloud_upload), null)
                         Spacer(Modifier.width(12.dp))
                         Text(
                             if (hasRemoteId) "Publish Changes" else "Save & Publish",
@@ -648,7 +647,7 @@ private fun CalculationEditorCard(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Functions, null, modifier = Modifier.size(16.dp))
+                        Icon(painterResource(R.drawable.ic_functions), null, modifier = Modifier.size(16.dp))
                     }
                 }
                 Spacer(Modifier.width(12.dp))
@@ -667,7 +666,7 @@ private fun CalculationEditorCard(
                 }
                 IconButton(onClick = { expanded = !expanded }) {
                     Icon(
-                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        painterResource(if (expanded) R.drawable.ic_expand_less else R.drawable.ic_expand_more),
                         contentDescription = null
                     )
                 }
@@ -714,7 +713,7 @@ private fun CalculationEditorCard(
                             onClick = onDelete,
                             colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Icon(Icons.Default.Delete, null, modifier = Modifier.size(20.dp))
+                            Icon(painterResource(R.drawable.ic_delete), null, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -738,8 +737,8 @@ private fun FormatSelector(current: String?, onSelect: (String?) -> Unit) {
             selected = true,
             onClick = { expanded = true },
             label = { Text(currentLabel) },
-            leadingIcon = { Icon(Icons.Default.FormatListNumbered, null, modifier = Modifier.size(16.dp)) },
-            trailingIcon = { Icon(Icons.Default.ArrowDropDown, null) },
+            leadingIcon = { Icon(painterResource(R.drawable.ic_format_list_numbered), null, modifier = Modifier.size(16.dp)) },
+            trailingIcon = { Icon(painterResource(R.drawable.ic_arrow_drop_down), null) },
             shape = RoundedCornerShape(12.dp)
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -765,7 +764,7 @@ private fun EmptyFieldsState() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
-            Icons.Default.PostAdd,
+            painterResource(R.drawable.ic_post_add),
             null,
             modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.outline
@@ -805,7 +804,7 @@ private fun ResponseLimitCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(
-                    Icons.Default.Lock,
+                    painterResource(R.drawable.ic_lock),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)

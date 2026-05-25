@@ -7,9 +7,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -32,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.suvojeetsengupta.suvform.R
 import com.suvojeetsengupta.suvform.ui.components.ButtonVariant
 import com.suvojeetsengupta.suvform.ui.components.ChipVariant
 import com.suvojeetsengupta.suvform.ui.components.SectionLabel
@@ -74,7 +73,7 @@ fun CreateScreen(
                     .padding(bottom = 96.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = c.ink) }
+                    IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), "Back", tint = c.ink) }
                     Spacer(Modifier.width(4.dp))
                     Text("Back", style = MaterialTheme.typography.bodyMedium, color = c.ink)
                 }
@@ -182,7 +181,7 @@ fun CreateScreen(
                 onClick = viewModel::generate,
                 enabled = !state.loading && state.prompt.isNotBlank(),
                 variant = ButtonVariant.Accent,
-                leading = if (state.loading) null else Icons.Filled.AutoAwesome,
+                leading = if (state.loading) null else R.drawable.ic_auto_awesome,
                 height = 54,
                 radius = 16,
                 modifier = Modifier

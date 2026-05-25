@@ -23,8 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.annotation.DrawableRes
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -171,7 +172,7 @@ fun SuvButton(
     modifier: Modifier = Modifier,
     variant: ButtonVariant = ButtonVariant.Ink,
     enabled: Boolean = true,
-    leading: ImageVector? = null,
+    @DrawableRes leading: Int? = null,
     height: Int = 52,
     radius: Int = 14,
 ) {
@@ -196,7 +197,7 @@ fun SuvButton(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (leading != null) {
-                Icon(leading, null, tint = fg, modifier = Modifier.size(18.dp))
+                Icon(painterResource(leading), null, tint = fg, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(10.dp))
             }
             Text(text, color = fg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
