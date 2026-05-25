@@ -3,6 +3,7 @@ package com.suvojeetsengupta.suvform.ui.responses
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,6 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -122,7 +126,7 @@ fun ResponsesScreen(
                     },
                     actions = {
                         IconButton(onClick = { viewModel.deleteSelectedResponses() }) {
-                            Icon(androidx.compose.material.icons.filled.Delete, "Delete", tint = c.accent)
+                            Icon(Icons.Filled.Delete, "Delete", tint = c.accent)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = c.paper),
@@ -172,7 +176,7 @@ fun ResponsesScreen(
                                     HorizontalDivider()
                                     DropdownMenuItem(
                                         text = { Text("Delete all responses", color = c.accent) },
-                                        leadingIcon = { Icon(androidx.compose.material.icons.filled.DeleteForever, null, tint = c.accent) },
+                                        leadingIcon = { Icon(Icons.Filled.DeleteForever, null, tint = c.accent) },
                                         onClick = { exportMenuOpen = false; showDeleteAllConfirm = true }
                                     )
                                 }
@@ -442,7 +446,7 @@ private fun ResponseRow(
                     contentAlignment = Alignment.Center
                 ) {
                     if (isSelected) {
-                        Icon(androidx.compose.material.icons.filled.Check, null, modifier = Modifier.size(16.dp), tint = c.paper)
+                        Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp), tint = c.paper)
                     } else {
                         Text(avatarLetter, fontFamily = Fraunces, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = avFg)
                     }
