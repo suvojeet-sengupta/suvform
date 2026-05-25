@@ -33,12 +33,15 @@ class AdminFormDetailViewModel @Inject constructor(
     private val _editMode = MutableStateFlow(false)
     val editMode: StateFlow<Boolean> = _editMode.asStateFlow()
 
-    // Editable draft (only title + description are admin-editable; fields/calcs preserved).
+    // Editable draft (title, description, and responseLimit are admin-editable; fields/calcs preserved).
     private val _draftTitle = MutableStateFlow("")
     val draftTitle: StateFlow<String> = _draftTitle.asStateFlow()
 
     private val _draftDescription = MutableStateFlow("")
     val draftDescription: StateFlow<String> = _draftDescription.asStateFlow()
+
+    private val _draftResponseLimit = MutableStateFlow<Int?>(null)
+    val draftResponseLimit: StateFlow<Int?> = _draftResponseLimit.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
@@ -70,6 +73,7 @@ class AdminFormDetailViewModel @Inject constructor(
                     _form.value = it
                     _draftTitle.value = it.title
                     _draftDescription.value = it.description.orEmpty()
+                    _draftResponseLimit.value = it.responseLimit
                 }
                 .onFailure { _error.value = it.message }
             _loading.value = false
@@ -80,6 +84,7 @@ class AdminFormDetailViewModel @Inject constructor(
         _form.value?.let {
             _draftTitle.value = it.title
             _draftDescription.value = it.description.orEmpty()
+            _draftResponseLimit.value = it.responseLimit
         }
         _editMode.value = true
     }
@@ -89,11 +94,13 @@ class AdminFormDetailViewModel @Inject constructor(
         _form.value?.let {
             _draftTitle.value = it.title
             _draftDescription.value = it.description.orEmpty()
+            _draftResponseLimit.value = it.responseLimit
         }
     }
 
     fun setTitle(v: String) { _draftTitle.value = v }
     fun setDescription(v: String) { _draftDescription.value = v }
+    fun setResponseLimit(v: Int?) { _draftResponseLimit.value = if (v != null && v > 0) v else null }
 
     /** Persist the edit. Caller is responsible for the confirm dialog. */
     fun saveEdit() {
@@ -106,7 +113,7 @@ class AdminFormDetailViewModel @Inject constructor(
                 description = _draftDescription.value,
                 fields = current.fields,
                 calculations = current.calculations,
-                responseLimit = current.responseLimit,
+                responseLimit = _draftResponseLimit.value,
             )
             adminRepo.updateForm(formId, body)
                 .onSuccess {

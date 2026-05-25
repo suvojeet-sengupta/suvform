@@ -41,6 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.suvojeetsengupta.suvform.data.remote.CalculationDto
@@ -59,6 +61,7 @@ fun AdminFormDetailScreen(
     val editMode by viewModel.editMode.collectAsStateWithLifecycle()
     val draftTitle by viewModel.draftTitle.collectAsStateWithLifecycle()
     val draftDescription by viewModel.draftDescription.collectAsStateWithLifecycle()
+    val draftResponseLimit by viewModel.draftResponseLimit.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val deleting by viewModel.deleting.collectAsStateWithLifecycle()
@@ -197,6 +200,18 @@ fun AdminFormDetailScreen(
                         label = { Text("Description") },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = draftResponseLimit?.toString() ?: "",
+                        onValueChange = { text ->
+                            viewModel.setResponseLimit(text.toIntOrNull())
+                        },
+                        label = { Text("Response Limit") },
+                        placeholder = { Text("Unlimited") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(onClick = { viewModel.cancelEdit() }, enabled = !saving) { Text("Cancel") }
@@ -211,6 +226,11 @@ fun AdminFormDetailScreen(
                     }
                     f.updatedAtStr?.let {
                         Text("Updated: $it", style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (f.responseLimit != null && f.responseLimit > 0) {
+                        Text("Response limit: ${f.responseLimit}", style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        Text("Response limit: Unlimited", style = MaterialTheme.typography.bodySmall)
                     }
                     Spacer(Modifier.height(12.dp))
                     Card(

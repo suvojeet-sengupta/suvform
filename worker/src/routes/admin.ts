@@ -12,9 +12,11 @@ type FormBody = {
   description?: string;
   fields?: unknown[];
   calculations?: unknown[];
+  responseLimit?: number | null;
+  response_limit?: number | null;
 };
 
-function validateFormBody(b: FormBody): { ok: true; data: Required<FormBody> } | { ok: false; err: string } {
+function validateFormBody(b: FormBody): { ok: true; data: { title: string; description: string; fields: unknown[]; calculations: unknown[]; responseLimit: number | null } } | { ok: false; err: string } {
   const title = (b.title ?? "").toString().trim() || "Untitled form";
   if (title.length > CONFIG.TITLE_MAX_LEN) return { ok: false, err: "title_too_long" };
   const description = (b.description ?? "").toString();
@@ -23,7 +25,17 @@ function validateFormBody(b: FormBody): { ok: true; data: Required<FormBody> } |
   if (fields.length > CONFIG.MAX_FIELDS) return { ok: false, err: "too_many_fields" };
   const calculations = Array.isArray(b.calculations) ? b.calculations : [];
   if (calculations.length > CONFIG.MAX_CALCULATIONS) return { ok: false, err: "too_many_calculations" };
-  return { ok: true, data: { title, description, fields, calculations } };
+
+  let responseLimit: number | null = null;
+  const rawLimit = b.responseLimit !== undefined ? b.responseLimit : b.response_limit;
+  if (rawLimit !== undefined && rawLimit !== null) {
+    const n = Number(rawLimit);
+    if (!Number.isInteger(n) || n < 0) {
+      return { ok: false, err: "invalid_response_limit" };
+    }
+    responseLimit = n > 0 ? n : null;
+  }
+  return { ok: true, data: { title, description, fields, calculations, responseLimit } };
 }
 
 // Middleware: only allow admins
@@ -338,7 +350,7 @@ app.get("/forms/:id", async (c) => {
   const row = await c.env.DB
     .prepare(
       `SELECT f.id, f.title, f.description, f.schema_json, f.calculations_json,
-              f.published, f.public_slug, f.created_at, f.updated_at, f.owner_uid,
+              f.published, f.public_slug, f.response_limit, f.created_at, f.updated_at, f.owner_uid,
               u.email as owner_email, u.display_name as owner_name
        FROM forms f LEFT JOIN users u ON u.uid = f.owner_uid
        WHERE f.id = ?`,
@@ -360,6 +372,7 @@ app.get("/forms/:id", async (c) => {
     calculations: safeParse(row.calculations_json || "[]", []),
     published: row.published,
     public_slug: row.public_slug,
+    response_limit: row.response_limit,
     created_at: row.created_at,
     updated_at: row.updated_at,
     updated_at_str: formatLocalized(row.updated_at, tz),
@@ -428,6 +441,7 @@ app.put("/forms/:id", async (c) => {
 
   const schemaStr = JSON.stringify(v.data.fields);
   const calcStr = JSON.stringify(v.data.calculations);
+  const limit = v.data.responseLimit ?? null;
   const now = Date.now();
 
   const isSchemaChanged = schemaStr !== existing.schema_json || calcStr !== existing.calculations_json;
@@ -446,13 +460,14 @@ app.put("/forms/:id", async (c) => {
 
   queries.push(
     c.env.DB.prepare(
-      `UPDATE forms SET title = ?, description = ?, schema_json = ?, calculations_json = ?, current_version_id = ?, updated_at = ?
+      `UPDATE forms SET title = ?, description = ?, schema_json = ?, calculations_json = ?, response_limit = ?, current_version_id = ?, updated_at = ?
          WHERE id = ?`
     ).bind(
       v.data.title,
       v.data.description,
       schemaStr,
       calcStr,
+      limit,
       newVersionId,
       now,
       id,
@@ -462,7 +477,7 @@ app.put("/forms/:id", async (c) => {
   await c.env.DB.batch(queries);
 
   const tz = c.get("timezone");
-  return c.json({ id, updated_at: now, updated_at_str: formatLocalized(now, tz), version_id: newVersionId });
+  return c.json({ id, updated_at: now, updated_at_str: formatLocalized(now, tz), version_id: newVersionId, response_limit: limit });
 });
 
 // DELETE /v1/admin/admins/:uid — remove an admin (cannot remove last admin)
