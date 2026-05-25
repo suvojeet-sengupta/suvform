@@ -53,9 +53,10 @@ type FormBody = {
   fields?: unknown[];
   calculations?: unknown[];
   responseLimit?: number | null;
+  response_limit?: number | null;
 };
 
-function validateFormBody(b: FormBody): { ok: true; data: Required<FormBody> } | { ok: false; err: string } {
+function validateFormBody(b: FormBody): { ok: true; data: { title: string; description: string; fields: unknown[]; calculations: unknown[]; responseLimit: number | null } } | { ok: false; err: string } {
   const title = (b.title ?? "").toString().trim() || "Untitled form";
   if (title.length > CONFIG.TITLE_MAX_LEN) return { ok: false, err: "title_too_long" };
   const description = (b.description ?? "").toString();
@@ -66,8 +67,9 @@ function validateFormBody(b: FormBody): { ok: true; data: Required<FormBody> } |
   if (calculations.length > CONFIG.MAX_CALCULATIONS) return { ok: false, err: "too_many_calculations" };
 
   let responseLimit: number | null = null;
-  if (b.responseLimit !== undefined && b.responseLimit !== null) {
-    const n = Number(b.responseLimit);
+  const rawLimit = b.responseLimit !== undefined ? b.responseLimit : b.response_limit;
+  if (rawLimit !== undefined && rawLimit !== null) {
+    const n = Number(rawLimit);
     if (!Number.isInteger(n) || n < 0) {
       return { ok: false, err: "invalid_response_limit" };
     }
