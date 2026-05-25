@@ -40,6 +40,18 @@ class ResponseRepository @Inject constructor(
 
     suspend fun getInsights(formId: String): InsightsDto = api.getInsights(formId)
 
+    suspend fun deleteResponse(formId: String, responseId: String) {
+        api.deleteResponse(formId, responseId)
+    }
+
+    suspend fun deleteResponses(formId: String, responseIds: List<String>) {
+        api.deleteResponses(formId, com.suvojeetsengupta.suvform.data.remote.DeleteResponsesRequest(ids = responseIds))
+    }
+
+    suspend fun deleteAllResponses(formId: String) {
+        api.deleteResponses(formId, com.suvojeetsengupta.suvform.data.remote.DeleteResponsesRequest(all = true))
+    }
+
     /**
      * Fetches every response by walking the paginated endpoint until the server
      * reports no more pages, so exports are never silently truncated.

@@ -44,6 +44,8 @@ data class ResponsesUiState(
     val selectedResponse: ResponseItemDto? = null,
     val selectedFormId: String? = null,
     val totalCount: Int = 0,
+    val selectedResponseIds: Set<String> = emptySet(),
+    val isDeleting: Boolean = false,
 )
 
 @HiltViewModel
@@ -58,6 +60,8 @@ class ResponsesViewModel @Inject constructor(
     private val _selectedFormId = MutableStateFlow(selectedForm.formId)
     val selectedFormId = _selectedFormId.asStateFlow()
 
+    private val _refreshTrigger = MutableStateFlow(0)
+
     private val _state = MutableStateFlow(
         ResponsesUiState(
             formTitle = selectedForm.formTitle ?: "Responses",
@@ -70,7 +74,7 @@ class ResponsesViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val responsesPagingData: Flow<PagingData<ResponseItemDto>> =
-        _selectedFormId
+        kotlinx.coroutines.flow.combine(_selectedFormId, _refreshTrigger) { id, _ -> id }
             .filterNotNull()
             .flatMapLatest { formId ->
                 responseRepository.pagingFlow(formId, viewModelScope) { total ->
@@ -259,5 +263,52 @@ class ResponsesViewModel @Inject constructor(
 
     fun selectResponse(response: ResponseItemDto) {
         _state.update { it.copy(selectedResponse = response) }
+    }
+
+    // ---- Selection & Deletion ----
+
+    fun toggleResponseSelection(id: String) {
+        _state.update {
+            val current = it.selectedResponseIds
+            val next = if (current.contains(id)) current - id else current + id
+            it.copy(selectedResponseIds = next)
+        }
+    }
+
+    fun clearResponseSelection() {
+        _state.update { it.copy(selectedResponseIds = emptySet()) }
+    }
+
+    fun deleteSelectedResponses() {
+        val formId = selectedForm.formId ?: return
+        val ids = _state.value.selectedResponseIds
+        if (ids.isEmpty()) return
+
+        _state.update { it.copy(isDeleting = true, error = null) }
+        viewModelScope.launch {
+            runCatching { responseRepository.deleteResponses(formId, ids.toList()) }
+                .onSuccess {
+                    _state.update { it.copy(isDeleting = false, selectedResponseIds = emptySet()) }
+                    _refreshTrigger.value += 1
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(isDeleting = false, error = "Delete failed: ${ErrorMapper.message(e)}") }
+                }
+        }
+    }
+
+    fun deleteAllResponses() {
+        val formId = selectedForm.formId ?: return
+        _state.update { it.copy(isDeleting = true, error = null) }
+        viewModelScope.launch {
+            runCatching { responseRepository.deleteAllResponses(formId) }
+                .onSuccess {
+                    _state.update { it.copy(isDeleting = false, selectedResponseIds = emptySet()) }
+                    _refreshTrigger.value += 1
+                }
+                .onFailure { e ->
+                    _state.update { it.copy(isDeleting = false, error = "Delete failed: ${ErrorMapper.message(e)}") }
+                }
+        }
     }
 }

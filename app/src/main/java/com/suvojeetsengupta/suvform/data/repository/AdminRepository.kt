@@ -53,6 +53,15 @@ class AdminRepository @Inject constructor(
     suspend fun listFormResponses(id: String, limit: Int = 50, offset: Int = 0): Result<ResponsesListDto> =
         runCatching { api.adminListFormResponses(id, limit, offset) }
 
+    suspend fun adminDeleteResponse(formId: String, responseId: String): Result<JsonObject> =
+        runCatching { api.adminDeleteResponse(formId, responseId) }
+
+    suspend fun adminDeleteResponses(formId: String, responseIds: List<String>): Result<JsonObject> =
+        runCatching { api.adminDeleteResponses(formId, com.suvojeetsengupta.suvform.data.remote.DeleteResponsesRequest(ids = responseIds)) }
+
+    suspend fun adminDeleteAllResponses(formId: String): Result<JsonObject> =
+        runCatching { api.adminDeleteResponses(formId, com.suvojeetsengupta.suvform.data.remote.DeleteResponsesRequest(all = true)) }
+
     suspend fun deleteForm(id: String): Result<JsonObject> =
         runCatching { api.adminDeleteForm(id) }
 

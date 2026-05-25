@@ -59,7 +59,8 @@ export function useApi() {
         request(endpoint, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
       put: (endpoint: string, body?: unknown) =>
         request(endpoint, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
-      delete: (endpoint: string) => request(endpoint, { method: "DELETE" }),
+      delete: (endpoint: string, body?: unknown) => 
+        request(endpoint, { method: "DELETE", body: body ? JSON.stringify(body) : undefined }),
     }),
     [request],
   );

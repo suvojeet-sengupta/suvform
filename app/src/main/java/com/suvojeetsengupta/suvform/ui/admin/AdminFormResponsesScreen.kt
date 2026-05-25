@@ -60,22 +60,76 @@ fun AdminFormResponsesScreen(
     val responses by viewModel.responses.collectAsStateWithLifecycle()
     val loading by viewModel.loading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val selectedIds by viewModel.selectedIds.collectAsStateWithLifecycle()
+    val isSelectionMode = selectedIds.isNotEmpty()
+    var showDeleteAllConfirm by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
 
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
     val fmt = remember { SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()) }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Responses", maxLines = 1) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            if (isSelectionMode) {
+                TopAppBar(
+                    title = { Text("${selectedIds.size} selected") },
+                    navigationIcon = {
+                        IconButton(onClick = { viewModel.clearSelection() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Cancel")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.deleteSelected() }) {
+                            Icon(androidx.compose.material.icons.filled.Delete, "Delete")
+                        }
                     }
-                },
-            )
+                )
+            } else {
+                TopAppBar(
+                    title = { Text("Responses", maxLines = 1) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        Box {
+                            IconButton(onClick = { menuOpen = true }) {
+                                Icon(androidx.compose.material.icons.filled.MoreVert, "More")
+                            }
+                            androidx.compose.material3.DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text("Delete all responses", color = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = { Icon(androidx.compose.material.icons.filled.DeleteForever, null, tint = MaterialTheme.colorScheme.error) },
+                                    onClick = { menuOpen = false; showDeleteAllConfirm = true }
+                                )
+                            }
+                        }
+                    }
+                )
+            }
         },
     ) { padding ->
+        if (showDeleteAllConfirm) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showDeleteAllConfirm = false },
+                title = { Text("Delete All Responses?") },
+                text = { Text("This will permanently remove ALL responses for this form from ALL users. This action cannot be undone.") },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = {
+                        showDeleteAllConfirm = false
+                        viewModel.deleteAll()
+                    }) {
+                        Text("Delete All", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(onClick = { showDeleteAllConfirm = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
         if (loading && responses.items.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -102,12 +156,26 @@ fun AdminFormResponsesScreen(
             }
 
             items(responses.items, key = { it.id }) { resp ->
+                val isSelected = selectedIds.contains(resp.id)
                 ResponseCard(
                     response = resp,
                     fields = fields,
                     submittedAt = fmt.format(Date(resp.submittedAt)),
                     isExpanded = expanded[resp.id] == true,
-                    onToggle = { expanded[resp.id] = !(expanded[resp.id] ?: false) },
+                    isSelected = isSelected,
+                    isSelectionMode = isSelectionMode,
+                    onToggle = {
+                        if (isSelectionMode) {
+                            viewModel.toggleSelection(resp.id)
+                        } else {
+                            expanded[resp.id] = !(expanded[resp.id] ?: false)
+                        }
+                    },
+                    onLongClick = {
+                        if (!isSelectionMode) {
+                            viewModel.toggleSelection(resp.id)
+                        }
+                    }
                 )
             }
 
@@ -128,24 +196,44 @@ fun AdminFormResponsesScreen(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun ResponseCard(
     response: ResponseItemDto,
     fields: List<FieldDto>,
     submittedAt: String,
     isExpanded: Boolean,
+    isSelected: Boolean,
+    isSelectionMode: Boolean,
     onToggle: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth().clickable { onToggle() }) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onToggle, onLongClick = onLongClick),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isSelectionMode) {
+                    androidx.compose.material3.Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onToggle() },
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
                 Text(submittedAt, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                Icon(
-                    if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                    contentDescription = if (isExpanded) "Collapse" else "Expand",
-                )
+                if (!isSelectionMode) {
+                    Icon(
+                        if (isExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                    )
+                }
             }
-            AnimatedVisibility(visible = isExpanded) {
+            AnimatedVisibility(visible = isExpanded && !isSelectionMode) {
                 Column {
                     Spacer(Modifier.height(8.dp))
                     HorizontalDivider()

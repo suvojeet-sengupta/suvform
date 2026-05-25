@@ -59,6 +59,18 @@ interface SuvFormApi {
         @retrofit2.http.Query("offset") offset: Int = 0,
     ): ResponsesListDto
 
+    @retrofit2.http.HTTP(method = "DELETE", path = "v1/forms/{id}/responses", hasBody = true)
+    suspend fun deleteResponses(
+        @Path("id") id: String,
+        @Body body: DeleteResponsesRequest
+    ): JsonObject
+
+    @DELETE("v1/forms/{id}/responses/{responseId}")
+    suspend fun deleteResponse(
+        @Path("id") id: String,
+        @Path("responseId") responseId: String
+    ): JsonObject
+
     @POST("v1/forms/{id}/insights")
     suspend fun getInsights(@Path("id") id: String): InsightsDto
 
@@ -113,6 +125,18 @@ interface SuvFormApi {
         @retrofit2.http.Query("limit") limit: Int = 50,
         @retrofit2.http.Query("offset") offset: Int = 0,
     ): ResponsesListDto
+
+    @retrofit2.http.HTTP(method = "DELETE", path = "v1/admin/forms/{id}/responses", hasBody = true)
+    suspend fun adminDeleteResponses(
+        @Path("id") id: String,
+        @Body body: DeleteResponsesRequest
+    ): JsonObject
+
+    @DELETE("v1/admin/forms/{id}/responses/{responseId}")
+    suspend fun adminDeleteResponse(
+        @Path("id") id: String,
+        @Path("responseId") responseId: String
+    ): JsonObject
 
     @DELETE("v1/admin/forms/{id}")
     suspend fun adminDeleteForm(@Path("id") id: String): JsonObject

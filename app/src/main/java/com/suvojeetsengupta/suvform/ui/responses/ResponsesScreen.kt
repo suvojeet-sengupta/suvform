@@ -98,51 +98,115 @@ fun ResponsesScreen(
 
     var exportMenuOpen by remember { mutableStateOf(false) }
     val refreshState = rememberPullToRefreshState()
+    val isSelectionMode = state.selectedResponseIds.isNotEmpty()
+    var showDeleteAllConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = c.paper,
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
+            if (isSelectionMode) {
+                TopAppBar(
+                    title = {
                         Text(
-                            state.formTitle.ifBlank { "Responses" },
+                            "${state.selectedResponseIds.size} selected",
                             fontFamily = MaterialTheme.typography.titleMedium.fontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                            color = c.ink
                         )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { viewModel.clearResponseSelection() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Cancel", tint = c.ink)
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.deleteSelectedResponses() }) {
+                            Icon(androidx.compose.material.icons.filled.Delete, "Delete", tint = c.accent)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = c.paper),
+                )
+            } else {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                state.formTitle.ifBlank { "Responses" },
+                                fontFamily = MaterialTheme.typography.titleMedium.fontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (state.selectedFormId != null) {
+                                MonoMeta("${state.totalCount} ${if (state.totalCount == 1) "response" else "responses"}", color = c.muted)
+                            }
+                        }
+                    },
+                    navigationIcon = {
                         if (state.selectedFormId != null) {
-                            MonoMeta("${state.totalCount} ${if (state.totalCount == 1) "response" else "responses"}", color = c.muted)
-                        }
-                    }
-                },
-                navigationIcon = {
-                    if (state.selectedFormId != null) {
-                        IconButton(onClick = { viewModel.clearSelection() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = c.ink)
-                        }
-                    }
-                },
-                actions = {
-                    if (state.selectedFormId != null) {
-                        Box {
-                            IconButton(onClick = { exportMenuOpen = true }, enabled = lazyPagingItems.itemCount > 0 && !state.exporting) {
-                                if (state.exporting) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = c.ink)
-                                else Icon(Icons.Filled.IosShare, "Export", tint = c.ink)
-                            }
-                            DropdownMenu(expanded = exportMenuOpen, onDismissRequest = { exportMenuOpen = false }) {
-                                DropdownMenuItem(text = { Text("Export as CSV") }, leadingIcon = { Icon(Icons.Filled.TableChart, null) }, onClick = { exportMenuOpen = false; viewModel.exportCsv(context) })
-                                DropdownMenuItem(text = { Text("Export as PDF") }, leadingIcon = { Icon(Icons.Filled.PictureAsPdf, null) }, onClick = { exportMenuOpen = false; viewModel.exportPdf(context) })
+                            IconButton(onClick = { viewModel.clearSelection() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = c.ink)
                             }
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = c.paper),
-            )
+                    },
+                    actions = {
+                        if (state.selectedFormId != null) {
+                            Box {
+                                IconButton(onClick = { exportMenuOpen = true }, enabled = lazyPagingItems.itemCount > 0 && !state.exporting) {
+                                    if (state.exporting) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = c.ink)
+                                    else Icon(Icons.Filled.IosShare, "Export", tint = c.ink)
+                                }
+                                DropdownMenu(expanded = exportMenuOpen, onDismissRequest = { exportMenuOpen = false }) {
+                                    DropdownMenuItem(
+                                        text = { Text("Export as CSV") },
+                                        leadingIcon = { Icon(Icons.Filled.TableChart, null) },
+                                        onClick = { exportMenuOpen = false; viewModel.exportCsv(context) }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Export as PDF") },
+                                        leadingIcon = { Icon(Icons.Filled.PictureAsPdf, null) },
+                                        onClick = { exportMenuOpen = false; viewModel.exportPdf(context) }
+                                    )
+                                    HorizontalDivider()
+                                    DropdownMenuItem(
+                                        text = { Text("Delete all responses", color = c.accent) },
+                                        leadingIcon = { Icon(androidx.compose.material.icons.filled.DeleteForever, null, tint = c.accent) },
+                                        onClick = { exportMenuOpen = false; showDeleteAllConfirm = true }
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = c.paper),
+                )
+            }
         },
     ) { padding ->
+        if (showDeleteAllConfirm) {
+            AlertDialog(
+                onDismissRequest = { showDeleteAllConfirm = false },
+                title = { Text("Delete All Responses?") },
+                text = { Text("This will permanently remove all responses for this form. This action cannot be undone.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDeleteAllConfirm = false
+                        viewModel.deleteAllResponses()
+                    }) {
+                        Text("Delete All", color = c.accent, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteAllConfirm = false }) {
+                        Text("Cancel", color = c.ink)
+                    }
+                },
+                containerColor = c.paper,
+                titleContentColor = c.ink,
+                textContentColor = c.muted
+            )
+        }
         if (isBiometricEnabled && !biometricAuthenticated) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -230,9 +294,27 @@ fun ResponsesScreen(
                             contentType = lazyPagingItems.itemContentType { "response" },
                         ) { index ->
                             lazyPagingItems[index]?.let { resp ->
-                                ResponseRow(resp = resp, index = index, fields = state.fields, onClick = {
-                                    viewModel.selectResponse(resp); onViewDetail()
-                                })
+                                val isSelected = state.selectedResponseIds.contains(resp.id)
+                                ResponseRow(
+                                    resp = resp,
+                                    index = index,
+                                    fields = state.fields,
+                                    isSelected = isSelected,
+                                    isSelectionMode = isSelectionMode,
+                                    onClick = {
+                                        if (isSelectionMode) {
+                                            viewModel.toggleResponseSelection(resp.id)
+                                        } else {
+                                            viewModel.selectResponse(resp)
+                                            onViewDetail()
+                                        }
+                                    },
+                                    onLongClick = {
+                                        if (!isSelectionMode) {
+                                            viewModel.toggleResponseSelection(resp.id)
+                                        }
+                                    }
+                                )
                             }
                         }
 
@@ -315,8 +397,17 @@ private fun InsightCard(loading: Boolean, summary: String?, error: String?, onGe
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun ResponseRow(resp: ResponseItemDto, index: Int, fields: List<FieldDto>, onClick: () -> Unit) {
+private fun ResponseRow(
+    resp: ResponseItemDto,
+    index: Int,
+    fields: List<FieldDto>,
+    isSelected: Boolean,
+    isSelectionMode: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
     val c = SuvTheme.colors
     val fmt = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
     val firstAnswer = remember(resp, fields) {
@@ -331,11 +422,30 @@ private fun ResponseRow(resp: ResponseItemDto, index: Int, fields: List<FieldDto
         else -> c.warnSoft to c.warn
     }
 
-    Box(Modifier.clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick)) {
-        SuvCard(radius = 14, contentPadding = PaddingValues(12.dp), modifier = Modifier.fillMaxWidth()) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    ) {
+        SuvCard(
+            radius = 14,
+            contentPadding = PaddingValues(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+            container = if (isSelected) c.paper2 else c.card
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(30.dp).clip(RoundedCornerShape(100.dp)).background(avBg), contentAlignment = Alignment.Center) {
-                    Text(avatarLetter, fontFamily = Fraunces, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = avFg)
+                Box(
+                    Modifier
+                        .size(30.dp)
+                        .clip(RoundedCornerShape(100.dp))
+                        .background(if (isSelected) c.accentDeep else avBg),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Icon(androidx.compose.material.icons.filled.Check, null, modifier = Modifier.size(16.dp), tint = c.paper)
+                    } else {
+                        Text(avatarLetter, fontFamily = Fraunces, fontWeight = FontWeight.Medium, fontSize = 13.sp, color = avFg)
+                    }
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
@@ -355,7 +465,15 @@ private fun ResponseRow(resp: ResponseItemDto, index: Int, fields: List<FieldDto
                     Text(preview, style = MaterialTheme.typography.bodySmall, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Spacer(Modifier.width(8.dp))
-                MonoMeta(fmt.format(Date(resp.submittedAt)), color = c.muted, size = 10)
+                if (!isSelectionMode) {
+                    MonoMeta(fmt.format(Date(resp.submittedAt)), color = c.muted, size = 10)
+                } else {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onClick() },
+                        colors = CheckboxDefaults.colors(checkedColor = c.accentDeep, uncheckedColor = c.line)
+                    )
+                }
             }
         }
     }

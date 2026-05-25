@@ -381,4 +381,53 @@ app.post("/:id/insights", async (c) => {
   }
 });
 
+// DELETE /v1/forms/:id/responses — delete all or selected responses
+app.delete("/:id/responses", async (c) => {
+  const u = c.get("user");
+  const id = c.req.param("id");
+  const owner = await c.env.DB.prepare(`SELECT owner_uid FROM forms WHERE id = ?`)
+    .bind(id)
+    .first<{ owner_uid: string }>();
+  if (!owner) return c.json({ error: "not_found" }, 404);
+  if (owner.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
+
+  const body = await c.req.json<{ ids?: string[]; all?: boolean }>().catch(() => ({}));
+  if (body.all === true) {
+    await c.env.DB.prepare(`DELETE FROM responses WHERE form_id = ?`).bind(id).run();
+    return c.json({ ok: true, deleted: "all" });
+  }
+
+  if (Array.isArray(body.ids) && body.ids.length > 0) {
+    // Minimize DB writes by using a single query with IN clause for bulk delete.
+    // D1 supports up to 100 parameters usually, but we can also just use multiple ? if needed.
+    // For simplicity and safety with many IDs, we can use batching or a structured IN clause.
+    const placeholders = body.ids.map(() => "?").join(",");
+    await c.env.DB.prepare(`DELETE FROM responses WHERE form_id = ? AND id IN (${placeholders})`)
+      .bind(id, ...body.ids)
+      .run();
+    return c.json({ ok: true, deleted_count: body.ids.length });
+  }
+
+  return c.json({ error: "missing_ids_or_all_flag" }, 400);
+});
+
+// DELETE /v1/forms/:id/responses/:responseId — delete a single response
+app.delete("/:id/responses/:responseId", async (c) => {
+  const u = c.get("user");
+  const id = c.req.param("id");
+  const responseId = c.req.param("responseId");
+  const owner = await c.env.DB.prepare(`SELECT owner_uid FROM forms WHERE id = ?`)
+    .bind(id)
+    .first<{ owner_uid: string }>();
+  if (!owner) return c.json({ error: "not_found" }, 404);
+  if (owner.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
+
+  const res = await c.env.DB.prepare(`DELETE FROM responses WHERE id = ? AND form_id = ?`)
+    .bind(responseId, id)
+    .run();
+  
+  if (res.meta.changes === 0) return c.json({ error: "not_found" }, 404);
+  return c.json({ ok: true });
+});
+
 export default app;

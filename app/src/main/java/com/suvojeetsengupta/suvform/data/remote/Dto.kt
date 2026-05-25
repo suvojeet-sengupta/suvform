@@ -135,6 +135,12 @@ data class InsightsDto(
     @SerialName("response_count") val responseCount: Int = 0,
 )
 
+@Serializable
+data class DeleteResponsesRequest(
+    val ids: List<String>? = null,
+    val all: Boolean? = null,
+)
+
 // ===================== ADMIN DTOs =====================
 
 @Serializable

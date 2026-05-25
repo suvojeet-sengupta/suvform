@@ -496,4 +496,40 @@ app.delete("/admins/:uid", async (c) => {
   return c.json({ ok: true, removed: target });
 });
 
+// DELETE /v1/admin/forms/:id/responses — delete all or selected responses for ANY form
+app.delete("/forms/:id/responses", async (c) => {
+  const id = c.req.param("id");
+  const exists = await c.env.DB.prepare(`SELECT 1 FROM forms WHERE id = ? LIMIT 1`).bind(id).first();
+  if (!exists) return c.json({ error: "not_found" }, 404);
+
+  const body = await c.req.json<{ ids?: string[]; all?: boolean }>().catch(() => ({}));
+  if (body.all === true) {
+    await c.env.DB.prepare(`DELETE FROM responses WHERE form_id = ?`).bind(id).run();
+    return c.json({ ok: true, deleted: "all" });
+  }
+
+  if (Array.isArray(body.ids) && body.ids.length > 0) {
+    const placeholders = body.ids.map(() => "?").join(",");
+    await c.env.DB.prepare(`DELETE FROM responses WHERE form_id = ? AND id IN (${placeholders})`)
+      .bind(id, ...body.ids)
+      .run();
+    return c.json({ ok: true, deleted_count: body.ids.length });
+  }
+
+  return c.json({ error: "missing_ids_or_all_flag" }, 400);
+});
+
+// DELETE /v1/admin/forms/:id/responses/:responseId — delete a single response for ANY form
+app.delete("/forms/:id/responses/:responseId", async (c) => {
+  const id = c.req.param("id");
+  const responseId = c.req.param("responseId");
+  
+  const res = await c.env.DB.prepare(`DELETE FROM responses WHERE id = ? AND form_id = ?`)
+    .bind(responseId, id)
+    .run();
+  
+  if (res.meta.changes === 0) return c.json({ error: "not_found" }, 404);
+  return c.json({ ok: true });
+});
+
 export default app;

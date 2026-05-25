@@ -39,6 +39,12 @@ class AdminFormResponsesViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _selectedIds = MutableStateFlow<Set<String>>(emptySet())
+    val selectedIds: StateFlow<Set<String>> = _selectedIds.asStateFlow()
+
+    private val _deleting = MutableStateFlow(false)
+    val deleting: StateFlow<Boolean> = _deleting.asStateFlow()
+
     init {
         load()
     }
@@ -92,4 +98,44 @@ class AdminFormResponsesViewModel @Inject constructor(
     }
 
     fun clearError() { _error.value = null }
+
+    // ---- Selection & Deletion ----
+
+    fun toggleSelection(id: String) {
+        val current = _selectedIds.value
+        _selectedIds.value = if (current.contains(id)) current - id else current + id
+    }
+
+    fun clearSelection() {
+        _selectedIds.value = emptySet()
+    }
+
+    fun deleteSelected() {
+        if (formId.isBlank() || _selectedIds.value.isEmpty()) return
+        val ids = _selectedIds.value.toList()
+        viewModelScope.launch {
+            _deleting.value = true
+            adminRepo.adminDeleteResponses(formId, ids)
+                .onSuccess {
+                    _selectedIds.value = emptySet()
+                    load() // Full reload for simplicity
+                }
+                .onFailure { _error.value = it.message ?: "Delete failed" }
+            _deleting.value = false
+        }
+    }
+
+    fun deleteAll() {
+        if (formId.isBlank()) return
+        viewModelScope.launch {
+            _deleting.value = true
+            adminRepo.adminDeleteAllResponses(formId)
+                .onSuccess {
+                    _selectedIds.value = emptySet()
+                    load()
+                }
+                .onFailure { _error.value = it.message ?: "Delete all failed" }
+            _deleting.value = false
+        }
+    }
 }
