@@ -21,7 +21,7 @@ app.get("/dashboard", async (c) => {
   // 4. Get total published forms count
   const results = await db.batch([
     db.prepare(
-      `SELECT f.id, f.title, f.description, f.published, f.public_slug, f.created_at, f.updated_at,
+      `SELECT f.id, f.title, f.description, f.published, f.public_slug, f.created_at, f.updated_at, f.response_limit,
               (SELECT COUNT(*) FROM responses WHERE form_id = f.id) as response_count
          FROM forms f WHERE f.owner_uid = ? ORDER BY f.updated_at DESC LIMIT ?`,
     ).bind(u.uid, CONFIG.FORMS_LIST_LIMIT),
@@ -52,6 +52,7 @@ type FormBody = {
   description?: string;
   fields?: unknown[];
   calculations?: unknown[];
+  responseLimit?: number | null;
 };
 
 function validateFormBody(b: FormBody): { ok: true; data: Required<FormBody> } | { ok: false; err: string } {
@@ -63,7 +64,16 @@ function validateFormBody(b: FormBody): { ok: true; data: Required<FormBody> } |
   if (fields.length > CONFIG.MAX_FIELDS) return { ok: false, err: "too_many_fields" };
   const calculations = Array.isArray(b.calculations) ? b.calculations : [];
   if (calculations.length > CONFIG.MAX_CALCULATIONS) return { ok: false, err: "too_many_calculations" };
-  return { ok: true, data: { title, description, fields, calculations } };
+
+  let responseLimit: number | null = null;
+  if (b.responseLimit !== undefined && b.responseLimit !== null) {
+    const n = Number(b.responseLimit);
+    if (!Number.isInteger(n) || n < 0) {
+      return { ok: false, err: "invalid_response_limit" };
+    }
+    responseLimit = n > 0 ? n : null;
+  }
+  return { ok: true, data: { title, description, fields, calculations, responseLimit } };
 }
 
 // POST /v1/forms — create a new form (full payload)
@@ -80,12 +90,13 @@ app.post("/", async (c) => {
   
   const schemaStr = JSON.stringify(v.data.fields);
   const calcStr = JSON.stringify(v.data.calculations);
+  const limit = v.data.responseLimit ?? null;
 
   await c.env.DB.batch([
     // 1. Create the form row first (current_version_id remains NULL)
     c.env.DB.prepare(
-      `INSERT INTO forms (id, owner_uid, title, description, schema_json, calculations_json, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO forms (id, owner_uid, title, description, schema_json, calculations_json, response_limit, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       id,
       u.uid,
@@ -93,6 +104,7 @@ app.post("/", async (c) => {
       v.data.description,
       schemaStr,
       calcStr,
+      limit,
       now,
       now,
     ),
@@ -116,6 +128,7 @@ app.post("/", async (c) => {
       published: 0,
       public_slug: null,
       current_version_id: versionId,
+      response_limit: limit,
       created_at: now,
       updated_at: now,
       updated_at_str: formatLocalized(now, tz),
@@ -129,7 +142,7 @@ app.get("/:id", async (c) => {
   const u = c.get("user");
   const row = await c.env.DB.prepare(
     `SELECT id, title, description, schema_json, calculations_json,
-            published, public_slug, created_at, updated_at, owner_uid
+            published, public_slug, response_limit, created_at, updated_at, owner_uid
        FROM forms WHERE id = ?`,
   )
     .bind(c.req.param("id"))
@@ -141,6 +154,7 @@ app.get("/:id", async (c) => {
       calculations_json: string;
       published: number;
       public_slug: string | null;
+      response_limit: number | null;
       created_at: number;
       updated_at: number;
       owner_uid: string;
@@ -158,6 +172,7 @@ app.get("/:id", async (c) => {
     calculations: JSON.parse(row.calculations_json || "[]"),
     published: row.published,
     public_slug: row.public_slug,
+    response_limit: row.response_limit,
     created_at: row.created_at,
     updated_at: row.updated_at,
     updated_at_str: formatLocalized(row.updated_at, tz),
@@ -168,9 +183,9 @@ app.get("/:id", async (c) => {
 app.put("/:id", async (c) => {
   const u = c.get("user");
   const id = c.req.param("id");
-  const existing = await c.env.DB.prepare(`SELECT owner_uid, schema_json, calculations_json, current_version_id FROM forms WHERE id = ?`)
+  const existing = await c.env.DB.prepare(`SELECT owner_uid, schema_json, calculations_json, current_version_id, response_limit FROM forms WHERE id = ?`)
     .bind(id)
-    .first<{ owner_uid: string; schema_json: string; calculations_json: string; current_version_id: string }>();
+    .first<{ owner_uid: string; schema_json: string; calculations_json: string; current_version_id: string; response_limit: number | null }>();
   if (!existing) return c.json({ error: "not_found" }, 404);
   if (existing.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
 
@@ -180,6 +195,7 @@ app.put("/:id", async (c) => {
 
   const schemaStr = JSON.stringify(v.data.fields);
   const calcStr = JSON.stringify(v.data.calculations);
+  const limit = v.data.responseLimit ?? null;
   const now = Date.now();
 
   const isSchemaChanged = schemaStr !== existing.schema_json || calcStr !== existing.calculations_json;
@@ -198,13 +214,14 @@ app.put("/:id", async (c) => {
 
   queries.push(
     c.env.DB.prepare(
-      `UPDATE forms SET title = ?, description = ?, schema_json = ?, calculations_json = ?, current_version_id = ?, updated_at = ?
+      `UPDATE forms SET title = ?, description = ?, schema_json = ?, calculations_json = ?, response_limit = ?, current_version_id = ?, updated_at = ?
          WHERE id = ?`
     ).bind(
       v.data.title,
       v.data.description,
       schemaStr,
       calcStr,
+      limit,
       newVersionId,
       now,
       id,
@@ -214,7 +231,7 @@ app.put("/:id", async (c) => {
   await c.env.DB.batch(queries);
 
   const tz = c.get("timezone");
-  return c.json({ id, updated_at: now, updated_at_str: formatLocalized(now, tz), version_id: newVersionId });
+  return c.json({ id, updated_at: now, updated_at_str: formatLocalized(now, tz), version_id: newVersionId, response_limit: limit });
 });
 
 // DELETE /v1/forms/:id

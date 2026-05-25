@@ -106,6 +106,7 @@ class AdminFormDetailViewModel @Inject constructor(
                 description = _draftDescription.value,
                 fields = current.fields,
                 calculations = current.calculations,
+                responseLimit = current.responseLimit,
             )
             adminRepo.updateForm(formId, body)
                 .onSuccess {

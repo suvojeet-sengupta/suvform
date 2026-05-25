@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -152,6 +153,14 @@ fun EditorScreen(
                     description = draft.description,
                     onTitleChange = viewModel::setTitle,
                     onDescriptionChange = viewModel::setDescription,
+                )
+            }
+
+            // Response Limit Setting
+            item {
+                ResponseLimitCard(
+                    limit = draft.responseLimit,
+                    onLimitChange = viewModel::setResponseLimit,
                 )
             }
 
@@ -772,5 +781,70 @@ private fun EmptyFieldsState() {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+@Composable
+private fun ResponseLimitCard(
+    limit: Int?,
+    onLimitChange: (Int?) -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Response Limit",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Text(
+                "Maximum number of responses this form can accept. Leave empty for unlimited.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            OutlinedTextField(
+                value = limit?.toString() ?: "",
+                onValueChange = { text ->
+                    val newLimit = text.toIntOrNull()
+                    onLimitChange(newLimit)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Max responses") },
+                placeholder = { Text("Unlimited") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = RoundedCornerShape(12.dp),
+            )
+
+            if (limit != null && limit > 0) {
+                Text(
+                    "Form will automatically close after $limit responses.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
     }
 }

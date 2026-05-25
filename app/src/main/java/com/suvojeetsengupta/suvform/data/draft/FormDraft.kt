@@ -15,11 +15,13 @@ data class FormDraft(
     val published: Boolean = false,
     val publicSlug: String? = null,
     val shareUrl: String? = null,
+    val responseLimit: Int? = null,      // null or 0 = unlimited
 ) {
     companion object {
         fun blank() = FormDraft(
             title = "Untitled form",
             fields = listOf(FieldEdit(label = "Your name", type = FieldType.SHORT_TEXT)),
+            responseLimit = null,
         )
 
         fun fromGenerated(g: GeneratedFormDto) = FormDraft(
@@ -27,6 +29,7 @@ data class FormDraft(
             description = g.description.orEmpty(),
             fields = g.fields.map { FieldEdit.fromDto(it) },
             calculations = g.calculations.map { CalculationEdit.fromDto(it) },
+            responseLimit = null,
         )
     }
 }

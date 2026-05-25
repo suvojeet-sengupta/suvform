@@ -32,6 +32,7 @@ class EditorViewModel @Inject constructor(
     // ---- Form-level ----
     fun setTitle(value: String) = store.update { it.copy(title = value) }
     fun setDescription(value: String) = store.update { it.copy(description = value) }
+    fun setResponseLimit(limit: Int?) = store.update { it.copy(responseLimit = if (limit != null && limit > 0) limit else null) }
 
     // ---- Field-level ----
     fun addField() = store.update {
@@ -128,6 +129,7 @@ class EditorViewModel @Inject constructor(
                 description = d.description,
                 fields = d.fields.map { it.toDto() },
                 calculations = d.calculations.map { it.toDto() },
+                responseLimit = d.responseLimit,
             )
             runCatching {
                 if (d.remoteId == null) formRepository.createForm(req)

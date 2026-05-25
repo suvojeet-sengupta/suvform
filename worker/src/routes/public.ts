@@ -10,11 +10,11 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 app.get("/v1/public/forms/:slug", async (c) => {
   const slug = c.req.param("slug");
   const row = await c.env.DB.prepare(
-    `SELECT title, description, schema_json, calculations_json, current_version_id
+    `SELECT title, description, schema_json, calculations_json, current_version_id, response_limit
        FROM forms WHERE public_slug = ? AND published = 1`,
   )
     .bind(slug)
-    .first<{ title: string; description: string; schema_json: string; calculations_json: string; current_version_id: string }>();
+    .first<{ title: string; description: string; schema_json: string; calculations_json: string; current_version_id: string; response_limit: number | null }>();
   if (!row) return c.json({ error: "not_found" }, 404);
   return c.json({
     title: row.title,
@@ -22,16 +22,28 @@ app.get("/v1/public/forms/:slug", async (c) => {
     fields: safeParse(row.schema_json, []),
     calculations: safeParse(row.calculations_json || "[]", []),
     version_id: row.current_version_id,
+    response_limit: row.response_limit,
   });
 });
 
 // POST /v1/public/forms/:slug/responses
 app.post("/v1/public/forms/:slug/responses", async (c) => {
   const slug = c.req.param("slug");
-  const form = await c.env.DB.prepare(`SELECT id, current_version_id, schema_json FROM forms WHERE public_slug = ? AND published = 1`)
+  const form = await c.env.DB.prepare(`SELECT id, current_version_id, schema_json, response_limit FROM forms WHERE public_slug = ? AND published = 1`)
     .bind(slug)
-    .first<{ id: string; current_version_id: string; schema_json: string }>();
+    .first<{ id: string; current_version_id: string; schema_json: string; response_limit: number | null }>();
   if (!form) return c.json({ error: "not_found" }, 404);
+
+  // Enforce response limit (if set)
+  if (form.response_limit && form.response_limit > 0) {
+    const countRow = await c.env.DB.prepare(
+      `SELECT COUNT(*) as c FROM responses WHERE form_id = ?`
+    ).bind(form.id).first<{ c: number }>();
+    const currentCount = countRow?.c ?? 0;
+    if (currentCount >= form.response_limit) {
+      return c.json({ error: "response_limit_reached", limit: form.response_limit }, 403);
+    }
+  }
 
   const ip = c.req.header("CF-Connecting-IP") ?? "0.0.0.0";
   const ipHash = await sha256Short(ip);
@@ -142,13 +154,23 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
 app.get("/f/:slug", async (c) => {
   const slug = c.req.param("slug");
   const row = await c.env.DB.prepare(
-    `SELECT title, description, schema_json, calculations_json, current_version_id
+    `SELECT title, description, schema_json, calculations_json, current_version_id, response_limit
        FROM forms WHERE public_slug = ? AND published = 1`,
   )
     .bind(slug)
-    .first<{ title: string; description: string; schema_json: string; calculations_json: string; current_version_id: string }>();
+    .first<{ title: string; description: string; schema_json: string; calculations_json: string; current_version_id: string; response_limit: number | null }>();
   if (!row) return c.text("Form not found", 404);
-  
+
+  let isClosed = false;
+  let currentResponseCount = 0;
+  if (row.response_limit && row.response_limit > 0) {
+    const countRow = await c.env.DB.prepare(
+      `SELECT COUNT(*) as c FROM responses WHERE form_id = (SELECT id FROM forms WHERE public_slug = ? LIMIT 1)`
+    ).bind(slug).first<{ c: number }>();
+    currentResponseCount = countRow?.c ?? 0;
+    if (currentResponseCount >= row.response_limit) isClosed = true;
+  }
+
   const url = new URL(c.req.url);
   const html = publicFormHtml({
     slug,
@@ -157,6 +179,9 @@ app.get("/f/:slug", async (c) => {
     fields: safeParse(row.schema_json, []),
     calculations: safeParse(row.calculations_json || "[]", []),
     versionId: row.current_version_id,
+    responseLimit: row.response_limit,
+    currentResponseCount,
+    isClosed,
     submitUrl: `${url.origin}/v1/public/forms/${slug}/responses`,
   });
   return c.html(html, { headers: { "Cache-Control": `public, max-age=${CONFIG.PUBLIC_FORM_CACHE_SECONDS}` } });

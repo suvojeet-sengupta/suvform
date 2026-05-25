@@ -92,6 +92,7 @@ class HomeViewModel @Inject constructor(
                             published = detail.published == 1,
                             publicSlug = detail.publicSlug,
                             shareUrl = shareUrl,
+                            responseLimit = detail.responseLimit,
                         ),
                     )
                     _meta.update { it.copy(openingFormId = null) }
