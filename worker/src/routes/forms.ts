@@ -392,20 +392,21 @@ app.delete("/:id/responses", async (c) => {
   if (owner.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
 
   const body = await c.req.json<{ ids?: string[]; all?: boolean }>().catch(() => ({}));
-  if (body.all === true) {
+  const b = body as { ids?: string[]; all?: boolean };
+  if (b.all === true) {
     await c.env.DB.prepare(`DELETE FROM responses WHERE form_id = ?`).bind(id).run();
     return c.json({ ok: true, deleted: "all" });
   }
 
-  if (Array.isArray(body.ids) && body.ids.length > 0) {
+  if (Array.isArray(b.ids) && b.ids.length > 0) {
     // Minimize DB writes by using a single query with IN clause for bulk delete.
     // D1 supports up to 100 parameters usually, but we can also just use multiple ? if needed.
     // For simplicity and safety with many IDs, we can use batching or a structured IN clause.
-    const placeholders = body.ids.map(() => "?").join(",");
+    const placeholders = b.ids.map(() => "?").join(",");
     await c.env.DB.prepare(`DELETE FROM responses WHERE form_id = ? AND id IN (${placeholders})`)
-      .bind(id, ...body.ids)
+      .bind(id, ...b.ids)
       .run();
-    return c.json({ ok: true, deleted_count: body.ids.length });
+    return c.json({ ok: true, deleted_count: b.ids.length });
   }
 
   return c.json({ error: "missing_ids_or_all_flag" }, 400);

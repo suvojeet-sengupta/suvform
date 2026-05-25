@@ -503,17 +503,18 @@ app.delete("/forms/:id/responses", async (c) => {
   if (!exists) return c.json({ error: "not_found" }, 404);
 
   const body = await c.req.json<{ ids?: string[]; all?: boolean }>().catch(() => ({}));
-  if (body.all === true) {
+  const b = body as { ids?: string[]; all?: boolean };
+  if (b.all === true) {
     await c.env.DB.prepare(`DELETE FROM responses WHERE form_id = ?`).bind(id).run();
     return c.json({ ok: true, deleted: "all" });
   }
 
-  if (Array.isArray(body.ids) && body.ids.length > 0) {
-    const placeholders = body.ids.map(() => "?").join(",");
+  if (Array.isArray(b.ids) && b.ids.length > 0) {
+    const placeholders = b.ids.map(() => "?").join(",");
     await c.env.DB.prepare(`DELETE FROM responses WHERE form_id = ? AND id IN (${placeholders})`)
-      .bind(id, ...body.ids)
+      .bind(id, ...b.ids)
       .run();
-    return c.json({ ok: true, deleted_count: body.ids.length });
+    return c.json({ ok: true, deleted_count: b.ids.length });
   }
 
   return c.json({ error: "missing_ids_or_all_flag" }, 400);
