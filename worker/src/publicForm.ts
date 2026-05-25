@@ -316,7 +316,7 @@ export function publicFormHtml(opts: {
     progressContainer.classList.remove('hidden');
     const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
     progressBar.style.width = pct + '%';
-    progressText.textContent = `${answered} of ${total}`;
+    progressText.textContent = \`\${answered} of \${total}\`;
   }
 
   // ---------- Expression evaluator ----------
@@ -520,7 +520,7 @@ export function publicFormHtml(opts: {
       const val = answers[f.id];
       if (val == null || val === '') return;
 
-      const selector = `[data-field-id="${f.id}"]`;
+      const selector = \`[data-field-id="\${f.id}"]\`;
       const els = root.querySelectorAll(selector);
       if (!els.length) return;
 
