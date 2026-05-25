@@ -81,6 +81,7 @@ data class SaveFormRequest(
     val description: String = "",
     val fields: List<FieldDto> = emptyList(),
     val calculations: List<CalculationDto> = emptyList(),
+    @SerialName("response_limit") val responseLimit: Int? = null,
 )
 
 @Serializable
@@ -92,6 +93,7 @@ data class FormDetailDto(
     val calculations: List<CalculationDto> = emptyList(),
     val published: Int = 0,
     @SerialName("public_slug") val publicSlug: String? = null,
+    @SerialName("response_limit") val responseLimit: Int? = null,
     @SerialName("created_at") val createdAt: Long = 0,
     @SerialName("updated_at") val updatedAt: Long = 0,
 )
@@ -230,6 +232,7 @@ data class AdminFormDetailDto(
     val calculations: List<CalculationDto> = emptyList(),
     val published: Int = 0,
     @SerialName("public_slug") val publicSlug: String? = null,
+    @SerialName("response_limit") val responseLimit: Int? = null,
     @SerialName("created_at") val createdAt: Long = 0,
     @SerialName("updated_at") val updatedAt: Long = 0,
     @SerialName("updated_at_str") val updatedAtStr: String? = null,

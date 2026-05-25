@@ -52,6 +52,7 @@ interface FormDetail {
   calculations: Calculation[];
   published: number;
   public_slug: string | null;
+  response_limit?: number | null;
 }
 
 const FIELD_TYPES = [
@@ -105,7 +106,8 @@ export default function EditFormPage() {
         title: form.title,
         description: form.description,
         fields: form.fields,
-        calculations: form.calculations
+        calculations: form.calculations,
+        response_limit: form.response_limit ?? null
       });
     } catch (error) {
       console.error("Failed to save form", error);
@@ -354,6 +356,26 @@ export default function EditFormPage() {
                   <Eye className="h-4 w-4" />
                   View Responses
                 </button>
+
+                {/* Response Limit */}
+                <div className="space-y-2 pt-4 border-t border-gray-100">
+                  <label className="text-xs font-bold text-gray-500 uppercase">Response Limit</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Unlimited"
+                      value={form.response_limit ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value ? parseInt(e.target.value) : null;
+                        setForm({ ...form, response_limit: val && val > 0 ? val : null });
+                      }}
+                      className="w-32 p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    />
+                    <span className="text-sm text-gray-500">responses (leave blank for unlimited)</span>
+                  </div>
+                  <p className="text-[11px] text-gray-400">When the limit is reached, the public form will show as closed.</p>
+                </div>
               </div>
             )}
           </div>

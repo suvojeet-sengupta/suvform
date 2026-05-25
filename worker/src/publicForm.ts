@@ -17,6 +17,9 @@ export function publicFormHtml(opts: {
   fields: unknown[];
   calculations: unknown[];
   versionId: string;
+  responseLimit?: number | null;
+  currentResponseCount?: number;
+  isClosed?: boolean;
   submitUrl: string;
 }): string {
   const dataPayload = JSON.stringify({
@@ -27,6 +30,9 @@ export function publicFormHtml(opts: {
     versionId: opts.versionId,
     slug: opts.slug,
     submitUrl: opts.submitUrl,
+    responseLimit: opts.responseLimit ?? null,
+    currentResponseCount: opts.currentResponseCount ?? 0,
+    isClosed: !!opts.isClosed,
   });
 
   return `<!doctype html>
@@ -193,6 +199,21 @@ export function publicFormHtml(opts: {
     <p class="text-muted max-w-sm mx-auto leading-relaxed">Thank you. Your response has been recorded and sent to the form owner.</p>
   </div>
 
+  <!-- Form Closed (response limit reached) -->
+  <div id="form-closed" class="hidden text-center py-16 sm:py-24">
+    <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-accentsoft mb-6">
+      <svg class="h-8 w-8 text-accentdeep" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/>
+        <path d="M15 9l-6 6M9 9l6 6"/>
+      </svg>
+    </div>
+    <h2 class="font-serif text-2xl mb-2">This form is closed</h2>
+    <p class="text-muted max-w-sm mx-auto leading-relaxed">
+      The owner has set a limit on the number of responses. This form is no longer accepting new submissions.
+    </p>
+    <p id="closed-count" class="mt-4 text-sm text-muted2 font-mono"></p>
+  </div>
+
   <!-- Footer -->
   <footer class="mt-16 pt-6 border-t border-line text-center">
     <p class="font-mono text-[11px] text-muted2">Powered by <a href="https://github.com/suvojeet-sengupta/suvform" target="_blank" rel="noopener" class="font-medium text-muted hover:text-ink transition-colors">SuvForm</a></p>
@@ -208,9 +229,23 @@ export function publicFormHtml(opts: {
   const formContent = document.getElementById('form-content');
   const alreadyResponded = document.getElementById('already-responded');
   const successContent = document.getElementById('success-content');
+  const formClosed = document.getElementById('form-closed');
   const refillBtn = document.getElementById('refill-btn');
 
   function init() {
+    if (FORM.isClosed) {
+      formContent.classList.add('hidden');
+      alreadyResponded.classList.add('hidden');
+      if (formClosed) {
+        formClosed.classList.remove('hidden');
+        const countEl = document.getElementById('closed-count');
+        if (countEl && FORM.responseLimit) {
+          countEl.textContent = \`\${FORM.currentResponseCount} / \${FORM.responseLimit} responses received\`;
+        }
+      }
+      return;
+    }
+
     if (localStorage.getItem(STORAGE_KEY)) {
       formContent.classList.add('hidden');
       alreadyResponded.classList.remove('hidden');
@@ -625,7 +660,15 @@ export function publicFormHtml(opts: {
     } catch (e) {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Submit';
-      submitMsg.textContent = e.message || 'Submission failed. Please try again.';
+
+      if (e && e.message && e.message.includes('response_limit_reached')) {
+        submitMsg.textContent = 'This form has reached its response limit.';
+        // Hide form and show closed state
+        formContent.classList.add('hidden');
+        if (formClosed) formClosed.classList.remove('hidden');
+      } else {
+        submitMsg.textContent = (e && e.message) || 'Submission failed. Please try again.';
+      }
       submitMsg.className = 'mt-3 text-center text-sm text-accent';
       submitMsg.classList.remove('hidden');
     }
