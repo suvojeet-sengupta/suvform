@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { Bindings, Variables } from "../types";
 import { publicFormHtml } from "../publicForm";
 import { safeParse, sha256Short } from "../utils/helpers";
+import { recomputeCalculations } from "../utils/calc";
 import { CONFIG } from "../config";
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
@@ -29,9 +30,9 @@ app.get("/v1/public/forms/:slug", async (c) => {
 // POST /v1/public/forms/:slug/responses
 app.post("/v1/public/forms/:slug/responses", async (c) => {
   const slug = c.req.param("slug");
-  const form = await c.env.DB.prepare(`SELECT id, current_version_id, schema_json, response_limit FROM forms WHERE public_slug = ? AND published = 1`)
+  const form = await c.env.DB.prepare(`SELECT id, current_version_id, schema_json, calculations_json, response_limit FROM forms WHERE public_slug = ? AND published = 1`)
     .bind(slug)
-    .first<{ id: string; current_version_id: string; schema_json: string; response_limit: number | null }>();
+    .first<{ id: string; current_version_id: string; schema_json: string; calculations_json: string | null; response_limit: number | null }>();
   if (!form) return c.json({ error: "not_found" }, 404);
 
   // Enforce response limit (if set)
@@ -59,14 +60,16 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
   // Use the submitted versionId if valid, otherwise fallback to current.
   let targetVersionId = body?.versionId || form.current_version_id;
   let validationSchemaJson = form.schema_json;
+  let validationCalcsJson = form.calculations_json;
 
   // If the submitted version isn't the current one, fetch its specific schema for validation.
   if (body?.versionId && body.versionId !== form.current_version_id) {
-    const verRow = await c.env.DB.prepare(`SELECT schema_json FROM form_versions WHERE id = ? AND form_id = ?`)
+    const verRow = await c.env.DB.prepare(`SELECT schema_json, calculations_json FROM form_versions WHERE id = ? AND form_id = ?`)
       .bind(body.versionId, form.id)
-      .first<{ schema_json: string }>();
+      .first<{ schema_json: string; calculations_json: string | null }>();
     if (verRow) {
       validationSchemaJson = verRow.schema_json;
+      validationCalcsJson = verRow.calculations_json;
     } else {
       // Version not found for this form, fallback to current
       targetVersionId = form.current_version_id;
@@ -76,18 +79,6 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
   const rawAnswers = (body && typeof body === "object" && body.answers && typeof body.answers === "object")
     ? (body.answers as Record<string, unknown>)
     : {};
-  // Sanitize client-sent calculated values: only finite numbers, bounded count,
-  // sane keys. Defense-in-depth against tampered/garbage payloads. (Full
-  // server-side recompute from calculations_json is a planned follow-up.)
-  const calcRaw = (body && typeof body === "object" && body.calculated && typeof body.calculated === "object")
-    ? (body.calculated as Record<string, unknown>)
-    : {};
-  const calculated: Record<string, number> = {};
-  for (const [k, v] of Object.entries(calcRaw)) {
-    if (Object.keys(calculated).length >= CONFIG.MAX_CALCULATIONS) break;
-    const n = typeof v === "number" ? v : Number(v);
-    if (typeof k === "string" && k.length <= 64 && Number.isFinite(n)) calculated[k] = n;
-  }
 
   const fields = safeParse(validationSchemaJson, []) as any[];
   const MAX_TEXT_LEN = CONFIG.MAX_TEXT_LEN;
@@ -145,6 +136,12 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
 
   if (missing.length) return c.json({ error: "missing_required", fields: missing }, 400);
   if (invalid.length) return c.json({ error: "invalid_answers", fields: invalid }, 400);
+
+  // Authoritatively recompute calculations server-side from the validated
+  // answers, ignoring any client-sent `calculated` payload. This prevents
+  // tampered submissions from poisoning stored calculation values.
+  const calcs = safeParse(validationCalcsJson || "[]", []) as any[];
+  const calculated = recomputeCalculations(fields, calcs, answers);
 
   const id = crypto.randomUUID();
   const now = Date.now();
