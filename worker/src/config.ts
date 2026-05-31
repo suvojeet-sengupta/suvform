@@ -4,9 +4,9 @@ export const CONFIG = {
   MAX_BODY_BYTES: 64 * 1024,
   MAX_TEXT_LEN: 5000,
 
-  // AI generation — TIERED QUOTAS
-  AI_DAILY_QUOTA: 50,           // Regular users (safe limit)
-  AI_DAILY_QUOTA_ADMIN: 200,    // Admins get more (trusted)
+  // AI generation — TIERED QUOTAS (freemium)
+  AI_DAILY_QUOTA: 5,            // Free tier (low limit; upgrade for more)
+  AI_DAILY_QUOTA_ADMIN: 50,     // Admins get more (trusted)
 
   PROMPT_MIN_LEN: 10,
   PROMPT_MAX_LEN: 3000,

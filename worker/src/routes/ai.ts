@@ -62,7 +62,8 @@ app.post("/generate-form", async (c) => {
 
     return c.json({ ...form, provider: finalGroqKey ? "groq" : "gemini", is_admin: userIsAdmin });
   } catch (e) {
-    return c.json({ error: "generation_failed", detail: (e as Error).message }, 502);
+    console.error(`[AIError] ${c.get("reqId")}:`, (e as Error).message);
+    return c.json({ error: "generation_failed" }, 502);
   }
 });
 
