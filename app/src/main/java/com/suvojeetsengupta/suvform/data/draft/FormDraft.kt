@@ -58,7 +58,6 @@ data class ThemeEdit(
     val cardBackgroundColor: String = "#FFFFFF",
     val fontFamily: String = "sans", // "serif" | "sans" | "mono"
     val borderRadius: String = "medium", // "none" | "small" | "medium" | "large" | "full"
-    val coverImageKeyword: String? = null,
 ) {
     fun toDto() = FormThemeDto(
         backgroundColor = backgroundColor,
@@ -69,7 +68,6 @@ data class ThemeEdit(
         cardBackgroundColor = cardBackgroundColor,
         fontFamily = fontFamily,
         borderRadius = borderRadius,
-        coverImageKeyword = coverImageKeyword,
     )
 
     companion object {
@@ -82,7 +80,6 @@ data class ThemeEdit(
             cardBackgroundColor = d.cardBackgroundColor,
             fontFamily = d.fontFamily,
             borderRadius = d.borderRadius,
-            coverImageKeyword = d.coverImageKeyword,
         )
     }
 }

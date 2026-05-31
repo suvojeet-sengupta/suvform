@@ -86,7 +86,6 @@ data class FormThemeDto(
     @SerialName("cardBackgroundColor") val cardBackgroundColor: String,
     @SerialName("fontFamily") val fontFamily: String, // "serif" | "sans" | "mono"
     @SerialName("borderRadius") val borderRadius: String, // "none" | "small" | "medium" | "large" | "full"
-    @SerialName("coverImageKeyword") val coverImageKeyword: String? = null,
 )
 
 // --- Save / load ---

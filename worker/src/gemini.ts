@@ -130,7 +130,6 @@ export async function generateThemeWithGemini(apiKey: string, prompt: string) {
   - cardBackgroundColor: string (6-digit hex) - for the form container
   - fontFamily: "serif" | "sans" | "mono"
   - borderRadius: "none" | "small" | "medium" | "large" | "full"
-  - coverImageKeyword: string - a keyword to find a matching cover image (e.g. "wedding", "office", "nature")
   
   Ensure colors have good contrast and accessibility.`;
 

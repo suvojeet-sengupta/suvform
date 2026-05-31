@@ -369,13 +369,6 @@ private fun ThemePreview(theme: ThemeEdit) {
                 style = MaterialTheme.typography.labelSmall
             )
         }
-        
-        if (theme.coverImageKeyword != null) {
-            Spacer(Modifier.weight(1f))
-            Badge(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)) {
-                Text("Cover: ${theme.coverImageKeyword}", modifier = Modifier.padding(4.dp), style = MaterialTheme.typography.labelSmall)
-            }
-        }
     }
 }
 

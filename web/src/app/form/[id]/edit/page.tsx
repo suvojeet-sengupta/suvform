@@ -55,7 +55,6 @@ interface FormTheme {
   cardBackgroundColor: string;
   fontFamily: "serif" | "sans" | "mono";
   borderRadius: "none" | "small" | "medium" | "large" | "full";
-  coverImageKeyword?: string;
 }
 
 interface FormDetail {
@@ -436,16 +435,6 @@ export default function EditFormPage() {
                         ))}
                       </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase">Cover Keyword</label>
-                      <input
-                        value={form.theme.coverImageKeyword || ""}
-                        onChange={(e) => setForm({ ...form, theme: { ...form.theme!, coverImageKeyword: e.target.value } })}
-                        placeholder="e.g. 'abstract', 'nature'"
-                        className="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                      />
-                    </div>
                   </div>
                 )}
               </div>
@@ -527,16 +516,6 @@ export default function EditFormPage() {
                            form.theme?.fontFamily === 'mono' ? 'var(--font-mono)' : 'inherit'
               }}
             >
-              {form.theme?.coverImageKeyword && (
-                <div className="h-32 sm:h-48 w-full overflow-hidden bg-gray-100">
-                  <img 
-                    src={`https://source.unsplash.com/featured/1200x400/?${encodeURIComponent(form.theme.coverImageKeyword)}`}
-                    className="w-full h-full object-cover"
-                    alt="Theme cover"
-                  />
-                </div>
-              )}
-
               <div className="p-6 md:p-10">
                 {activeTab === "fields" && (
                   <div className="space-y-4 md:space-y-6">

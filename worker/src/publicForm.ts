@@ -52,11 +52,6 @@ export function publicFormHtml(opts: {
                      theme.borderRadius === 'large' ? '24px' :
                      theme.borderRadius === 'full' ? '9999px' : '12px'; // medium/default
 
-  // Unsplash search for dynamic cover images based on keyword
-  const finalCoverImage = theme.coverImageKeyword 
-    ? `https://source.unsplash.com/featured/1200x400/?${encodeURIComponent(theme.coverImageKeyword)}`
-    : null;
-
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -69,7 +64,6 @@ export function publicFormHtml(opts: {
 <meta property="og:title" content="${escapeHtml(opts.title)}" />
 <meta property="og:description" content="${escapeHtml(opts.description || "Fill out this form")}" />
 <meta property="og:type" content="website" />
-${finalCoverImage ? `<meta property="og:image" content="${finalCoverImage}" />` : ''}
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..600&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -126,7 +120,7 @@ ${finalCoverImage ? `<meta property="og:image" content="${finalCoverImage}" />` 
   @media print {
     @page { margin: 1.2cm; }
     body { background: white !important; color: #111 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    header, footer, #print-btn, #submit-btn, #submit-msg, #draft-status, #calc-section, .submit-btn, .cover-image { display: none !important; }
+    header, footer, #print-btn, #submit-btn, #submit-msg, #draft-status, #calc-section, .submit-btn { display: none !important; }
     main { max-width: 100% !important; padding: 0 !important; }
     #form-card { box-shadow: none !important; padding: 0 !important; background: white !important; }
     .field-input, textarea { border: 1px solid #ccc !important; background: white !important; }
@@ -166,13 +160,7 @@ ${finalCoverImage ? `<meta property="og:image" content="${finalCoverImage}" />` 
 
 <main class="max-w-2xl mx-auto px-5 sm:px-6 py-8 sm:py-12">
   <div id="form-card" class="overflow-hidden">
-    ${finalCoverImage ? `
-      <div class="cover-image w-full h-40 sm:h-56 overflow-hidden">
-        <img src="${finalCoverImage}" alt="Cover" class="w-full h-full object-cover" />
-      </div>
-    ` : ''}
-
-    <div id="form-content" class="${finalCoverImage ? 'p-6 sm:p-10' : ''}">
+    <div id="form-content" class="p-6 sm:p-10">
       <!-- Form header -->
       <div class="mb-8">
         <h1 id="form-title" class="font-serif text-3xl sm:text-4xl tracking-tight leading-[1.05]"></h1>
