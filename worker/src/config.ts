@@ -4,9 +4,9 @@ export const CONFIG = {
   MAX_BODY_BYTES: 64 * 1024,
   MAX_TEXT_LEN: 5000,
 
-  // AI generation — TIERED QUOTAS (freemium)
-  AI_DAILY_QUOTA: 5,            // Free tier (low limit; upgrade for more)
-  AI_DAILY_QUOTA_ADMIN: 50,     // Admins get more (trusted)
+  // AI generation quota (freemium). Owner is unlimited (bypasses this);
+  // every other account gets AI_DAILY_QUOTA generations per day.
+  AI_DAILY_QUOTA: 5,
 
   PROMPT_MIN_LEN: 10,
   PROMPT_MAX_LEN: 3000,

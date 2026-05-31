@@ -4,7 +4,7 @@ import { generateFormWithGemini } from "../gemini";
 import { generateFormWithGroq } from "../groq";   // ← Naya import
 import { CONFIG } from "../config";
 import { getLocalDay } from "../utils/time";
-import { isAdmin } from "../db";                   // ← Admin check ke liye
+import { isOwner } from "../db";                   // ← Owner gets unlimited AI
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -18,16 +18,15 @@ app.post("/generate-form", async (c) => {
   if (prompt.length < CONFIG.PROMPT_MIN_LEN) return c.json({ error: "prompt_too_short" }, 400);
   if (prompt.length > CONFIG.PROMPT_MAX_LEN) return c.json({ error: "prompt_too_long" }, 400);
 
-  // === TIERED QUOTA (Admin vs Regular) ===
+  // === QUOTA: owner is unlimited, everyone else gets AI_DAILY_QUOTA/day ===
   const day = getLocalDay(tz);
   const quotaKey = `quota:${u.uid}:${day}`;
   const used = parseInt((await c.env.RATE_LIMIT.get(quotaKey)) ?? "0", 10);
 
-  const userIsAdmin = await isAdmin(c.env.DB, u.uid);
-  const dailyLimit = userIsAdmin ? CONFIG.AI_DAILY_QUOTA_ADMIN : CONFIG.AI_DAILY_QUOTA;
+  const userIsOwner = await isOwner(c.env.DB, u.uid);
 
-  if (used >= dailyLimit) {
-    return c.json({ error: "quota_exceeded", limit: dailyLimit, is_admin: userIsAdmin }, 429);
+  if (!userIsOwner && used >= CONFIG.AI_DAILY_QUOTA) {
+    return c.json({ error: "quota_exceeded", limit: CONFIG.AI_DAILY_QUOTA }, 429);
   }
 
   // === KEY PRIORITY: Groq > Gemini ===
@@ -57,10 +56,12 @@ app.post("/generate-form", async (c) => {
       return c.json({ error: "no_ai_key" }, 400);
     }
 
-    // Increment quota
-    await c.env.RATE_LIMIT.put(quotaKey, String(used + 1), { expirationTtl: CONFIG.AI_QUOTA_TTL_SECONDS });
+    // Increment quota only for non-owners (owner is unlimited).
+    if (!userIsOwner) {
+      await c.env.RATE_LIMIT.put(quotaKey, String(used + 1), { expirationTtl: CONFIG.AI_QUOTA_TTL_SECONDS });
+    }
 
-    return c.json({ ...form, provider: finalGroqKey ? "groq" : "gemini", is_admin: userIsAdmin });
+    return c.json({ ...form, provider: finalGroqKey ? "groq" : "gemini", is_owner: userIsOwner });
   } catch (e) {
     console.error(`[AIError] ${c.get("reqId")}:`, (e as Error).message);
     return c.json({ error: "generation_failed" }, 502);
