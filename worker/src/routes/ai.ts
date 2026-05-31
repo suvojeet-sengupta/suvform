@@ -71,10 +71,21 @@ app.post("/generate-form", async (c) => {
 // POST /v1/ai/generate-theme
 app.post("/generate-theme", async (c) => {
   const u = c.get("user");
+  const tz = c.get("timezone");
   const body = await c.req.json<{ prompt?: string }>().catch(() => ({ prompt: "" }));
   const prompt = (body.prompt ?? "").trim();
 
   if (prompt.length < 3) return c.json({ error: "prompt_too_short" }, 400);
+
+  // === QUOTA CHECK ===
+  const userIsAdmin = await isAdmin(c.env.DB, u.uid);
+  const day = getLocalDay(tz);
+  const quotaKey = `quota:${u.uid}:${day}`;
+  const used = parseInt((await c.env.RATE_LIMIT.get(quotaKey)) ?? "0", 10);
+
+  if (!userIsAdmin && used >= CONFIG.AI_DAILY_QUOTA) {
+    return c.json({ error: "quota_exceeded", limit: CONFIG.AI_DAILY_QUOTA }, 429);
+  }
 
   const groqKey = (c.req.header("X-Groq-Key") ?? "").trim();
   const geminiKey = (c.req.header("X-Gemini-Key") ?? "").trim();
@@ -99,6 +110,11 @@ app.post("/generate-theme", async (c) => {
       theme = await generateThemeWithGemini(finalGeminiKey, prompt);
     } else {
       return c.json({ error: "no_ai_key" }, 400);
+    }
+
+    // Increment quota only for non-admins
+    if (!userIsAdmin) {
+      await c.env.RATE_LIMIT.put(quotaKey, String(used + 1), { expirationTtl: CONFIG.AI_QUOTA_TTL_SECONDS });
     }
 
     return c.json(theme);

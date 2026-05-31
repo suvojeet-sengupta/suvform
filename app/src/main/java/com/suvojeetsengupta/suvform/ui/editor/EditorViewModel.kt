@@ -118,7 +118,7 @@ class EditorViewModel @Inject constructor(
                     store.update { it.copy(theme = ThemeEdit.fromDto(themeDto)) }
                 }
                 .onFailure { e ->
-                    _save.value = SaveUiState(error = "Theme generation failed: ${ErrorMapper.message(e)}")
+                    _save.value = SaveUiState(error = ErrorMapper.message(e))
                 }
             _themeLoading.value = false
         }
