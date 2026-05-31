@@ -6,6 +6,7 @@ import com.suvojeetsengupta.suvform.data.draft.FormDraft
 import com.suvojeetsengupta.suvform.data.draft.FormDraftStore
 import com.suvojeetsengupta.suvform.data.remote.GenerateFormRequest
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
+import com.suvojeetsengupta.suvform.util.ErrorMapper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,14 +49,7 @@ class CreateViewModel @Inject constructor(
                     _state.update { it.copy(loading = false, navigateToEditor = true) }
                 }
                 .onFailure { e ->
-                    val msg = when (e) {
-                        is HttpException -> {
-                            val body = runCatching { e.response()?.errorBody()?.string() }.getOrNull()
-                            "HTTP ${e.code()}${if (!body.isNullOrBlank()) ": $body" else ""}"
-                        }
-                        else -> e.message ?: "Generation failed"
-                    }
-                    _state.update { it.copy(loading = false, error = msg) }
+                    _state.update { it.copy(loading = false, error = ErrorMapper.message(e)) }
                 }
         }
     }
@@ -68,6 +62,10 @@ class CreateViewModel @Inject constructor(
 
     fun onNavigated() {
         _state.update { it.copy(navigateToEditor = false) }
+    }
+
+    fun consumeError() {
+        _state.update { it.copy(error = null) }
     }
 }
 

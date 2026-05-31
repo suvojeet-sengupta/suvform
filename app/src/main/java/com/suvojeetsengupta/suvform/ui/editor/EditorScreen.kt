@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.suvojeetsengupta.suvform.R
+import com.suvojeetsengupta.suvform.ui.common.QuotaExceededDialog
 import com.suvojeetsengupta.suvform.data.draft.CalculationEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldType
@@ -73,7 +74,7 @@ fun EditorScreen(
     }
     LaunchedEffect(saveState.error) {
         saveState.error?.let { 
-            if (it.contains("limit") || it.contains("quota")) {
+            if (it.contains("limit", ignoreCase = true) || it.contains("quota", ignoreCase = true)) {
                 showQuotaDialog = true
             } else {
                 snackbar.showSnackbar(it)
@@ -285,55 +286,6 @@ fun EditorScreen(
             item { Spacer(Modifier.height(80.dp)) }
         }
     }
-}
-
-@Composable
-private fun QuotaExceededDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            Button(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Got it")
-            }
-        },
-        icon = {
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shape = CircleShape,
-                modifier = Modifier.size(64.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painterResource(R.drawable.ic_auto_awesome),
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        },
-        title = {
-            Text(
-                "Daily Limit Reached",
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        text = {
-            Text(
-                "You've used all 5 AI generations for today. Your limit will reset tomorrow at midnight.",
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        },
-        shape = RoundedCornerShape(28.dp)
-    )
 }
 
 @Composable

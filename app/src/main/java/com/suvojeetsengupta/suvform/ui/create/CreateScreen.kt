@@ -7,14 +7,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,12 +26,14 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.suvojeetsengupta.suvform.R
+import com.suvojeetsengupta.suvform.ui.common.QuotaExceededDialog
 import com.suvojeetsengupta.suvform.ui.components.ButtonVariant
 import com.suvojeetsengupta.suvform.ui.components.ChipVariant
 import com.suvojeetsengupta.suvform.ui.components.SectionLabel
@@ -55,12 +58,28 @@ fun CreateScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val c = SuvTheme.colors
+    var showQuotaDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.navigateToEditor) {
         if (state.navigateToEditor) {
             onOpenEditor()
             viewModel.onNavigated()
         }
+    }
+
+    LaunchedEffect(state.error) {
+        state.error?.let { 
+            if (it.contains("limit", ignoreCase = true) || it.contains("quota", ignoreCase = true)) {
+                showQuotaDialog = true
+            }
+        }
+    }
+
+    if (showQuotaDialog) {
+        QuotaExceededDialog(onDismiss = { 
+            showQuotaDialog = false
+            viewModel.consumeError()
+        })
     }
 
     Scaffold(containerColor = c.paper) { padding ->
@@ -143,10 +162,12 @@ fun CreateScreen(
                 }
 
                 state.error?.let { msg ->
-                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.accentSoft).padding(14.dp)) {
-                        Text(msg, style = MaterialTheme.typography.bodyMedium, color = c.accentDeep)
+                    if (!msg.contains("limit", ignoreCase = true) && !msg.contains("quota", ignoreCase = true)) {
+                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.accentSoft).padding(14.dp)) {
+                            Text(msg, style = MaterialTheme.typography.bodyMedium, color = c.accentDeep)
+                        }
+                        Spacer(Modifier.height(16.dp))
                     }
-                    Spacer(Modifier.height(16.dp))
                 }
 
                 SectionLabel("Try an example")

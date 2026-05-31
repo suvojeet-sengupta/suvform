@@ -34,6 +34,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
 import com.suvojeetsengupta.suvform.R
+import com.suvojeetsengupta.suvform.ui.common.QuotaExceededDialog
 import com.suvojeetsengupta.suvform.data.remote.FieldDto
 import com.suvojeetsengupta.suvform.data.remote.FormSummaryDto
 import com.suvojeetsengupta.suvform.data.remote.ResponseItemDto
@@ -69,6 +70,7 @@ fun ResponsesScreen(
     val lazyPagingItems = viewModel.responsesPagingData.collectAsLazyPagingItems()
 
     var biometricAuthenticated by remember { mutableStateOf(false) }
+    var showQuotaDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (!isBiometricEnabled) {
@@ -86,6 +88,21 @@ fun ResponsesScreen(
                 onError = { }
             )
         }
+    }
+
+    LaunchedEffect(state.insightsError) {
+        state.insightsError?.let { 
+            if (it.contains("limit", ignoreCase = true) || it.contains("quota", ignoreCase = true)) {
+                showQuotaDialog = true
+            }
+        }
+    }
+
+    if (showQuotaDialog) {
+        QuotaExceededDialog(onDismiss = { 
+            showQuotaDialog = false
+            viewModel.consumeError()
+        })
     }
 
     BackHandler(enabled = true) {

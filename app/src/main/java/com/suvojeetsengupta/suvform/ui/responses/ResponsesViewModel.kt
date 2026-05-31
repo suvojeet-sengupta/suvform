@@ -265,6 +265,10 @@ class ResponsesViewModel @Inject constructor(
         _state.update { it.copy(selectedResponse = response) }
     }
 
+    fun consumeError() {
+        _state.update { it.copy(error = null, insightsError = null) }
+    }
+
     // ---- Selection & Deletion ----
 
     fun toggleResponseSelection(id: String) {
