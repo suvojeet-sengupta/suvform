@@ -52,11 +52,12 @@ type FormBody = {
   description?: string;
   fields?: unknown[];
   calculations?: unknown[];
+  theme?: unknown;
   responseLimit?: number | null;
   response_limit?: number | null;
 };
 
-function validateFormBody(b: FormBody): { ok: true; data: { title: string; description: string; fields: unknown[]; calculations: unknown[]; responseLimit: number | null } } | { ok: false; err: string } {
+function validateFormBody(b: FormBody): { ok: true; data: { title: string; description: string; fields: unknown[]; calculations: unknown[]; theme: unknown; responseLimit: number | null } } | { ok: false; err: string } {
   const title = (b.title ?? "").toString().trim() || "Untitled form";
   if (title.length > CONFIG.TITLE_MAX_LEN) return { ok: false, err: "title_too_long" };
   const description = (b.description ?? "").toString();
@@ -65,6 +66,7 @@ function validateFormBody(b: FormBody): { ok: true; data: { title: string; descr
   if (fields.length > CONFIG.MAX_FIELDS) return { ok: false, err: "too_many_fields" };
   const calculations = Array.isArray(b.calculations) ? b.calculations : [];
   if (calculations.length > CONFIG.MAX_CALCULATIONS) return { ok: false, err: "too_many_calculations" };
+  const theme = b.theme ?? null;
 
   let responseLimit: number | null = null;
   const rawLimit = b.responseLimit !== undefined ? b.responseLimit : b.response_limit;
@@ -75,7 +77,7 @@ function validateFormBody(b: FormBody): { ok: true; data: { title: string; descr
     }
     responseLimit = n > 0 ? n : null;
   }
-  return { ok: true, data: { title, description, fields, calculations, responseLimit } };
+  return { ok: true, data: { title, description, fields, calculations, theme, responseLimit } };
 }
 
 // POST /v1/forms — create a new form (full payload)
@@ -92,13 +94,14 @@ app.post("/", async (c) => {
   
   const schemaStr = JSON.stringify(v.data.fields);
   const calcStr = JSON.stringify(v.data.calculations);
+  const themeStr = v.data.theme ? JSON.stringify(v.data.theme) : null;
   const limit = v.data.responseLimit ?? null;
 
   await c.env.DB.batch([
     // 1. Create the form row first (current_version_id remains NULL)
     c.env.DB.prepare(
-      `INSERT INTO forms (id, owner_uid, title, description, schema_json, calculations_json, response_limit, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO forms (id, owner_uid, title, description, schema_json, calculations_json, theme_json, response_limit, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       id,
       u.uid,
@@ -106,15 +109,16 @@ app.post("/", async (c) => {
       v.data.description,
       schemaStr,
       calcStr,
+      themeStr,
       limit,
       now,
       now,
     ),
     // 2. Create the initial version row (references the form ID)
     c.env.DB.prepare(
-      `INSERT INTO form_versions (id, form_id, schema_json, calculations_json, created_at)
-       VALUES (?, ?, ?, ?, ?)`
-    ).bind(versionId, id, schemaStr, calcStr, now),
+      `INSERT INTO form_versions (id, form_id, schema_json, calculations_json, theme_json, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).bind(versionId, id, schemaStr, calcStr, themeStr, now),
     // 3. Link the form back to its initial version
     c.env.DB.prepare(
       `UPDATE forms SET current_version_id = ? WHERE id = ?`
@@ -143,7 +147,7 @@ app.post("/", async (c) => {
 app.get("/:id", async (c) => {
   const u = c.get("user");
   const row = await c.env.DB.prepare(
-    `SELECT id, title, description, schema_json, calculations_json,
+    `SELECT id, title, description, schema_json, calculations_json, theme_json,
             published, public_slug, response_limit, created_at, updated_at, owner_uid
        FROM forms WHERE id = ?`,
   )
@@ -154,6 +158,7 @@ app.get("/:id", async (c) => {
       description: string;
       schema_json: string;
       calculations_json: string;
+      theme_json: string | null;
       published: number;
       public_slug: string | null;
       response_limit: number | null;
@@ -172,6 +177,7 @@ app.get("/:id", async (c) => {
     description: row.description,
     fields: JSON.parse(row.schema_json || "[]"),
     calculations: JSON.parse(row.calculations_json || "[]"),
+    theme: safeParse(row.theme_json || "null", null),
     published: row.published,
     public_slug: row.public_slug,
     response_limit: row.response_limit,
@@ -185,9 +191,9 @@ app.get("/:id", async (c) => {
 app.put("/:id", async (c) => {
   const u = c.get("user");
   const id = c.req.param("id");
-  const existing = await c.env.DB.prepare(`SELECT owner_uid, schema_json, calculations_json, current_version_id, response_limit FROM forms WHERE id = ?`)
+  const existing = await c.env.DB.prepare(`SELECT owner_uid, schema_json, calculations_json, theme_json, current_version_id, response_limit FROM forms WHERE id = ?`)
     .bind(id)
-    .first<{ owner_uid: string; schema_json: string; calculations_json: string; current_version_id: string; response_limit: number | null }>();
+    .first<{ owner_uid: string; schema_json: string; calculations_json: string; theme_json: string | null; current_version_id: string; response_limit: number | null }>();
   if (!existing) return c.json({ error: "not_found" }, 404);
   if (existing.owner_uid !== u.uid) return c.json({ error: "forbidden" }, 403);
 
@@ -197,10 +203,11 @@ app.put("/:id", async (c) => {
 
   const schemaStr = JSON.stringify(v.data.fields);
   const calcStr = JSON.stringify(v.data.calculations);
+  const themeStr = v.data.theme ? JSON.stringify(v.data.theme) : null;
   const limit = v.data.responseLimit ?? null;
   const now = Date.now();
 
-  const isSchemaChanged = schemaStr !== existing.schema_json || calcStr !== existing.calculations_json;
+  const isSchemaChanged = schemaStr !== existing.schema_json || calcStr !== existing.calculations_json || themeStr !== existing.theme_json;
   let newVersionId = existing.current_version_id;
 
   const queries = [];
@@ -208,21 +215,22 @@ app.put("/:id", async (c) => {
     newVersionId = crypto.randomUUID();
     queries.push(
       c.env.DB.prepare(
-        `INSERT INTO form_versions (id, form_id, schema_json, calculations_json, created_at)
-         VALUES (?, ?, ?, ?, ?)`
-      ).bind(newVersionId, id, schemaStr, calcStr, now)
+        `INSERT INTO form_versions (id, form_id, schema_json, calculations_json, theme_json, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      ).bind(newVersionId, id, schemaStr, calcStr, themeStr, now)
     );
   }
 
   queries.push(
     c.env.DB.prepare(
-      `UPDATE forms SET title = ?, description = ?, schema_json = ?, calculations_json = ?, response_limit = ?, current_version_id = ?, updated_at = ?
+      `UPDATE forms SET title = ?, description = ?, schema_json = ?, calculations_json = ?, theme_json = ?, response_limit = ?, current_version_id = ?, updated_at = ?
          WHERE id = ?`
     ).bind(
       v.data.title,
       v.data.description,
       schemaStr,
       calcStr,
+      themeStr,
       limit,
       newVersionId,
       now,

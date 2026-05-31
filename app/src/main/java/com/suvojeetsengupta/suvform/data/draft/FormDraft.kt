@@ -2,6 +2,8 @@ package com.suvojeetsengupta.suvform.data.draft
 
 import com.suvojeetsengupta.suvform.data.remote.CalculationDto
 import com.suvojeetsengupta.suvform.data.remote.FieldDto
+import com.suvojeetsengupta.suvform.data.remote.FormDetailDto
+import com.suvojeetsengupta.suvform.data.remote.FormThemeDto
 import com.suvojeetsengupta.suvform.data.remote.GeneratedFormDto
 import java.util.UUID
 
@@ -12,6 +14,7 @@ data class FormDraft(
     val description: String = "",
     val fields: List<FieldEdit> = emptyList(),
     val calculations: List<CalculationEdit> = emptyList(),
+    val theme: ThemeEdit? = null,
     val published: Boolean = false,
     val publicSlug: String? = null,
     val shareUrl: String? = null,
@@ -30,6 +33,56 @@ data class FormDraft(
             fields = g.fields.map { FieldEdit.fromDto(it) },
             calculations = g.calculations.map { CalculationEdit.fromDto(it) },
             responseLimit = null,
+        )
+
+        fun fromDto(d: FormDetailDto) = FormDraft(
+            remoteId = d.id,
+            title = d.title,
+            description = d.description.orEmpty(),
+            fields = d.fields.map { FieldEdit.fromDto(it) },
+            calculations = d.calculations.map { CalculationEdit.fromDto(it) },
+            theme = d.theme?.let { ThemeEdit.fromDto(it) },
+            published = d.published == 1,
+            publicSlug = d.publicSlug,
+            responseLimit = d.responseLimit,
+        )
+    }
+}
+
+data class ThemeEdit(
+    val backgroundColor: String = "#F4F1EA",
+    val primaryColor: String = "#E94221",
+    val accentColor: String = "#E94221",
+    val textColor: String = "#0F0F10",
+    val mutedTextColor: String = "#6E6B62",
+    val cardBackgroundColor: String = "#FFFFFF",
+    val fontFamily: String = "sans", // "serif" | "sans" | "mono"
+    val borderRadius: String = "medium", // "none" | "small" | "medium" | "large" | "full"
+    val coverImageKeyword: String? = null,
+) {
+    fun toDto() = FormThemeDto(
+        backgroundColor = backgroundColor,
+        primaryColor = primaryColor,
+        accentColor = accentColor,
+        textColor = textColor,
+        mutedTextColor = mutedTextColor,
+        cardBackgroundColor = cardBackgroundColor,
+        fontFamily = fontFamily,
+        borderRadius = borderRadius,
+        coverImageKeyword = coverImageKeyword,
+    )
+
+    companion object {
+        fun fromDto(d: FormThemeDto) = ThemeEdit(
+            backgroundColor = d.backgroundColor,
+            primaryColor = d.primaryColor,
+            accentColor = d.accentColor,
+            textColor = d.textColor,
+            mutedTextColor = d.mutedTextColor,
+            cardBackgroundColor = d.cardBackgroundColor,
+            fontFamily = d.fontFamily,
+            borderRadius = d.borderRadius,
+            coverImageKeyword = d.coverImageKeyword,
         )
     }
 }

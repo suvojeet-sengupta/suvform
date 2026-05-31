@@ -116,6 +116,46 @@ export async function generateFormWithGemini(apiKey: string, prompt: string, loc
   return JSON.parse(cleaned);
 }
 
+export async function generateThemeWithGemini(apiKey: string, prompt: string) {
+  const systemInstructions = `You are a professional UI/UX designer. Based on the user's prompt, generate a cohesive and beautiful color theme and typography for a web form.
+  
+  Prompt example: "wedding invite" or "corporate blue" or "sunset vibes".
+  
+  Return a JSON object with:
+  - backgroundColor: string (6-digit hex)
+  - primaryColor: string (6-digit hex) - for main buttons and highlights
+  - accentColor: string (6-digit hex) - for secondary highlights
+  - textColor: string (6-digit hex) - for main text
+  - mutedTextColor: string (6-digit hex) - for labels and hints
+  - cardBackgroundColor: string (6-digit hex) - for the form container
+  - fontFamily: "serif" | "sans" | "mono"
+  - borderRadius: "none" | "small" | "medium" | "large" | "full"
+  - coverImageKeyword: string - a keyword to find a matching cover image (e.g. "wedding", "office", "nature")
+  
+  Ensure colors have good contrast and accessibility.`;
+
+  const payload = {
+    contents: [
+      {
+        parts: [
+          {
+            text: `${systemInstructions}\n\nUser prompt: ${prompt}`,
+          },
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.7, // Higher temperature for creativity in design
+      topP: 0.9,
+      responseMimeType: "application/json",
+    },
+  };
+
+  const text = await callGemini(apiKey, payload, 15000);
+  const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
+  return JSON.parse(cleaned);
+}
+
 export async function summarizeResponsesWithGemini(
   apiKey: string,
   formTitle: string,

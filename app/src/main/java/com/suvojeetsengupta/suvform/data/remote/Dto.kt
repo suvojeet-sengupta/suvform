@@ -48,6 +48,9 @@ data class CreateFormRequest(val title: String = "Untitled form", val descriptio
 data class GenerateFormRequest(val prompt: String, val locale: String = "en")
 
 @Serializable
+data class GenerateThemeRequest(val prompt: String)
+
+@Serializable
 data class FieldDto(
     val id: String,
     val type: String,
@@ -73,6 +76,19 @@ data class GeneratedFormDto(
     val calculations: List<CalculationDto> = emptyList(),
 )
 
+@Serializable
+data class FormThemeDto(
+    @SerialName("backgroundColor") val backgroundColor: String,
+    @SerialName("primaryColor") val primaryColor: String,
+    @SerialName("accentColor") val accentColor: String,
+    @SerialName("textColor") val textColor: String,
+    @SerialName("mutedTextColor") val mutedTextColor: String,
+    @SerialName("cardBackgroundColor") val cardBackgroundColor: String,
+    @SerialName("fontFamily") val fontFamily: String, // "serif" | "sans" | "mono"
+    @SerialName("borderRadius") val borderRadius: String, // "none" | "small" | "medium" | "large" | "full"
+    @SerialName("coverImageKeyword") val coverImageKeyword: String? = null,
+)
+
 // --- Save / load ---
 
 @Serializable
@@ -81,6 +97,7 @@ data class SaveFormRequest(
     val description: String = "",
     val fields: List<FieldDto> = emptyList(),
     val calculations: List<CalculationDto> = emptyList(),
+    val theme: FormThemeDto? = null,
     @SerialName("response_limit") val responseLimit: Int? = null,
 )
 
@@ -91,6 +108,7 @@ data class FormDetailDto(
     val description: String? = null,
     val fields: List<FieldDto> = emptyList(),
     val calculations: List<CalculationDto> = emptyList(),
+    val theme: FormThemeDto? = null,
     val published: Int = 0,
     @SerialName("public_slug") val publicSlug: String? = null,
     @SerialName("response_limit") val responseLimit: Int? = null,

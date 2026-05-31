@@ -11,17 +11,18 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 app.get("/v1/public/forms/:slug", async (c) => {
   const slug = c.req.param("slug");
   const row = await c.env.DB.prepare(
-    `SELECT title, description, schema_json, calculations_json, current_version_id, response_limit
+    `SELECT title, description, schema_json, calculations_json, theme_json, current_version_id, response_limit
        FROM forms WHERE public_slug = ? AND published = 1`,
   )
     .bind(slug)
-    .first<{ title: string; description: string; schema_json: string; calculations_json: string; current_version_id: string; response_limit: number | null }>();
+    .first<{ title: string; description: string; schema_json: string; calculations_json: string; theme_json: string | null; current_version_id: string; response_limit: number | null }>();
   if (!row) return c.json({ error: "not_found" }, 404);
   return c.json({
     title: row.title,
     description: row.description,
     fields: safeParse(row.schema_json, []),
     calculations: safeParse(row.calculations_json || "[]", []),
+    theme: safeParse(row.theme_json || "null", null),
     version_id: row.current_version_id,
     response_limit: row.response_limit,
   });
@@ -170,11 +171,11 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
 app.get("/f/:slug", async (c) => {
   const slug = c.req.param("slug");
   const row = await c.env.DB.prepare(
-    `SELECT title, description, schema_json, calculations_json, current_version_id, response_limit
+    `SELECT title, description, schema_json, calculations_json, theme_json, current_version_id, response_limit
        FROM forms WHERE public_slug = ? AND published = 1`,
   )
     .bind(slug)
-    .first<{ title: string; description: string; schema_json: string; calculations_json: string; current_version_id: string; response_limit: number | null }>();
+    .first<{ title: string; description: string; schema_json: string; calculations_json: string; theme_json: string | null; current_version_id: string; response_limit: number | null }>();
   if (!row) return c.text("Form not found", 404);
 
   let isClosed = false;
@@ -194,6 +195,7 @@ app.get("/f/:slug", async (c) => {
     description: row.description ?? "",
     fields: safeParse(row.schema_json, []),
     calculations: safeParse(row.calculations_json || "[]", []),
+    theme: safeParse(row.theme_json || "null", null),
     versionId: row.current_version_id,
     responseLimit: row.response_limit,
     currentResponseCount,

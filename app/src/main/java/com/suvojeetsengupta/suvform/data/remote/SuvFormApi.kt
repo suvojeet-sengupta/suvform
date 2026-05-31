@@ -46,6 +46,9 @@ interface SuvFormApi {
     @POST("v1/ai/generate-form")
     suspend fun generateForm(@Body body: GenerateFormRequest): GeneratedFormDto
 
+    @POST("v1/ai/generate-theme")
+    suspend fun generateTheme(@Body body: GenerateThemeRequest): FormThemeDto
+
     @POST("v1/forms/{id}/publish")
     suspend fun publishForm(@Path("id") id: String): PublishResponse
 

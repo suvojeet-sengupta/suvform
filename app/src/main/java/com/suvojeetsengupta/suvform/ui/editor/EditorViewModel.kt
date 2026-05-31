@@ -6,6 +6,8 @@ import com.suvojeetsengupta.suvform.data.draft.CalculationEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldType
 import com.suvojeetsengupta.suvform.data.draft.FormDraftStore
+import com.suvojeetsengupta.suvform.data.draft.ThemeEdit
+import com.suvojeetsengupta.suvform.data.remote.GenerateThemeRequest
 import com.suvojeetsengupta.suvform.data.remote.SaveFormRequest
 import com.suvojeetsengupta.suvform.data.repository.FormRepository
 import com.suvojeetsengupta.suvform.util.ErrorMapper
@@ -103,6 +105,25 @@ class EditorViewModel @Inject constructor(
     fun setCalculationExpression(index: Int, expr: String) = mutateCalculation(index) { it.copy(expression = expr) }
     fun setCalculationFormat(index: Int, format: String?) = mutateCalculation(index) { it.copy(format = format) }
 
+    // ---- Theme ----
+    private val _themeLoading = MutableStateFlow(false)
+    val themeLoading: StateFlow<Boolean> = _themeLoading.asStateFlow()
+
+    fun generateTheme(prompt: String) {
+        if (prompt.isBlank() || _themeLoading.value) return
+        _themeLoading.value = true
+        viewModelScope.launch {
+            runCatching { formRepository.generateTheme(GenerateThemeRequest(prompt)) }
+                .onSuccess { themeDto ->
+                    store.update { it.copy(theme = ThemeEdit.fromDto(themeDto)) }
+                }
+                .onFailure { e ->
+                    _save.value = SaveUiState(error = "Theme generation failed: ${ErrorMapper.message(e)}")
+                }
+            _themeLoading.value = false
+        }
+    }
+
     // ---- Options ----
     fun addOption(fieldIndex: Int) = mutateField(fieldIndex) {
         it.copy(options = it.options + "Option ${it.options.size + 1}")
@@ -129,6 +150,7 @@ class EditorViewModel @Inject constructor(
                 description = d.description,
                 fields = d.fields.map { it.toDto() },
                 calculations = d.calculations.map { it.toDto() },
+                theme = d.theme?.toDto(),
                 responseLimit = d.responseLimit,
             )
             runCatching {

@@ -25,7 +25,9 @@ import {
   Menu,
   X,
   Loader2,
-  ChevronRight
+  ChevronRight,
+  Palette,
+  Sparkles
 } from "lucide-react";
 
 interface Field {
@@ -44,12 +46,25 @@ interface Calculation {
   format?: string;
 }
 
+interface FormTheme {
+  backgroundColor: string;
+  primaryColor: string;
+  accentColor: string;
+  textColor: string;
+  mutedTextColor: string;
+  cardBackgroundColor: string;
+  fontFamily: "serif" | "sans" | "mono";
+  borderRadius: "none" | "small" | "medium" | "large" | "full";
+  coverImageKeyword?: string;
+}
+
 interface FormDetail {
   id: string;
   title: string;
   description: string;
   fields: Field[];
   calculations: Calculation[];
+  theme: FormTheme | null;
   published: number;
   public_slug: string | null;
   response_limit?: number | null;
@@ -72,8 +87,10 @@ export default function EditFormPage() {
   const [form, setForm] = useState<FormDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<"fields" | "calculations" | "settings">("fields");
+  const [activeTab, setActiveTab] = useState<"fields" | "calculations" | "theme" | "settings">("fields");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [themePrompt, setThemePrompt] = useState("");
+  const [generatingTheme, setGeneratingTheme] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -107,6 +124,7 @@ export default function EditFormPage() {
         description: form.description,
         fields: form.fields,
         calculations: form.calculations,
+        theme: form.theme,
         response_limit: form.response_limit ?? null
       });
     } catch (error) {
@@ -193,6 +211,20 @@ export default function EditFormPage() {
     });
   };
 
+  const generateAITheme = async () => {
+    if (!themePrompt.trim() || generatingTheme) return;
+    setGeneratingTheme(true);
+    try {
+      const data = await api.post("/v1/ai/generate-theme", { prompt: themePrompt });
+      if (form) setForm({ ...form, theme: data });
+    } catch (error) {
+      console.error("Failed to generate theme", error);
+      alert("Failed to generate theme.");
+    } finally {
+      setGeneratingTheme(false);
+    }
+  };
+
   if (loading || !form) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -276,7 +308,7 @@ export default function EditFormPage() {
           ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}>
           <div className="flex border-b border-gray-100">
-            {(["fields", "calculations", "settings"] as const).map((tab) => (
+            {(["fields", "calculations", "theme", "settings"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -324,6 +356,98 @@ export default function EditFormPage() {
                   <Plus className="h-4 w-4" />
                   Add Calculation
                 </button>
+              </div>
+            )}
+
+            {activeTab === "theme" && (
+              <div className="space-y-6">
+                <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                  <h4 className="flex items-center gap-2 text-xs font-bold text-blue-700 uppercase mb-3">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    AI Theme Designer
+                  </h4>
+                  <textarea
+                    value={themePrompt}
+                    onChange={(e) => setThemePrompt(e.target.value)}
+                    placeholder="e.g. 'wedding invite', 'corporate blue', 'dark mode with neon green accents'"
+                    className="w-full p-3 bg-white border border-blue-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 min-h-[80px]"
+                  />
+                  <button
+                    onClick={generateAITheme}
+                    disabled={generatingTheme || !themePrompt.trim()}
+                    className="w-full mt-3 p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    {generatingTheme ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    Generate Theme
+                  </button>
+                </div>
+
+                {form.theme && (
+                  <div className="space-y-4 pt-2">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Current Theme</h4>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Primary</label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="h-8 w-8 rounded-lg border border-gray-200" style={{ backgroundColor: form.theme.primaryColor }}></div>
+                          <span className="text-[10px] font-mono text-gray-500">{form.theme.primaryColor}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 uppercase">Background</label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="h-8 w-8 rounded-lg border border-gray-200" style={{ backgroundColor: form.theme.backgroundColor }}></div>
+                          <span className="text-[10px] font-mono text-gray-500">{form.theme.backgroundColor}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase">Font Style</label>
+                      <div className="flex bg-gray-100 p-1 rounded-lg">
+                        {(["sans", "serif", "mono"] as const).map((f) => (
+                          <button
+                            key={f}
+                            onClick={() => setForm({ ...form, theme: { ...form.theme!, fontFamily: f } })}
+                            className={`flex-1 py-1.5 text-xs rounded-md transition-all ${
+                              form.theme?.fontFamily === f ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+                            }`}
+                          >
+                            {f.charAt(0).toUpperCase() + f.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase">Corner Radius</label>
+                      <div className="flex bg-gray-100 p-1 rounded-lg">
+                        {(["none", "small", "medium", "large"] as const).map((r) => (
+                          <button
+                            key={r}
+                            onClick={() => setForm({ ...form, theme: { ...form.theme!, borderRadius: r } })}
+                            className={`flex-1 py-1.5 text-[10px] rounded-md transition-all ${
+                              form.theme?.borderRadius === r ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+                            }`}
+                          >
+                            {r.charAt(0).toUpperCase() + r.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-gray-500 uppercase">Cover Keyword</label>
+                      <input
+                        value={form.theme.coverImageKeyword || ""}
+                        onChange={(e) => setForm({ ...form, theme: { ...form.theme!, coverImageKeyword: e.target.value } })}
+                        placeholder="e.g. 'abstract', 'nature'"
+                        className="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -387,108 +511,155 @@ export default function EditFormPage() {
         )}
 
         {/* Form Preview Area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-12 bg-gray-50/50 flex justify-center">
+        <main 
+          className="flex-1 overflow-y-auto p-4 md:p-12 transition-colors flex justify-center"
+          style={{ backgroundColor: form.theme?.backgroundColor || "transparent" }}
+        >
           <div className="w-full max-w-3xl space-y-8 pb-20">
-            {activeTab === "fields" && (
-              <div className="space-y-4 md:space-y-6">
-                {form.fields.length === 0 ? (
-                  <div className="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-3xl">
-                    <p className="text-gray-400 font-medium px-4">Your form is empty. Use the + button to add fields!</p>
-                  </div>
-                ) : (
-                  form.fields.map((field) => (
-                    <div 
-                      key={field.id}
-                      className="bg-white border border-gray-200 rounded-2xl p-4 md:p-6 shadow-sm group relative hover:border-blue-200 transition-all"
-                    >
-                      <div className="flex items-start justify-between gap-4 mb-4">
-                        <div className="flex-1">
-                          <input 
-                            value={field.label}
-                            onChange={(e) => updateField(field.id, { label: e.target.value })}
-                            className="text-sm md:text-base font-bold text-gray-900 w-full border-none focus:ring-0 p-0"
-                            placeholder="Field Label"
-                          />
-                          <p className="text-[9px] font-mono text-gray-400 mt-1 uppercase">ID: {field.id}</p>
-                        </div>
-                        <button 
-                          onClick={() => removeField(field.id)}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+            <div 
+              className="bg-white shadow-sm overflow-hidden transition-all"
+              style={{ 
+                backgroundColor: form.theme?.cardBackgroundColor || "#ffffff",
+                borderRadius: form.theme?.borderRadius === 'large' ? '40px' : 
+                             form.theme?.borderRadius === 'small' ? '12px' : 
+                             form.theme?.borderRadius === 'none' ? '0px' : '24px',
+                fontFamily: form.theme?.fontFamily === 'serif' ? 'var(--font-serif)' : 
+                           form.theme?.fontFamily === 'mono' ? 'var(--font-mono)' : 'inherit'
+              }}
+            >
+              {form.theme?.coverImageKeyword && (
+                <div className="h-32 sm:h-48 w-full overflow-hidden bg-gray-100">
+                  <img 
+                    src={`https://source.unsplash.com/featured/1200x400/?${encodeURIComponent(form.theme.coverImageKeyword)}`}
+                    className="w-full h-full object-cover"
+                    alt="Theme cover"
+                  />
+                </div>
+              )}
+
+              <div className="p-6 md:p-10">
+                {activeTab === "fields" && (
+                  <div className="space-y-4 md:space-y-6">
+                    {form.fields.length === 0 ? (
+                      <div className="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-3xl">
+                        <p className="text-gray-400 font-medium px-4">Your form is empty. Use the + button to add fields!</p>
                       </div>
+                    ) : (
+                      form.fields.map((field) => (
+                        <div 
+                          key={field.id}
+                          className="bg-white border border-gray-200 rounded-2xl p-4 md:p-6 shadow-sm group relative hover:border-blue-200 transition-all"
+                          style={{ 
+                            borderRadius: form.theme?.borderRadius === 'large' ? '24px' : 
+                                         form.theme?.borderRadius === 'small' ? '8px' : 
+                                         form.theme?.borderRadius === 'none' ? '0px' : '16px',
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-4 mb-4">
+                            <div className="flex-1">
+                              <input 
+                                value={field.label}
+                                onChange={(e) => updateField(field.id, { label: e.target.value })}
+                                className="text-sm md:text-base font-bold text-gray-900 w-full border-none focus:ring-0 p-0 bg-transparent"
+                                placeholder="Field Label"
+                                style={{ color: form.theme?.textColor || "inherit" }}
+                              />
+                              <p className="text-[9px] font-mono text-gray-400 mt-1 uppercase">ID: {field.id}</p>
+                            </div>
+                            <button 
+                              onClick={() => removeField(field.id)}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
 
-                      <div className="space-y-4">
-                        <div className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 text-xs md:text-sm">
-                          {field.placeholder || `Enter ${field.label.toLowerCase()}...`}
-                        </div>
+                          <div className="space-y-4">
+                            <div 
+                              className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl text-gray-400 text-xs md:text-sm"
+                              style={{ 
+                                borderRadius: form.theme?.borderRadius === 'large' ? '16px' : 
+                                             form.theme?.borderRadius === 'small' ? '6px' : 
+                                             form.theme?.borderRadius === 'none' ? '0px' : '12px',
+                                borderColor: form.theme?.primaryColor ? `${form.theme.primaryColor}33` : undefined
+                              }}
+                            >
+                              {field.placeholder || `Enter ${field.label.toLowerCase()}...`}
+                            </div>
 
-                        {(field.type === "select" || field.type === "radio" || field.type === "checkbox") && (
-                          <div className="pt-4 border-t border-gray-50">
-                            <div className="space-y-2">
-                              {field.options.map((opt, idx) => (
-                                <div key={idx} className="flex items-center gap-2">
-                                  <div className="h-4 w-4 rounded border border-gray-300 bg-gray-50"></div>
-                                  <input 
-                                    value={opt}
-                                    onChange={(e) => {
-                                      const newOpts = [...field.options];
-                                      newOpts[idx] = e.target.value;
-                                      updateField(field.id, { options: newOpts });
-                                    }}
-                                    className="flex-1 text-xs md:text-sm text-gray-700 bg-transparent border-none focus:ring-0 p-0"
-                                  />
-                                  <button onClick={() => updateField(field.id, { options: field.options.filter((_, i) => i !== idx) })} className="p-1 text-gray-300 hover:text-red-400">
-                                    <Trash2 className="h-3 w-3" />
+                            {(field.type === "select" || field.type === "radio" || field.type === "checkbox") && (
+                              <div className="pt-4 border-t border-gray-50">
+                                <div className="space-y-2">
+                                  {field.options.map((opt, idx) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                      <div 
+                                        className="h-4 w-4 rounded border border-gray-300 bg-gray-50"
+                                        style={{ borderColor: form.theme?.primaryColor ? `${form.theme.primaryColor}66` : undefined }}
+                                      ></div>
+                                      <input 
+                                        value={opt}
+                                        onChange={(e) => {
+                                          const newOpts = [...field.options];
+                                          newOpts[idx] = e.target.value;
+                                          updateField(field.id, { options: newOpts });
+                                        }}
+                                        className="flex-1 text-xs md:text-sm text-gray-700 bg-transparent border-none focus:ring-0 p-0"
+                                        style={{ color: form.theme?.textColor || "inherit" }}
+                                      />
+                                      <button onClick={() => updateField(field.id, { options: field.options.filter((_, i) => i !== idx) })} className="p-1 text-gray-300 hover:text-red-400">
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button 
+                                    onClick={() => updateField(field.id, { options: [...field.options, `Option ${field.options.length + 1}`] })} 
+                                    className="flex items-center gap-2 text-xs font-bold mt-2"
+                                    style={{ color: form.theme?.primaryColor || "#2563eb" }}
+                                  >
+                                    <Plus className="h-3 w-3" /> Add Option
                                   </button>
                                 </div>
-                              ))}
-                              <button onClick={() => updateField(field.id, { options: [...field.options, `Option ${field.options.length + 1}`] })} className="flex items-center gap-2 text-xs font-bold text-blue-600 mt-2">
-                                <Plus className="h-3 w-3" /> Add Option
-                              </button>
-                            </div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {activeTab === "calculations" && (
-              <div className="space-y-4 md:space-y-6">
-                {form.calculations.length === 0 ? (
-                   <div className="text-center py-20 bg-white border-2 border-dashed border-gray-200 rounded-3xl">
-                   <p className="text-gray-400 font-medium px-4">No calculations yet. Add one to perform math!</p>
-                 </div>
-                ) : (
-                  form.calculations.map((calc) => (
-                    <div key={calc.id} className="bg-white border border-gray-200 rounded-2xl p-4 md:p-6 shadow-sm hover:border-purple-200 transition-all">
-                      <div className="flex items-start justify-between gap-4 mb-6">
-                        <div className="flex-1">
-                          <input 
-                            value={calc.label}
-                            onChange={(e) => updateCalculation(calc.id, { label: e.target.value })}
-                            className="text-sm md:text-base font-bold text-gray-900 w-full border-none focus:ring-0 p-0"
-                          />
                         </div>
-                        <button onClick={() => removeCalculation(calc.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-lg">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                      <input 
-                        value={calc.expression}
-                        onChange={(e) => updateCalculation(calc.id, { expression: e.target.value })}
-                        className="w-full p-3 bg-gray-900 text-green-400 font-mono text-xs md:text-sm rounded-xl"
-                        placeholder="{field_id} * 2"
-                      />
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {(activeTab === "calculations" || activeTab === "theme" || activeTab === "settings") && (
+                  <div className="bg-white border border-gray-200 rounded-3xl p-8 md:p-12 text-center space-y-4">
+                    <div className="inline-flex p-4 bg-blue-50 text-blue-600 rounded-2xl">
+                      {activeTab === "calculations" && <Hash className="h-8 w-8" />}
+                      {activeTab === "theme" && <Palette className="h-8 w-8" />}
+                      {activeTab === "settings" && <Info className="h-8 w-8" />}
                     </div>
-                  ))
+                    <h3 className="text-xl font-bold text-gray-900">
+                      {activeTab === "calculations" && "Calculations Mode"}
+                      {activeTab === "theme" && "Theme Designer"}
+                      {activeTab === "settings" && "Form Settings"}
+                    </h3>
+                    <p className="text-gray-500 max-w-sm mx-auto text-sm">
+                      {activeTab === "calculations" && "Add logic to your form to perform real-time math based on user input."}
+                      {activeTab === "theme" && "Use the AI Theme Designer in the sidebar to completely transform the look of your form."}
+                      {activeTab === "settings" && "Configure response limits, descriptions, and share your form with the world."}
+                    </p>
+                    
+                    {activeTab === "calculations" && form.calculations.length > 0 && (
+                      <div className="pt-8 space-y-4 text-left">
+                        {form.calculations.map((calc) => (
+                          <div key={calc.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                            <p className="text-xs font-bold text-gray-400 uppercase mb-1">{calc.label}</p>
+                            <code className="text-purple-600 font-mono text-sm">{calc.expression}</code>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
         </main>
       </div>

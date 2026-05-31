@@ -30,6 +30,7 @@ import com.suvojeetsengupta.suvform.R
 import com.suvojeetsengupta.suvform.data.draft.CalculationEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldEdit
 import com.suvojeetsengupta.suvform.data.draft.FieldType
+import com.suvojeetsengupta.suvform.data.draft.ThemeEdit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,10 +42,12 @@ fun EditorScreen(
 ) {
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     val saveState by viewModel.saveState.collectAsStateWithLifecycle()
+    val themeLoading by viewModel.themeLoading.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
+    var themePrompt by remember { mutableStateOf("") }
 
     LaunchedEffect(saveState.saved) {
         if (saveState.saved) {
@@ -164,6 +167,16 @@ fun EditorScreen(
             }
 
             item {
+                ThemeDesignerCard(
+                    theme = draft.theme,
+                    prompt = themePrompt,
+                    onPromptChange = { themePrompt = it },
+                    onGenerate = { viewModel.generateTheme(themePrompt) },
+                    loading = themeLoading
+                )
+            }
+
+            item {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(horizontal = 4.dp)
@@ -254,6 +267,113 @@ fun EditorScreen(
             }
 
             item { Spacer(Modifier.height(80.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun ThemeDesignerCard(
+    theme: ThemeEdit?,
+    prompt: String,
+    onPromptChange: (String) -> Unit,
+    onGenerate: () -> Unit,
+    loading: Boolean,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)),
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(painterResource(R.drawable.ic_auto_awesome), "AI", tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text("AI Theme Designer", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            }
+            
+            Text("Describe the look (e.g. 'sunset vibes', 'minimalist dark', 'wedding invite') and AI will design the theme.", style = MaterialTheme.typography.bodySmall)
+
+            OutlinedTextField(
+                value = prompt,
+                onValueChange = onPromptChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Enter a style...") },
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                )
+            )
+
+            Button(
+                onClick = onGenerate,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !loading && prompt.isNotBlank(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                if (loading) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                } else {
+                    Icon(painterResource(R.drawable.ic_auto_awesome), null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Generate Design")
+                }
+            }
+
+            if (theme != null) {
+                Spacer(Modifier.height(8.dp))
+                ThemePreview(theme)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemePreview(theme: ThemeEdit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(android.graphics.Color.parseColor(theme.backgroundColor)))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(android.graphics.Color.parseColor(theme.cardBackgroundColor))),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .background(Color(android.graphics.Color.parseColor(theme.primaryColor)))
+            )
+        }
+        
+        Spacer(Modifier.width(12.dp))
+        
+        Column {
+            Text(
+                "Theme Applied",
+                color = Color(android.graphics.Color.parseColor(theme.textColor)),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "${theme.fontFamily.replaceFirstChar { it.uppercase() }} • ${theme.borderRadius.replaceFirstChar { it.uppercase() }} corners",
+                color = Color(android.graphics.Color.parseColor(theme.mutedTextColor)),
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+        
+        if (theme.coverImageKeyword != null) {
+            Spacer(Modifier.weight(1f))
+            Badge(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)) {
+                Text("Cover: ${theme.coverImageKeyword}", modifier = Modifier.padding(4.dp), style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
 }

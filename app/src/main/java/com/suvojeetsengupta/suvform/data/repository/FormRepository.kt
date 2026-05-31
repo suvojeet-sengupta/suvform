@@ -4,6 +4,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.suvojeetsengupta.suvform.data.local.FormDao
 import com.suvojeetsengupta.suvform.data.local.FormSummaryEntity
 import com.suvojeetsengupta.suvform.data.remote.FormDetailDto
+import com.suvojeetsengupta.suvform.data.remote.FormThemeDto
+import com.suvojeetsengupta.suvform.data.remote.GeneratedFormDto
+import com.suvojeetsengupta.suvform.data.remote.GenerateFormRequest
+import com.suvojeetsengupta.suvform.data.remote.GenerateThemeRequest
 import com.suvojeetsengupta.suvform.data.remote.PublishResponse
 import com.suvojeetsengupta.suvform.data.remote.SaveFormRequest
 import com.suvojeetsengupta.suvform.data.remote.SuvFormApi
@@ -104,6 +108,10 @@ class FormRepository @Inject constructor(
         api.unpublishForm(id)
         invalidate(id)
     }
+
+    suspend fun generateForm(req: GenerateFormRequest): GeneratedFormDto = api.generateForm(req)
+
+    suspend fun generateTheme(req: GenerateThemeRequest): FormThemeDto = api.generateTheme(req)
 
     suspend fun cacheShareUrl(id: String, url: String) = formDao.updateShareUrl(id, url)
 

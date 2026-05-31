@@ -16,12 +16,14 @@ export function publicFormHtml(opts: {
   description: string;
   fields: unknown[];
   calculations: unknown[];
+  theme: any;
   versionId: string;
   responseLimit?: number | null;
   currentResponseCount?: number;
   isClosed?: boolean;
   submitUrl: string;
 }): string {
+  const theme = opts.theme || {};
   const dataPayload = JSON.stringify({
     title: opts.title,
     description: opts.description,
@@ -35,18 +37,39 @@ export function publicFormHtml(opts: {
     isClosed: !!opts.isClosed,
   });
 
+  const primaryColor = theme.primaryColor || '#E94221';
+  const accentColor = theme.accentColor || '#E94221';
+  const backgroundColor = theme.backgroundColor || '#F4F1EA';
+  const cardBackgroundColor = theme.cardBackgroundColor || '#FFFFFF';
+  const textColor = theme.textColor || '#0F0F10';
+  const mutedTextColor = theme.mutedTextColor || '#6E6B62';
+  
+  const fontSans = theme.fontFamily === 'mono' ? 'JetBrains Mono' : theme.fontFamily === 'serif' ? 'Fraunces' : 'Geist';
+  const fontSerif = theme.fontFamily === 'serif' ? 'Fraunces' : 'Fraunces';
+  
+  const borderRadius = theme.borderRadius === 'none' ? '0px' : 
+                     theme.borderRadius === 'small' ? '4px' :
+                     theme.borderRadius === 'large' ? '24px' :
+                     theme.borderRadius === 'full' ? '9999px' : '12px'; // medium/default
+
+  // Unsplash search for dynamic cover images based on keyword
+  const finalCoverImage = theme.coverImageKeyword 
+    ? `https://source.unsplash.com/featured/1200x400/?${encodeURIComponent(theme.coverImageKeyword)}`
+    : null;
+
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#F4F1EA" />
+<meta name="theme-color" content="${backgroundColor}" />
 <meta name="color-scheme" content="light" />
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <title>${escapeHtml(opts.title)} – SuvForm</title>
 <meta property="og:title" content="${escapeHtml(opts.title)}" />
 <meta property="og:description" content="${escapeHtml(opts.description || "Fill out this form")}" />
 <meta property="og:type" content="website" />
+${finalCoverImage ? `<meta property="og:image" content="${finalCoverImage}" />` : ''}
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..600&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -61,11 +84,14 @@ export function publicFormHtml(opts: {
           mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
         },
         colors: {
-          paper: '#F4F1EA', paper2: '#EBE7DD', ink: '#0F0F10',
-          muted: '#6E6B62', muted2: '#A8A49A', line: '#DDD6C7', line2: '#E8E2D2',
-          accent: '#E94221', accentsoft: '#FBE3DC', accentdeep: '#7A1C0A',
+          paper: '${backgroundColor}', paper2: '${backgroundColor}', ink: '${textColor}',
+          muted: '${mutedTextColor}', muted2: '${mutedTextColor}CC', line: '#DDD6C7', line2: '#E8E2D2',
+          accent: '${primaryColor}', accentsoft: '${primaryColor}22', accentdeep: '${primaryColor}',
           ok: '#1F7A4D', oksoft: '#DAEEDE',
         },
+        borderRadius: {
+          'form': '${borderRadius}',
+        }
       },
     },
   };
@@ -73,27 +99,41 @@ export function publicFormHtml(opts: {
 <style>
   :root { color-scheme: light; }
   html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
-  body { font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif; }
+  body { 
+    font-family: '${fontSans}', -apple-system, BlinkMacSystemFont, sans-serif; 
+    background-color: ${backgroundColor};
+    color: ${textColor};
+  }
+  .font-serif { font-family: '${fontSerif}', Georgia, serif; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   input[type="date"] { color-scheme: light; }
-  .field-input:focus { outline: none; border-color: #E94221; box-shadow: 0 0 0 3px rgba(233,66,33,.15); }
+  .field-input { border-radius: ${borderRadius}; }
+  .field-input:focus { outline: none; border-color: ${primaryColor}; box-shadow: 0 0 0 3px ${primaryColor}22; }
   .submit-btn:active { transform: translateY(1px); }
-  input[type="radio"], input[type="checkbox"] { accent-color: #E94221; }
+  .submit-btn { border-radius: ${borderRadius}; background-color: ${primaryColor}; }
+  input[type="radio"], input[type="checkbox"] { accent-color: ${primaryColor}; }
+  
+  #form-card {
+    background-color: ${cardBackgroundColor};
+    border-radius: ${borderRadius};
+    ${cardBackgroundColor !== backgroundColor ? 'box-shadow: 0 4px 20px rgba(0,0,0,0.05);' : ''}
+  }
 
   /* Print-friendly styles */
   @media print {
     @page { margin: 1.2cm; }
     body { background: white !important; color: #111 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    header, footer, #print-btn, #submit-btn, #submit-msg, #draft-status, #calc-section, .submit-btn { display: none !important; }
+    header, footer, #print-btn, #submit-btn, #submit-msg, #draft-status, #calc-section, .submit-btn, .cover-image { display: none !important; }
     main { max-width: 100% !important; padding: 0 !important; }
-    #form-content { box-shadow: none !important; }
+    #form-card { box-shadow: none !important; padding: 0 !important; background: white !important; }
     .field-input, textarea { border: 1px solid #ccc !important; background: white !important; }
     .field-input:focus { box-shadow: none !important; border-color: #999 !important; }
     label { color: #222 !important; }
     .text-muted, .text-muted2 { color: #555 !important; }
     #progress-container { display: none !important; }
-    /* Leave space for handwritten answers on printouts of unfilled forms */
     input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], textarea {
       min-height: 2.1em;
       padding-bottom: 1.6em;
@@ -105,7 +145,7 @@ export function publicFormHtml(opts: {
 <body class="min-h-screen bg-paper text-ink antialiased">
 
 <!-- Top bar -->
-<header class="border-b border-line">
+<header class="border-b border-line/30">
   <div class="max-w-2xl mx-auto px-5 sm:px-6 py-3.5 flex items-center justify-between">
     <div class="flex items-center gap-2.5">
       <div class="h-8 w-8 rounded-[9px] bg-accent flex items-center justify-center">
@@ -115,7 +155,7 @@ export function publicFormHtml(opts: {
     </div>
     <div class="flex items-center gap-2">
       <button id="print-btn" type="button" aria-label="Print or save as PDF"
-        class="flex items-center gap-1.5 px-2 py-1 rounded-lg text-muted hover:text-ink hover:bg-paper2 active:bg-line2 transition text-[11px] font-mono uppercase tracking-wider">
+        class="flex items-center gap-1.5 px-2 py-1 rounded-lg text-muted hover:text-ink hover:bg-black/5 active:bg-black/10 transition text-[11px] font-mono uppercase tracking-wider">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H3a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4" /></svg>
         <span class="hidden sm:inline">Print</span>
       </button>
@@ -125,49 +165,57 @@ export function publicFormHtml(opts: {
 </header>
 
 <main class="max-w-2xl mx-auto px-5 sm:px-6 py-8 sm:py-12">
-  <div id="form-content">
-    <!-- Form header -->
-    <div class="mb-8">
-      <h1 id="form-title" class="font-serif text-3xl sm:text-4xl tracking-tight leading-[1.05]"></h1>
-      <p id="form-description" class="mt-3 text-muted leading-relaxed"></p>
-    </div>
-
-    <!-- Required note -->
-    <p id="required-note" class="font-mono text-[11px] text-muted mb-5 hidden">
-      <span class="text-accent">*</span> indicates a required field
-    </p>
-
-    <!-- Progress (only shown for forms with several fields) -->
-    <div id="progress-container" class="hidden mb-6">
-      <div class="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.08em] text-muted mb-1.5">
-        <span>Progress</span>
-        <span id="progress-text">0 of 0</span>
+  <div id="form-card" class="overflow-hidden">
+    ${finalCoverImage ? `
+      <div class="cover-image w-full h-40 sm:h-56 overflow-hidden">
+        <img src="${finalCoverImage}" alt="Cover" class="w-full h-full object-cover" />
       </div>
-      <div class="h-1.5 w-full bg-line2 rounded-full overflow-hidden">
-        <div id="progress-bar" class="h-full bg-accent transition-all duration-200 rounded-full" style="width: 0%"></div>
+    ` : ''}
+
+    <div id="form-content" class="${finalCoverImage ? 'p-6 sm:p-10' : ''}">
+      <!-- Form header -->
+      <div class="mb-8">
+        <h1 id="form-title" class="font-serif text-3xl sm:text-4xl tracking-tight leading-[1.05]"></h1>
+        <p id="form-description" class="mt-3 text-muted leading-relaxed"></p>
       </div>
-    </div>
 
-    <!-- Fields -->
-    <form id="form-root" class="space-y-5"></form>
+      <!-- Required note -->
+      <p id="required-note" class="font-mono text-[11px] text-muted mb-5 hidden">
+        <span class="text-accent">*</span> indicates a required field
+      </p>
 
-    <!-- Calculations summary -->
-    <section id="calc-section" class="mt-8 hidden">
-      <div class="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted mb-3">Summary</div>
-      <div id="calc-list" class="rounded-2xl border border-line2 bg-white divide-y divide-line2"></div>
-    </section>
-
-    <!-- Submit -->
-    <div class="mt-10">
-      <button id="submit-btn" type="button"
-        class="submit-btn w-full bg-accent hover:opacity-90 text-white font-semibold py-3.5 rounded-2xl transition disabled:opacity-50 disabled:cursor-not-allowed">
-        Submit
-      </button>
-      <div class="mt-2 flex items-center justify-between text-[11px]">
-        <span id="draft-status" class="font-mono text-muted2 opacity-70 hidden">Draft saved locally</span>
-        <span class="font-mono text-muted2">Your response is private and only visible to the form's owner.</span>
+      <!-- Progress -->
+      <div id="progress-container" class="hidden mb-6">
+        <div class="flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.08em] text-muted mb-1.5">
+          <span>Progress</span>
+          <span id="progress-text">0 of 0</span>
+        </div>
+        <div class="h-1.5 w-full bg-black/5 rounded-full overflow-hidden">
+          <div id="progress-bar" class="h-full bg-accent transition-all duration-200 rounded-full" style="width: 0%"></div>
+        </div>
       </div>
-      <p id="submit-msg" class="mt-3 text-center text-sm hidden"></p>
+
+      <!-- Fields -->
+      <form id="form-root" class="space-y-5"></form>
+
+      <!-- Calculations summary -->
+      <section id="calc-section" class="mt-8 hidden">
+        <div class="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted mb-3">Summary</div>
+        <div id="calc-list" class="rounded-form border border-line2 bg-white divide-y divide-line2"></div>
+      </section>
+
+      <!-- Submit -->
+      <div class="mt-10">
+        <button id="submit-btn" type="button"
+          class="submit-btn w-full hover:opacity-90 text-white font-semibold py-3.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+          Submit
+        </button>
+        <div class="mt-2 flex items-center justify-between text-[11px]">
+          <span id="draft-status" class="font-mono text-muted2 opacity-70 hidden">Draft saved locally</span>
+          <span class="font-mono text-muted2">Your response is private and only visible to the form's owner.</span>
+        </div>
+        <p id="submit-msg" class="mt-3 text-center text-sm hidden"></p>
+      </div>
     </div>
   </div>
 
