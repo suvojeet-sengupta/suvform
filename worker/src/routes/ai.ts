@@ -89,7 +89,9 @@ app.post("/generate-theme", async (c) => {
       try {
         theme = await generateThemeWithGroq(finalGroqKey, prompt);
       } catch (groqErr) {
-        console.log("[GROQ THEME FAILED] Falling back to Gemini:", (groqErr as Error).message);
+        const msg = (groqErr as Error).message;
+        console.log("[GROQ THEME FAILED] Falling back to Gemini:", msg);
+        if (msg.includes("429")) return c.json({ error: "rate_limited" }, 429);
         if (!finalGeminiKey) throw groqErr;
         theme = await generateThemeWithGemini(finalGeminiKey, prompt);
       }
@@ -101,7 +103,9 @@ app.post("/generate-theme", async (c) => {
 
     return c.json(theme);
   } catch (e) {
-    console.error(`[ThemeAIError] ${c.get("reqId")}:`, (e as Error).message);
+    const msg = (e as Error).message;
+    console.error(`[ThemeAIError] ${c.get("reqId")}:`, msg);
+    if (msg.includes("429")) return c.json({ error: "rate_limited" }, 429);
     return c.json({ error: "theme_generation_failed" }, 502);
   }
 });
