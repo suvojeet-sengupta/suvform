@@ -4,7 +4,7 @@ import { generateFormWithGemini } from "../gemini";
 import { generateFormWithGroq } from "../groq";   // ← Naya import
 import { CONFIG } from "../config";
 import { getLocalDay } from "../utils/time";
-import { isOwner } from "../db";                   // ← Owner gets unlimited AI
+import { isAdmin } from "../db";                   // ← Admin gets unlimited AI
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -18,14 +18,14 @@ app.post("/generate-form", async (c) => {
   if (prompt.length < CONFIG.PROMPT_MIN_LEN) return c.json({ error: "prompt_too_short" }, 400);
   if (prompt.length > CONFIG.PROMPT_MAX_LEN) return c.json({ error: "prompt_too_long" }, 400);
 
-  // === QUOTA: owner is unlimited, everyone else gets AI_DAILY_QUOTA/day ===
+  // === QUOTA: admin is unlimited, everyone else gets AI_DAILY_QUOTA/day ===
   const day = getLocalDay(tz);
   const quotaKey = `quota:${u.uid}:${day}`;
   const used = parseInt((await c.env.RATE_LIMIT.get(quotaKey)) ?? "0", 10);
 
-  const userIsOwner = await isOwner(c.env.DB, u.uid);
+  const userIsAdmin = await isAdmin(c.env.DB, u.uid);
 
-  if (!userIsOwner && used >= CONFIG.AI_DAILY_QUOTA) {
+  if (!userIsAdmin && used >= CONFIG.AI_DAILY_QUOTA) {
     return c.json({ error: "quota_exceeded", limit: CONFIG.AI_DAILY_QUOTA }, 429);
   }
 
@@ -56,12 +56,12 @@ app.post("/generate-form", async (c) => {
       return c.json({ error: "no_ai_key" }, 400);
     }
 
-    // Increment quota only for non-owners (owner is unlimited).
-    if (!userIsOwner) {
+    // Increment quota only for non-admins (admin is unlimited).
+    if (!userIsAdmin) {
       await c.env.RATE_LIMIT.put(quotaKey, String(used + 1), { expirationTtl: CONFIG.AI_QUOTA_TTL_SECONDS });
     }
 
-    return c.json({ ...form, provider: finalGroqKey ? "groq" : "gemini", is_owner: userIsOwner });
+    return c.json({ ...form, provider: finalGroqKey ? "groq" : "gemini", is_admin: userIsAdmin });
   } catch (e) {
     console.error(`[AIError] ${c.get("reqId")}:`, (e as Error).message);
     return c.json({ error: "generation_failed" }, 502);
