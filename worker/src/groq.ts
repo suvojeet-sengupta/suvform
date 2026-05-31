@@ -103,3 +103,37 @@ Expression rules: Use field IDs, numbers, and + - * / % (). Example: "(field_1 +
   const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
   return JSON.parse(cleaned);
 }
+
+export async function generateThemeWithGroq(apiKey: string, prompt: string) {
+  const systemInstructions = `You are a professional UI/UX designer. Based on the user's prompt, generate a cohesive and beautiful color theme and typography for a web form.
+  
+  Prompt example: "wedding invite" or "corporate blue" or "sunset vibes".
+  
+  Return a JSON object with:
+  - backgroundColor: string (6-digit hex)
+  - primaryColor: string (6-digit hex) - for main buttons and highlights
+  - accentColor: string (6-digit hex) - for secondary highlights
+  - textColor: string (6-digit hex) - for main text
+  - mutedTextColor: string (6-digit hex) - for labels and hints
+  - cardBackgroundColor: string (6-digit hex) - for the form container
+  - fontFamily: "serif" | "sans" | "mono"
+  - borderRadius: "none" | "small" | "medium" | "large" | "full"
+  
+  Ensure colors have good contrast and accessibility.`;
+
+  const messages = [
+    { role: "system", content: systemInstructions },
+    { role: "user", content: `User prompt: ${prompt}` },
+  ];
+
+  let text: string;
+  try {
+    text = await callGroq(apiKey, messages, PRIMARY_GROQ_MODEL, 15000);
+  } catch (e) {
+    console.log("[GROQ THEME PRIMARY FAILED] Falling back to instant model:", (e as Error).message);
+    text = await callGroq(apiKey, messages, FALLBACK_GROQ_MODEL, 10000);
+  }
+
+  const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
+  return JSON.parse(cleaned);
+}

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { Bindings, Variables } from "../types";
 import { generateFormWithGemini, generateThemeWithGemini } from "../gemini";
-import { generateFormWithGroq } from "../groq";   // ← Naya import
+import { generateFormWithGroq, generateThemeWithGroq } from "../groq";   // ← Naya import
 import { CONFIG } from "../config";
 import { getLocalDay } from "../utils/time";
 import { isAdmin } from "../db";                   // ← Admin gets unlimited AI
@@ -76,11 +76,29 @@ app.post("/generate-theme", async (c) => {
 
   if (prompt.length < 3) return c.json({ error: "prompt_too_short" }, 400);
 
-  const geminiKey = (c.req.header("X-Gemini-Key") ?? "").trim() || c.env.GEMINI_API_KEY;
-  if (!geminiKey) return c.json({ error: "no_ai_key" }, 400);
+  const groqKey = (c.req.header("X-Groq-Key") ?? "").trim();
+  const geminiKey = (c.req.header("X-Gemini-Key") ?? "").trim();
+
+  const finalGroqKey = groqKey || c.env.GROQ_API_KEY;
+  const finalGeminiKey = geminiKey || c.env.GEMINI_API_KEY;
 
   try {
-    const theme = await generateThemeWithGemini(geminiKey, prompt);
+    let theme: any;
+
+    if (finalGroqKey) {
+      try {
+        theme = await generateThemeWithGroq(finalGroqKey, prompt);
+      } catch (groqErr) {
+        console.log("[GROQ THEME FAILED] Falling back to Gemini:", (groqErr as Error).message);
+        if (!finalGeminiKey) throw groqErr;
+        theme = await generateThemeWithGemini(finalGeminiKey, prompt);
+      }
+    } else if (finalGeminiKey) {
+      theme = await generateThemeWithGemini(finalGeminiKey, prompt);
+    } else {
+      return c.json({ error: "no_ai_key" }, 400);
+    }
+
     return c.json(theme);
   } catch (e) {
     console.error(`[ThemeAIError] ${c.get("reqId")}:`, (e as Error).message);
