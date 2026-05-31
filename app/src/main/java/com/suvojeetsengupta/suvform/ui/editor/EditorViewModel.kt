@@ -213,11 +213,16 @@ class EditorViewModel @Inject constructor(
 
     private fun String.toId(prefix: String): String {
         val slug = this.lowercase()
-            .replace(Regex("[^a-z0-9]"), "_")
-            .replace(Regex("_+"), "_")
+            .replace(NON_ALNUM, "_")
+            .replace(MULTI_UNDERSCORE, "_")
             .trim('_')
         return if (slug.isEmpty()) "${prefix}_${java.util.UUID.randomUUID().toString().take(8)}"
         else "${prefix}_$slug"
+    }
+
+    private companion object {
+        private val NON_ALNUM = Regex("[^a-z0-9]")
+        private val MULTI_UNDERSCORE = Regex("_+")
     }
 }
 

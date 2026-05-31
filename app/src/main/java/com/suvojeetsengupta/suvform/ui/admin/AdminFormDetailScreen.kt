@@ -68,12 +68,13 @@ fun AdminFormDetailScreen(
     var showConfirm by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
 
-    if (showDelete && form != null) {
+    val formToDelete = form
+    if (showDelete && formToDelete != null) {
         TwoStepDeleteDialog(
             title = "Delete this form?",
-            warning = "This will permanently delete \"${form!!.title}\" and all ${form!!.totalResponses} of its responses, " +
-                "owned by ${form!!.ownerName ?: form!!.ownerEmail ?: form!!.ownerUid}.",
-            confirmPhrase = form!!.title.ifBlank { "DELETE" },
+            warning = "This will permanently delete \"${formToDelete.title}\" and all ${formToDelete.totalResponses} of its responses, " +
+                "owned by ${formToDelete.ownerName ?: formToDelete.ownerEmail ?: formToDelete.ownerUid}.",
+            confirmPhrase = formToDelete.title.ifBlank { "DELETE" },
             confirmActionLabel = "Delete form",
             inProgress = deleting,
             onConfirm = { viewModel.deleteForm() },

@@ -48,7 +48,10 @@ class ExpressionEvaluator(private val variables: Map<String, Double>) {
                     c.isDigit() || c == '.' -> {
                         val start = i
                         while (i < s.length && (s[i].isDigit() || s[i] == '.')) i++
-                        out.add(Token.Num(s.substring(start, i).toDouble()))
+                        val literal = s.substring(start, i)
+                        val value = literal.toDoubleOrNull()
+                            ?: throw IllegalArgumentException("Invalid number '$literal' at $start")
+                        out.add(Token.Num(value))
                     }
                     c.isLetter() || c == '_' -> {
                         val start = i
