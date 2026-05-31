@@ -76,9 +76,18 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
   const rawAnswers = (body && typeof body === "object" && body.answers && typeof body.answers === "object")
     ? (body.answers as Record<string, unknown>)
     : {};
-  const calculated = (body && typeof body === "object" && body.calculated && typeof body.calculated === "object")
-    ? (body.calculated as Record<string, number>)
+  // Sanitize client-sent calculated values: only finite numbers, bounded count,
+  // sane keys. Defense-in-depth against tampered/garbage payloads. (Full
+  // server-side recompute from calculations_json is a planned follow-up.)
+  const calcRaw = (body && typeof body === "object" && body.calculated && typeof body.calculated === "object")
+    ? (body.calculated as Record<string, unknown>)
     : {};
+  const calculated: Record<string, number> = {};
+  for (const [k, v] of Object.entries(calcRaw)) {
+    if (Object.keys(calculated).length >= CONFIG.MAX_CALCULATIONS) break;
+    const n = typeof v === "number" ? v : Number(v);
+    if (typeof k === "string" && k.length <= 64 && Number.isFinite(n)) calculated[k] = n;
+  }
 
   const fields = safeParse(validationSchemaJson, []) as any[];
   const MAX_TEXT_LEN = CONFIG.MAX_TEXT_LEN;
@@ -139,12 +148,22 @@ app.post("/v1/public/forms/:slug/responses", async (c) => {
 
   const id = crypto.randomUUID();
   const now = Date.now();
-  await c.env.DB.prepare(
+  // Atomic insert guarded by the response limit. The earlier COUNT check is a
+  // fast path; this conditional INSERT closes the TOCTOU race where concurrent
+  // submissions could both pass that check and exceed the cap.
+  const limit = form.response_limit && form.response_limit > 0 ? form.response_limit : null;
+  const insertRes = await c.env.DB.prepare(
     `INSERT INTO responses (id, form_id, version_id, answers_json, calculated_json, submitter_ip_hash, submitted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+     SELECT ?, ?, ?, ?, ?, ?, ?
+     WHERE ? IS NULL OR (SELECT COUNT(*) FROM responses WHERE form_id = ?) < ?`,
   )
-    .bind(id, form.id, targetVersionId, JSON.stringify(answers), JSON.stringify(calculated), ipHash, now)
+    .bind(id, form.id, targetVersionId, JSON.stringify(answers), JSON.stringify(calculated), ipHash, now,
+          limit, form.id, limit)
     .run();
+
+  if (!insertRes.meta || insertRes.meta.changes === 0) {
+    return c.json({ error: "response_limit_reached", limit: form.response_limit }, 403);
+  }
 
   await c.env.RATE_LIMIT.put(rlKey, String(used + 1), { expirationTtl: CONFIG.RATE_LIMIT_TTL_SECONDS });
   return c.json({ ok: true, id });
