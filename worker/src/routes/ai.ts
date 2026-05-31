@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { Bindings, Variables } from "../types";
-import { generateFormWithGemini } from "../gemini";
+import { generateFormWithGemini, generateThemeWithGemini } from "../gemini";
 import { generateFormWithGroq } from "../groq";   // ← Naya import
 import { CONFIG } from "../config";
 import { getLocalDay } from "../utils/time";
@@ -71,7 +71,7 @@ app.post("/generate-form", async (c) => {
 // POST /v1/ai/generate-theme
 app.post("/generate-theme", async (c) => {
   const u = c.get("user");
-  const body = await c.req.json<{ prompt?: string }>().catch(() => ({}));
+  const body = await c.req.json<{ prompt?: string }>().catch(() => ({ prompt: "" }));
   const prompt = (body.prompt ?? "").trim();
 
   if (prompt.length < 3) return c.json({ error: "prompt_too_short" }, 400);
