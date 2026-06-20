@@ -1,0 +1,22 @@
+services:
+  suvform-backend:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: suvform-backend
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      - PORT=8787
+      - DATABASE_PATH=/app/data/suvform.db
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - NODE_ENV=production
+    volumes:
+      - suvform-db-data:/app/data
+
+volumes:
+  suvform-db-data:
+    driver: local

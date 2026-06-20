@@ -1,0 +1,8 @@
+node_modules
+.wrangler
+.env
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+dist
